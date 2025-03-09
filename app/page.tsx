@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import UploadZone from '@/components/UploadZone';
 import useContextStore from '@/hooks/useContextStore';
-
+import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
@@ -41,10 +41,12 @@ export default function Home() {
           </div>
         </div>
         <div className="relative">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80"
             alt="Digital Signature Platform"
-            className="rounded-lg shadow-xl"
+            className="rounded-lg shadow-xl w-full h-full"
+            width={100}
+            height={100}
           />
         </div>
       </div>

@@ -31,7 +31,7 @@ export function Footer() {
   );
 }
 
-function FeatureCard({ icon, title, description }: any) {
+function FeatureCard({ icon, title, description }:{icon: React.ReactElement, title:string, description:string}) {
   return (
     <div className="p-6 bg-white rounded-lg border border-gray-100 hover:shadow-lg transition-shadow">
       <div className="mb-4">{icon}</div>

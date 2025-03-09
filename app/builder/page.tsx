@@ -29,7 +29,7 @@ function DropFile() {
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesStatus = !selectedStatus || doc.status === selectedStatus;
-    const matchesSearch = (doc as any).name
+    const matchesSearch = doc.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;

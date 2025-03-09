@@ -97,7 +97,7 @@ Date: _____________________`;
   
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 mb-3">
-            Don't have a document ready?
+            Don&apos;t have a document ready?
           </p>
           <button
             onClick={handleSampleContract}

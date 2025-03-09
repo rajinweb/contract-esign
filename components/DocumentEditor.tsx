@@ -1,7 +1,7 @@
 'use client';
-import React, { useEffect, useReducer, useState, useRef, MouseEvent, Fragment, SetStateAction, ChangeEvent } from 'react';
+import React, { useEffect, useState, useRef, MouseEvent, Fragment, SetStateAction, ChangeEvent, useCallback } from 'react';
 import UploadZone from "@/components/UploadZone";
-import { CircleX, LoaderPinwheel, X } from 'lucide-react';
+import { CircleX, LoaderPinwheel } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import Fields from '@/components/Fields';
 import useContextStore from '@/hooks/useContextStore';
@@ -23,18 +23,8 @@ import ImageField from './ImageField';
 import { DraggableData } from 'react-draggable';
 import MultilineTextField from './MultilineTextField';
 import DateField from './DateField';
-import { off } from 'process';
 
 
-type State = {
-  component: string;
-  value: string;
-};
-
-const initialState: State = { 
-  component: '', 
-  value:'' 
-};
 
 const DocumentEditor: React.FC = () => {
   const { selectedFile, setSelectedFile } = useContextStore();
@@ -79,7 +69,7 @@ const DocumentEditor: React.FC = () => {
   };
 
    // Check which page is visible and update the currentPage
-  const checkVisiblePage = () => {
+  const checkVisiblePage = useCallback(() => {
       const container = documentRef.current?.parentElement;
       if (container) {
         const containerTop = container.scrollTop;
@@ -99,7 +89,7 @@ const DocumentEditor: React.FC = () => {
         }
         });
       }
-    };
+    },[pages]);
 
   const mouseDownOnField = (
     component: string,
@@ -127,7 +117,7 @@ const DocumentEditor: React.FC = () => {
     }
   };
 
-  const mouseLeaveOnDropArea = (event: MouseEvent) => {
+  const mouseLeaveOnDropArea = () => {
     if (draggingComponent && draggingEle.current) {
       draggingEle.current.style.display = 'none';
     }
@@ -154,7 +144,7 @@ const updateField=(data: React.SetStateAction<string | null>)=> {
     )
   setDroppedComponents(updates);   
 }
-const dropFields = (field:any) => {
+const dropFields = (field:DroppedComponent) => {
     const fieldtName=field.component;
     if(fieldtName=='Signature'){
       setDialog(true);
@@ -162,11 +152,7 @@ const dropFields = (field:any) => {
     if(fieldtName=='Image'){
       imageRef.current?.click();   
     }
-    if(fieldtName=='Text' || fieldtName=='Date'){
-      console.log('InputFields')
-    }
   }
-
   // Handle placing the component in the panel
   const clickOnDropArea = (event: MouseEvent) => {
     const targetElem=event.target as HTMLElement;
@@ -234,7 +220,7 @@ const dropFields = (field:any) => {
         container.parentElement.removeEventListener('scroll', checkVisiblePage);
       }
     };
-  }, [pages]);
+  }, [pages, checkVisiblePage]);
 
   const handleDragStop = (item: DroppedComponent, data: DraggableData) => {
     const updatedComponents = droppedComponents.map((component) =>
@@ -244,7 +230,7 @@ const dropFields = (field:any) => {
     
   };
 
-  const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string; }; }, position: any) => {
+  const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string; }; }, position: {x:number, y:number}) => {
     const updatedComponents = droppedComponents.map((component) =>
       component.id === item.id
         ? {
@@ -300,8 +286,8 @@ const dropFields = (field:any) => {
 
         // Calculate adjusted positions
         let adjustedX = x * scaleX;
-        let adjustedY = pageHeight - (y * scaleY + height * scaleY) - canvasRect.y;    
-        //  let adjustedY = pageHeight - ((y + canvasRect.y) * scaleY + height * scaleY);
+        let adjustedY = pageHeight - (y + height); 
+        
 
         // Boundary checks
         if (adjustedX < 0) adjustedX = 0;

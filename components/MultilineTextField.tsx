@@ -8,9 +8,9 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref
 
   function calcHeight(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const value = e.target.value;
-    let numberOfLineBreaks = (value.match(/\n/g) || []).length;
+    const numberOfLineBreaks = (value.match(/\n/g) || []).length;
     // min-height + lines x line-height + padding + border
-    let newHeight = 20 + numberOfLineBreaks * 20 + 12 + 2;
+    const newHeight = 20 + numberOfLineBreaks * 20 + 12 + 2;
     return newHeight;
   }
   
@@ -45,5 +45,7 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref
     />
   );
 });
+
+MultilineTextField.displayName = 'MultilineTextField';
 
 export default MultilineTextField;
