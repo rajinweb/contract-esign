@@ -3,8 +3,15 @@ import { Dialog } from "./Dialog";
 import SignatureCanvas from "react-signature-canvas";
 import { useRef } from "react";
 
-export function AddSigDialog({ onConfirm, onClose, autoDate, setAutoDate }) {
-  const sigRef = useRef(null);
+interface AddSigDialogProps {
+  onConfirm: (sigURL: string) => void;
+  onClose: () => void;
+  autoDate: boolean;
+  setAutoDate: (value: boolean) => void;
+}
+
+export function AddSigDialog({ onConfirm, onClose, autoDate, setAutoDate }: AddSigDialogProps) {
+  const sigRef = useRef<SignatureCanvas | null>(null);
 
   const handleConfirm = () => {
     if (sigRef.current) {

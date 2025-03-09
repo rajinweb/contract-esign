@@ -1,11 +1,10 @@
+'use client'
 import { useState, useEffect, forwardRef } from "react";
-import { MultiLineTextFieldProps } from '@/types/types';
+import { InputProps } from '@/types/types';
 
-const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<MultiLineTextFieldProps, "ref">>((props, ref) => {
-  const { initialText = "", heightUpdates } = props;
-  const [text, setText] = useState<string>(initialText);
-  const [fontSize, setFontSize] = useState<string>('1rem'); // Initial font size
-  
+const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref">>((props, ref) => {
+  const { textInput } = props;
+  const [text, setText] = useState<string>('');
 
   function calcHeight(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const value = e.target.value;
@@ -19,39 +18,29 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<MultiLineTextFie
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setText(value);
+    textInput(value)
   };
 
   useEffect(() => {
-    if (initialText) {
-      setText(initialText);
-    }
-
     // Focus and select text when the component mounts
     if (ref && 'current' in ref && ref.current) {
       ref.current.focus();
-      ref.current.select();
-  
     }
-  }, [initialText, ref]);
+  }, [ref]);
   
 
   return (
     <textarea
       ref={ref}
-      style={{
-        lineHeight: fontSize,
-        fontSize,
-        overflow: "hidden"
-      }}
       onChange={handleInput}
       onKeyUp={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.currentTarget.parentElement) {
           const newHeight = calcHeight({target: e.currentTarget} as React.ChangeEvent<HTMLTextAreaElement>);
-          e.currentTarget.parentElement.style.height = `${newHeight}px`;
+          e.currentTarget.parentElement.style.height = newHeight < 300 ? `${newHeight}px` : '300px';
         }
       }}
-      placeholder="Enter text here" 
-      className="resize-none p-2 h-full w-full cursor-move"
+      placeholder="Type here..."
+      className="bg-transparent overflow-auto resize-none p-2 h-full w-full cursor-move text-[12px]"
       value={text}
     />
   );

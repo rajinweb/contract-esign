@@ -2,12 +2,12 @@
 import React from "react";
 
 interface ButtonProps {
-  title: string; 
-  onClick: () => void; 
-  id?: string; 
+  title: string;
+  onClick: () => void;
   disabled?: boolean;
+  inverted?: boolean;
+  id?: string;
 }
-
 export function Button({
   title,
   onClick,

@@ -5,7 +5,7 @@ import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import DocumentEditor from '@/components/DocumentEditor';
 import Sidebar from '@/components/Sidebar';
-
+import {  Doc } from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 
 function DropFile() {
@@ -17,14 +17,13 @@ function DropFile() {
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
-    const newDoc: Document = {
-      //@ts-ignore
+    const newDoc = {
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       status: 'to_sign',
       createdAt: new Date(),
       signers: [],
-    };
+    } as Doc;
     setDocuments([newDoc, ...documents]);
   };
 
@@ -38,12 +37,8 @@ function DropFile() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {selectedFile ? (
-        <div className="bg-white rounded-lg shadow">
-          <DocumentEditor file={selectedFile} />
-        </div>
-      ) : (
-        <div className="flex gap-8">
+      {selectedFile ? ( <DocumentEditor/>) : (
+        <div className="flex space-x-8">
           <Sidebar
             selectedStatus={selectedStatus}
             onStatusSelect={setSelectedStatus}

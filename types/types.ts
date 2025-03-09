@@ -1,48 +1,51 @@
-export interface Document {
+'use client';
+import { ReactNode } from "react";
+
+export interface Doc {
     id: string;
     name: string;
     createdAt: Date;
     status: 'shared' | 'to_sign' | 'signed' | 'cancelled' | 'expired';
   }
-export interface PageDetails {
-    originalHeight: number;
-    originalWidth: number;
-  }
-export interface Position {
-    x: number;
-    y: number;
-    offsetX?: number;
-    offsetY?: number;
-  }
+
+export interface ContextValue {
+  selectedFile: File | null;
+  setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
+  documents: Doc[];
+  setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
+}
+
+export interface ContextProviderProps {
+  children: ReactNode;
+}
+
 export interface ImageFieldProps {
     image: string;  
   }
-export interface MultiLineTextFieldProps {
-    initialText?: string;
-    heightUpdates:(text:any)=> void;
+export interface InputProps {
+    textInput:(data:string)=>void;
+    defaultDate?:null;
   }
-export interface TextFieldProps {
-    initialText?: string;
-    type?:string;
-  }
-  export interface DragFields {
-    onSet: (e:React.MouseEvent) => void;
-    onCancel: () => void;
-    onEnd: (position: { x: number; y: number }) => void;
-    defaultPosition?: { x: number; y: number };
-    children: React.ReactNode;
-    heights?:number
-  }
- // Define field types
- export interface Field {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  label: string;
-  value?: string;
-}
+
   
 export interface FieldsProps {
-  handleSave: () => void;
-  handleClick: (label: string) => void;
+  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>) => void;
+  activeComponent: string | null;
+  handleSave?:()=> void;
+  selectedFile: File | null;
+  handleReset?:()=> void;
+}
+
+// Define types for the dropped components
+export interface DroppingField {
+  component: string;
+  x: number;
+  y: number;
+}
+export interface  DroppedComponent extends DroppingField {
+  value?: any;
+  id: number;
+  width: number;
+  height: number;
+  data?: any;
 }

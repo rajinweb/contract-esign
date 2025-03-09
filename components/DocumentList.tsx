@@ -7,11 +7,11 @@ import {
   XCircle,
   AlertCircle,
 } from 'lucide-react';
-import { Document } from '@/types/types';
+import { Doc} from '@/types/types';
 
 interface DocumentListProps {
-  documents: Document[];
-  onDocumentSelect: (doc: Document) => void;
+  documents: Doc[];
+  onDocumentSelect: (doc: Doc) => void;
 }
 
 const statusIcons = {

@@ -1,24 +1,12 @@
 'use client';
-import React, { createContext, useState, ReactNode } from 'react';
+import React, { createContext, useState } from 'react';
+import { Doc, ContextValue, ContextProviderProps } from '@/types/types';
 
-// Define types for selectedFile and documents
-interface ContextValue {
-  selectedFile: File | null;
-  setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
-  documents: Document[];
-  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-}
-
-// Create the context with a default value that matches the type
 export const ContextStore = createContext<ContextValue | undefined>(undefined);
-
-interface ContextProviderProps {
-  children: ReactNode;
-}
 
 const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<Doc[]>([]);
 
   return (
     <ContextStore.Provider
