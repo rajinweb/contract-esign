@@ -10,7 +10,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <FileSignature className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">SecureSign</span>
+            <span className="text-2xl font-bold text-gray-900">BellerivaSign</span>
           </Link>
           <nav className="hidden md:flex space-x-8">
             <Link href="/" className="text-gray-600 hover:text-blue-600">Solutions</Link>
