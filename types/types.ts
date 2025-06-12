@@ -32,6 +32,7 @@ export interface FieldsProps {
   mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>) => void;
   activeComponent: string | null;
   handleSave?:()=> void;
+  handleSend?:()=>void;
   selectedFile: File | null;
   handleReset?:()=> void;
 }

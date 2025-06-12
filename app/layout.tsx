@@ -10,7 +10,9 @@ export const metadata: Metadata = {
     icon: '/favicon.ico', 
   },
 };
+import connectDB from '../utils/db';
 
+await connectDB();
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {

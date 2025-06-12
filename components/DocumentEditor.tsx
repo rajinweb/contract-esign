@@ -22,9 +22,10 @@ import { AddSigDialog } from "@/components/AddSigDialog";
 import ImageField from './ImageField';
 import { DraggableData } from 'react-draggable';
 import MultilineTextField from './MultilineTextField';
+import LoginModal from './LoginModal';
 import DateField from './DateField';
 
-
+declare const isUserLoggedIn: () => boolean; // Assume this function exists
 
 const DocumentEditor: React.FC = () => {
   const { selectedFile, setSelectedFile } = useContextStore();
@@ -47,6 +48,8 @@ const DocumentEditor: React.FC = () => {
 
   const [dialog, setDialog] = useState<boolean>(false);   
   const [autoDate, setAutoDate] = useState<boolean>(true);
+
+  const [showModal, setShowModal] = useState(false); // State to control modal visibility
 
 
   // Function to generate page thumbnails
@@ -248,102 +251,128 @@ const dropFields = (field:DroppedComponent) => {
   const commonclass = 'after:m-auto flex after:bg-blue-500';
 
   const handleSave = async () => {
-      const canvas = documentRef.current;
-      const canvasRect = canvas?.getBoundingClientRect(); // Get the canvas bounds
+    if (!isUserLoggedIn?.()) {
+      showLoginModal();
+      return;
+    }
+  
+    const canvas = documentRef.current;
+    const canvasRect = canvas?.getBoundingClientRect(); // Get the canvas bounds
 
-      if (!canvasRect) {
-        console.error("Canvas not found!");
-        return; // Exit if there's no valid canvas
+    if (!canvasRect) {
+      console.error("Canvas not found!");
+      return; // Exit if there's no valid canvas
+    }
+
+    // Fetch and load the selected PDF
+    if (!selectedFile) {
+      console.error("No file selected!");
+      return;
+    }
+
+    const arrayBuffer = typeof selectedFile === 'string'
+      ? await fetch(selectedFile).then(res => res.arrayBuffer())
+      : await selectedFile.arrayBuffer();
+
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+    // Get the specified page (pageNum)
+    const pages = pdfDoc.getPages();
+    const page = pages[currentPage - 1];
+
+    // Check if the page is rotated
+    const isPageRotated = page.getRotation().angle;
+
+    const pageWidth = page.getSize().width;
+    const pageHeight =    page.getSize().height;
+
+    for (const item of droppedComponents) {
+      const { x, y, component, width, height, data } = item;
+
+      const scaleX = pageWidth / canvasRect.width;
+      const scaleY = pageHeight / canvasRect.height;
+
+      // Calculate adjusted positions
+      let adjustedX = x * scaleX;
+      let adjustedY = pageHeight - (y + height);
+
+
+      // Boundary checks
+      if (adjustedX < 0) adjustedX = 0;
+      if (adjustedX + width * scaleX > pageWidth) adjustedX = pageWidth - width * scaleX;
+
+      if (adjustedY < 0) adjustedY = 0;
+      if (adjustedY + height * scaleY > pageHeight) adjustedY = pageHeight - height * scaleY;
+
+    if(data){
+      // Draw the component (Text, Date, or Image)
+      if (component === "Text" || component === "Date") {
+        page.drawText(data as string, {
+          x: adjustedX,
+          y: adjustedY,
+          size: 12,
+          ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+        });
+      } else {
+        // Load and embed PNG image
+        const pngImage = await pdfDoc.embedPng(data as string);
+        page.drawImage(pngImage, {
+          x: adjustedX,
+          y: adjustedY,
+          width: width * scaleX,
+          height: height ,
+          ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+        });
       }
+    }
+      // Add a timestamp if autoDate is true
+      if (autoDate) {
+        page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
+          {
+            x: adjustedX,
+            y: adjustedY - 20 * Math.min(scaleX, scaleY),
+            size: 10,
+            color: rgb(0.074, 0.545, 0.262),
+            ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+          }
+        );
+      }
+    }
+
+    // Save the modified PDF to bytes and convert to a Blob
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+
+    // Convert the Blob into a URL for downloading
+    const pdfUrl = await blobToURL(blob);
+
+    setSelectedFile(pdfUrl);
+    setPosition({ x: 0, y: 0 });
+    setDroppedComponents([]);
+  };
+
+  // Placeholder function for sending the file
+  const handleSend = async () => {
+    if (!isUserLoggedIn?.()) {
+      showLoginModal();
+      return;
+    }
+    // Original send logic goes here
+    console.log("Sending file...");
+    // You would typically perform an API call or other action to send the file
+    // For demonstration, I'm just logging a message.
+  };
+
+  // Function to show the login modal
+  const showLoginModal = () => {
+    setShowModal(true);
+  };
       
-      // Fetch and load the selected PDF
-      if (!selectedFile) {
-        console.error("No file selected!");
-        return;
-      }
-
-      const arrayBuffer = typeof selectedFile === 'string'
-        ? await fetch(selectedFile).then(res => res.arrayBuffer())
-        : await selectedFile.arrayBuffer();
-  
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
-  
-      // Get the specified page (pageNum)
-      const pages = pdfDoc.getPages();
-      const page = pages[currentPage - 1];
-  
-      // Check if the page is rotated
-      const isPageRotated = page.getRotation().angle;
-    
-      const pageWidth = page.getSize().width;
-      const pageHeight =    page.getSize().height;
-
-      for (const item of droppedComponents) {
-        const { x, y, component, width, height, data } = item;
-
-        const scaleX = pageWidth / canvasRect.width;
-        const scaleY = pageHeight / canvasRect.height;
-
-        // Calculate adjusted positions
-        let adjustedX = x * scaleX;
-        let adjustedY = pageHeight - (y + height); 
-        
-
-        // Boundary checks
-        if (adjustedX < 0) adjustedX = 0;
-        if (adjustedX + width * scaleX > pageWidth) adjustedX = pageWidth - width * scaleX;
-
-        if (adjustedY < 0) adjustedY = 0;
-        if (adjustedY + height * scaleY > pageHeight) adjustedY = pageHeight - height * scaleY;
-
-      if(data){
-        // Draw the component (Text, Date, or Image)  
-        if (component === "Text" || component === "Date") {
-          page.drawText(data as string, {
-            x: adjustedX,
-            y: adjustedY,
-            size: 12,
-            ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
-          });
-        } else {
-          // Load and embed PNG image
-          const pngImage = await pdfDoc.embedPng(data as string);
-          page.drawImage(pngImage, {
-            x: adjustedX,
-            y: adjustedY,
-            width: width * scaleX,
-            height: height ,
-            ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
-          });
-        }
-      }
-        // Add a timestamp if autoDate is true
-        if (autoDate) {
-          page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
-            {
-              x: adjustedX,
-              y: adjustedY - 20 * Math.min(scaleX, scaleY),
-              size: 10,
-              color: rgb(0.074, 0.545, 0.262),
-              ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
-            }
-          );
-        }
-      }
-
-      // Save the modified PDF to bytes and convert to a Blob
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-
-      // Convert the Blob into a URL for downloading
-      const pdfUrl = await blobToURL(blob);
-
-      setSelectedFile(pdfUrl);
-      setPosition({ x: 0, y: 0 });
-      setDroppedComponents([]);
-    };
-  
-
+  // Function to show the login modal
+  // Function to hide the login modal
+  const hideLoginModal = () => {
+    setShowModal(false);
+  };
 
   return (
     <div className="flex space-x-4">
@@ -355,7 +384,8 @@ const dropFields = (field:DroppedComponent) => {
           setSelectedFile(null);
           setDroppedComponents([]);
         }}
-        handleSave={handleSave}
+      handleSave={handleSave}
+      handleSend={handleSend} // Pass the send handler to Fields
       />
       {!selectedFile && (
       <UploadZone
@@ -485,6 +515,13 @@ const dropFields = (field:DroppedComponent) => {
               }}
             />
           )}
+
+      <LoginModal
+        show={showModal}
+        onClose={hideLoginModal}
+        onLogin={(username, password) => console.log('Login attempt:', username, password)} // Replace with actual login logic
+      />
+
     </div>
   );
 };
