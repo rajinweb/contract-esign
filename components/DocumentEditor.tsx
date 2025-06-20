@@ -517,7 +517,7 @@ const dropFields = (field:DroppedComponent) => {
           )}
 
       <LoginModal
-        show={showModal}
+        visible={showModal}
         onClose={hideLoginModal}
         onLogin={(username, password) => console.log('Login attempt:', username, password)} // Replace with actual login logic
       />
