@@ -20,4 +20,34 @@ const connectDB = async () => {
   }
 };
 
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  passwordResetToken: {
+    token: String,
+    expires: Date,
+  },
+});
+
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+export async function getUserByEmail(email: string) {
+  await connectDB();
+  const user = await User.findOne({ email });
+  return user;
+}
+
+export async function generatePasswordResetToken(userId: string) {
+  await connectDB();
+  const token = require('crypto').randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 3600000); // Token expires in 1 hour
+
+  await User.findByIdAndUpdate(userId, {
+    passwordResetToken: {
+      token,
+      expires,
+    },
+  });
+  return token;
+}
+
 export default connectDB;

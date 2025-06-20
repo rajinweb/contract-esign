@@ -81,7 +81,7 @@ const LoginPage: React.FC = () => {
             </div>
             <div className="flex items-baseline justify-between">
               <button type="submit" className="px-6 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-900">Login</button>
-              <a href="#" className="text-sm text-blue-600 hover:underline">Forgot password?</a>
+              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</a>
             </div>
           </div>
         </form>

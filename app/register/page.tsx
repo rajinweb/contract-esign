@@ -1,5 +1,7 @@
 'use client';
 
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useState } from 'react';
 
 export default function Register() {
@@ -57,7 +59,7 @@ export default function Register() {
   return (
     <div className="flex items-center justify-center py-16">
       <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md">
-        <h3 className="text-2xl font-bold text-center">Create an Account</h3>
+        <h3 className="text-2xl font-bold text-center">SIGN UP FOR FREE NOW!</h3>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -114,6 +116,13 @@ export default function Register() {
          <p className="mt-4 text-center text-gray-600 text-sm">
          Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign in.</a>
           </p>
+           {/* Include the Google Sign-In button */}
+          <div className="flex justify-center mt-4">
+            <GoogleOAuthProvider clientId="475170635447-lrrlsb0coohf3dicefsges3keo386at5.apps.googleusercontent.com">
+              <GoogleSignInButton />
+            </GoogleOAuthProvider>
+            {/* Add other social login buttons here */}
+          </div>
       </div>
     </div>
   );
