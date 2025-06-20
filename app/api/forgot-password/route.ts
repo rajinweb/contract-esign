@@ -1,16 +1,12 @@
-// app/api/forgot-password/route.ts
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-// You'll need to implement logic here to find the user by email
-// and generate a reset token/link, and store it with an expiry.
-// For demonstration, we'll just simulate sending an email.
-import { getUserByEmail, generatePasswordResetToken } from '@/utils/db'; 
+import Users from '../../../models/Users';
 
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
 
-    // 1. Find user by email
+    // Find user by email
     const user = await getUserByEmail(email);
 
     if (!user) {
@@ -18,12 +14,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'If an account with that email exists, a reset link has been sent.' }, { status: 200 });
     }
 
-    // 2. Generate password reset token and store it
+    // Generate password reset token and store it
     const resetToken = await generatePasswordResetToken(user.id); // Implement this utility
 
-    // 3. Send email with reset link
-    console.log('Email User:', process.env.EMAIL_USER);
-    console.log('Email Pass:', process.env.EMAIL_PASS ? '**********' : 'Not Set');
+
     const transporter = nodemailer.createTransport({
       // Configure your email service provider here
       // Example with Gmail (requires allowing "less secure apps" or using App Passwords)
@@ -51,4 +45,22 @@ export async function POST(req: Request) {
     console.error('Forgot password error:', error);
     return NextResponse.json({ error: 'An error occurred while processing your request.' }, { status: 500 });
   }
+}
+
+export async function getUserByEmail(email: string) {
+  const user = await Users.findOne({ email });
+  return user;
+}
+
+export async function generatePasswordResetToken(userId: string) {
+  const token = require('crypto').randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 3600000); // Token expires in 1 hour
+
+  await Users.findByIdAndUpdate(userId, {
+    passwordResetToken: {
+      token,
+      expires,
+    },
+  });
+  return token;
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface LoginModalProps {
   visible: boolean;
@@ -18,8 +19,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogin }) =>
     onLogin(username, password);
   };
 
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
+  // Render modal using portal
+  return createPortal(
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center" data-testid="login-modal">
       <div className="bg-white p-5 rounded-lg shadow-xl">
         <h2 className="text-xl font-bold mb-4">Login</h2>
         <div className="mb-4">
@@ -64,7 +66,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogin }) =>
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    typeof window !== "undefined" ? document.body : (null as any)
   );
 };
 

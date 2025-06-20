@@ -7,10 +7,12 @@ export const ContextStore = createContext<ContextValue | undefined>(undefined);
 const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<Doc[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   return (
     <ContextStore.Provider
-      value={{ selectedFile, setSelectedFile, documents, setDocuments }}
+      value={{ selectedFile, setSelectedFile, documents, setDocuments,  isLoggedIn,
+      setIsLoggedIn, }}
     >
       {children}
     </ContextStore.Provider>

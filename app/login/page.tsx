@@ -1,13 +1,17 @@
 'use client';
 import React, { useState } from 'react';
-import GoogleSignInButton from '@/components/GoogleSignInButton'; // Assuming the component is in the same directory or correctly imported
+import GoogleSignInButton from '@/components/GoogleSignInButton'; 
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useRouter } from 'next/navigation';
+import useContextStore from '@/hooks/useContextStore';
 
 const LoginPage: React.FC = () => {
+    const { setIsLoggedIn } = useContextStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const router = useRouter();
 
   const validateForm = () => {
     let isValid = true;
@@ -38,7 +42,6 @@ const LoginPage: React.FC = () => {
     if (validateForm()) {
       console.log('Form is valid. Submitting:', { email, password });
       try {
-        debugger;
         const response = await fetch('/api/login', {
           method: 'POST',
           headers: {
@@ -47,7 +50,14 @@ const LoginPage: React.FC = () => {
           body: JSON.stringify({ email, password }),
         });
         const data = await response.json();
-        console.log('API Response:', data);
+         if (response.ok) {
+          setIsLoggedIn(true); 
+        // Redirect to /builder on successful login
+        router.push('/builder');
+      } else {
+        // Handle error (show message to user)
+        alert(data.message || 'Login failed');
+      }
         // Handle the API response (e.g., redirect on success, display error on failure)
       } catch (error) {
         console.error('Error during login:', error);

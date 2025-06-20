@@ -13,6 +13,8 @@ export interface ContextValue {
   setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
   documents: Doc[];
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
+  isLoggedIn: boolean;
+  setIsLoggedIn: (loggedIn: boolean) => void;
 }
 
 export interface ContextProviderProps {

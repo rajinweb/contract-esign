@@ -25,11 +25,12 @@ import MultilineTextField from './MultilineTextField';
 import LoginModal from './LoginModal';
 import DateField from './DateField';
 
-declare const isUserLoggedIn: () => boolean; // Assume this function exists
 
 const DocumentEditor: React.FC = () => {
-  const { selectedFile, setSelectedFile } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn, setIsLoggedIn } = useContextStore();
   
+  const [showModal, setShowModal] = useState(false);
+
   const [isDragging, setIsDragging] = useState(false);
   const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
   const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
@@ -48,8 +49,6 @@ const DocumentEditor: React.FC = () => {
 
   const [dialog, setDialog] = useState<boolean>(false);   
   const [autoDate, setAutoDate] = useState<boolean>(true);
-
-  const [showModal, setShowModal] = useState(false); // State to control modal visibility
 
 
   // Function to generate page thumbnails
@@ -251,8 +250,8 @@ const dropFields = (field:DroppedComponent) => {
   const commonclass = 'after:m-auto flex after:bg-blue-500';
 
   const handleSave = async () => {
-    if (!isUserLoggedIn?.()) {
-      showLoginModal();
+    if (!isLoggedIn) {
+      setShowModal(true);
       return;
     }
   
@@ -353,8 +352,8 @@ const dropFields = (field:DroppedComponent) => {
 
   // Placeholder function for sending the file
   const handleSend = async () => {
-    if (!isUserLoggedIn?.()) {
-      showLoginModal();
+    if (!isLoggedIn) {
+      setShowModal(true);
       return;
     }
     // Original send logic goes here
@@ -363,18 +362,21 @@ const dropFields = (field:DroppedComponent) => {
     // For demonstration, I'm just logging a message.
   };
 
-  // Function to show the login modal
-  const showLoginModal = () => {
-    setShowModal(true);
-  };
-      
-  // Function to show the login modal
-  // Function to hide the login modal
-  const hideLoginModal = () => {
+  const handleLogin = (username: string, password: string) => {
+    // TODO: Replace with real authentication logic
+    setIsLoggedIn(true);
     setShowModal(false);
   };
 
   return (
+    <>
+     <LoginModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        onLogin={handleLogin}
+       // onLogin={(username, password) => console.log('Login attempt:', username, password)} // Replace with actual login logic
+      />
+ 
     <div className="flex space-x-4">
       <Fields
         activeComponent={draggingComponent?.component ?? null}
@@ -515,14 +517,8 @@ const dropFields = (field:DroppedComponent) => {
               }}
             />
           )}
-
-      <LoginModal
-        visible={showModal}
-        onClose={hideLoginModal}
-        onLogin={(username, password) => console.log('Login attempt:', username, password)} // Replace with actual login logic
-      />
-
     </div>
+       </>
   );
 };
 
