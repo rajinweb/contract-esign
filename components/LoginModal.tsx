@@ -20,6 +20,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogin }) =>
   };
 
   // Render modal using portal
+  if (typeof window === "undefined" || !document.body) {
+    return null;
+  }
   return createPortal(
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center" data-testid="login-modal">
       <div className="bg-white p-5 rounded-lg shadow-xl">
@@ -67,7 +70,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onLogin }) =>
         </div>
       </div>
     </div>,
-    typeof window !== "undefined" ? document.body : (null as any)
+    document.body
   );
 };
 

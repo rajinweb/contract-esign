@@ -350,20 +350,20 @@ const dropFields = (field:DroppedComponent) => {
     setDroppedComponents([]);
   };
 
-  // Placeholder function for sending the file
-  const handleSend = async () => {
-    if (!isLoggedIn) {
-      setShowModal(true);
-      return;
-    }
-    // Original send logic goes here
-    console.log("Sending file...");
-    // You would typically perform an API call or other action to send the file
-    // For demonstration, I'm just logging a message.
-  };
+  // const handleSend = async () => {
+  //   if (!isLoggedIn) {
+  //     setShowModal(true);
+  //     return;
+  //   }
+  //   // Original send logic goes here
+  //   console.log("Sending file...");
+  //   // You would typically perform an API call or other action to send the file
+  //   // For demonstration, I'm just logging a message.
+  // };
 
   const handleLogin = (username: string, password: string) => {
     // TODO: Replace with real authentication logic
+    console.log('Login attempt:', username, password);
     setIsLoggedIn(true);
     setShowModal(false);
   };
@@ -387,7 +387,6 @@ const dropFields = (field:DroppedComponent) => {
           setDroppedComponents([]);
         }}
       handleSave={handleSave}
-      handleSend={handleSend} // Pass the send handler to Fields
       />
       {!selectedFile && (
       <UploadZone

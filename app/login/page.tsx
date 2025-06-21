@@ -105,7 +105,7 @@ const LoginPage: React.FC = () => {
             {/* Add other social login buttons here */}
           </div>
           <p className="mt-4 text-center text-gray-600 text-sm">
-            Don't have an account? <a href="/register" className="text-blue-600 hover:underline">Register here.</a>
+            Don&apos;t have an account? <a href="/register" className="text-blue-600 hover:underline">Register here.</a>
           </p>
         </div>
       </div>

@@ -1,4 +1,3 @@
-// app/forgot-password/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -29,7 +28,7 @@ const ForgotPasswordPage = () => {
         setError(data.error || 'An error occurred.');
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError(`An error occurred. Please try again. \n ${err instanceof Error ? ` Error: ${err.message}` : ''}`);
     }
   };
 
@@ -40,7 +39,7 @@ const ForgotPasswordPage = () => {
           Forgot your password?
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Enter your email address below and we'll send you a link to reset your password.
+          Enter your email address below and we&apos;ll send you a link to reset your password.
         </p>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <label htmlFor="email-address" className="sr-only">Email address</label>

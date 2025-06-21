@@ -16,7 +16,7 @@ const fieldTypes = [
     document.body.removeChild(link);
   }
 
-export default function Fields({ activeComponent, mouseDown, handleReset, handleSave, handleSend, selectedFile }: FieldsProps) {
+export default function Fields({ activeComponent, mouseDown, handleReset, handleSave, selectedFile }: FieldsProps) {
   const fileName = selectedFile?.name;  
   return (
     <div className="w-64 bg-gray-50 p-4 border-r border-gray-200 space-y-5">

@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
-import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
 
 const GoogleSignInButton: React.FC = () => {
