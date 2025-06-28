@@ -8,7 +8,7 @@ import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
-  const { setSelectedFile } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn } = useContextStore();
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -50,7 +50,9 @@ export default function Home() {
           />
         </div>
       </div>
-      <UploadZone onFileSelect={handleFileSelect} />
+      {!selectedFile && (
+        <UploadZone onFileSelect={handleFileSelect} />
+      )}
     </main>
   );
 }

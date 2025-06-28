@@ -1,6 +1,6 @@
 'use client';
-import React, { useCallback } from 'react';
-import { Upload, FileText } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { Upload, FileText, LoaderPinwheel } from 'lucide-react';
 
 
 interface UploadZoneProps {
@@ -9,13 +9,16 @@ interface UploadZoneProps {
 
 export default function UploadZone({ onFileSelect }: UploadZoneProps) {
 
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      setIsLoading(true);
       const file = e.dataTransfer.files[0];
       if (file) onFileSelect(file);
     },
+    // Removed setIsLoading(false) as DocumentEditor will handle it on load success
     [onFileSelect]
   );
 
@@ -23,8 +26,10 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) onFileSelect(file);
+      setIsLoading(true);
     },
     [onFileSelect]
+    // Removed setIsLoading(false) as DocumentEditor will handle it on load success
   );
 
   const handleSampleContract = useCallback(() => {
@@ -49,12 +54,13 @@ Date: _____________________`;
       type: 'text/plain',
     });
     onFileSelect(file);
+    setIsLoading(true); // Set loading for sample contract as well
   }, [onFileSelect]);
 
   return (
       <div className="flex flex-col items-center justify-center">
         <div
-          className="w-full border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors relative"
+          className="w-full bg-white border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors relative"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onDragEnter={(e) => {
@@ -73,6 +79,12 @@ Date: _____________________`;
             onChange={handleFileInput}
             accept=".pdf,.doc,.docx,.txt"
           />
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <LoaderPinwheel className="animate-spin text-blue-600 w-16 h-16" />
+              <p className="text-lg font-medium text-gray-900">Processing...</p>
+            </div>
+          ) : (
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
                 <div className="absolute -inset-1 bg-blue-100 rounded-lg blur-sm"></div>
@@ -93,6 +105,7 @@ Date: _____________________`;
                 </label>
               </div>
             </div>
+          )}
         </div>
   
         <div className="mt-8 text-center">
