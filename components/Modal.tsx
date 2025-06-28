@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import LoginPage from '../app/login/page';
 import { X } from 'lucide-react';
 
-interface LoginModalProps {
+interface ModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
+const Modal: React.FC<ModalProps> = ({ visible, onClose }) => {
   if (!visible) {
     return null;
   }
-
+  
   // Render modal using portal
   if (typeof window === "undefined" || !document.body) {
     return null;
@@ -28,4 +28,4 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
   );
 };
 
-export default LoginModal;
+export default Modal;

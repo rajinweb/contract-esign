@@ -15,6 +15,8 @@ export interface ContextValue {
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
   isLoggedIn: boolean;
   setIsLoggedIn: (loggedIn: boolean) => void;
+  showModal:boolean;
+  setShowModal:(ModalVisible: boolean) => void;
 }
 
 export interface ContextProviderProps {

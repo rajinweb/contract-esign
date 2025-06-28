@@ -6,12 +6,13 @@ import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 
 export function Header() {
-  const { isLoggedIn, setIsLoggedIn } = useContextStore();
+  const { isLoggedIn, setIsLoggedIn, setSelectedFile, selectedFile, setShowModal } = useContextStore();
   const router= useRouter();
   const handleLogout = () => {
     setIsLoggedIn(false);
     // Optionally clear user data, tokens, etc.
     router.push('/'); // Redirect to home or login page
+    setSelectedFile(null);
   };
   return (
     <header className="bg-white shadow-sm">
@@ -40,7 +41,13 @@ export function Header() {
                 <button
                   className="text-blue-600"
                   // You can trigger your login modal here
-                  onClick={() => router.push('/login')}
+                  onClick={() =>{
+                    if(!selectedFile){
+                      router.push('/login')
+                     }else{
+                      setShowModal(true)
+                     }
+                  }}
                 >
                   Login
                 </button>

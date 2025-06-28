@@ -8,11 +8,12 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <ContextStore.Provider
       value={{ selectedFile, setSelectedFile, documents, setDocuments,  isLoggedIn,
-      setIsLoggedIn, }}
+      setIsLoggedIn, showModal, setShowModal}}
     >
       {children}
     </ContextStore.Provider>

@@ -22,15 +22,13 @@ import { AddSigDialog } from "@/components/AddSigDialog";
 import ImageField from './ImageField';
 import { DraggableData } from 'react-draggable';
 import MultilineTextField from './MultilineTextField';
-import LoginModal from './LoginModal';
+import Modal from './Modal';
 import DateField from './DateField';
 
 
 const DocumentEditor: React.FC = () => {
-  const { selectedFile, setSelectedFile, isLoggedIn, setIsLoggedIn } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
   
-  const [showModal, setShowModal] = useState(false);
-
   const [isDragging, setIsDragging] = useState(false);
   const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
   const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
@@ -361,22 +359,16 @@ const dropFields = (field:DroppedComponent) => {
   //   // For demonstration, I'm just logging a message.
   // };
 
-  const handleLogin = (username: string, password: string) => {
-    // TODO: Replace with real authentication logic
-    console.log('Login attempt:', username, password);
-    setIsLoggedIn(true);
-    setShowModal(false);
-  };
+
 
   return (
     <>
-     <LoginModal
+    {!isLoggedIn &&
+     <Modal
         visible={showModal}
         onClose={() => setShowModal(false)}
-        onLogin={handleLogin}
-       // onLogin={(username, password) => console.log('Login attempt:', username, password)} // Replace with actual login logic
       />
- 
+    }
     <div className="flex space-x-4">
       <Fields
         activeComponent={draggingComponent?.component ?? null}
