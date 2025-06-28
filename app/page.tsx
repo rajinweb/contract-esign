@@ -3,15 +3,12 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import UploadZone from '@/components/UploadZone';
-import useContextStore from '@/hooks/useContextStore';
 import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
-  const { setSelectedFile } = useContextStore();
 
   const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
     router.push('/builder');
   };
 

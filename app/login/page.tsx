@@ -52,7 +52,7 @@ const LoginPage: React.FC = () => {
         const data = await response.json();
          if (response.ok) {
           setIsLoggedIn(true); 
-        // Redirect to /builder on successful login
+          localStorage.setItem('AccessToken', data.token);
         router.push('/builder');
       } else {
         // Handle error (show message to user)

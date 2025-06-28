@@ -348,19 +348,6 @@ const dropFields = (field:DroppedComponent) => {
     setDroppedComponents([]);
   };
 
-  // const handleSend = async () => {
-  //   if (!isLoggedIn) {
-  //     setShowModal(true);
-  //     return;
-  //   }
-  //   // Original send logic goes here
-  //   console.log("Sending file...");
-  //   // You would typically perform an API call or other action to send the file
-  //   // For demonstration, I'm just logging a message.
-  // };
-
-
-
   return (
     <>
     {!isLoggedIn &&

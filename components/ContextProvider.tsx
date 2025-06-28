@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect } from 'react'; // Import useEffect
 import { Doc, ContextValue, ContextProviderProps } from '@/types/types';
 
 export const ContextStore = createContext<ContextValue | undefined>(undefined);
