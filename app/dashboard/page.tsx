@@ -9,7 +9,7 @@ import {  Doc } from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 
-function DropFile() {
+function Dashboard() {
   const { selectedFile, setSelectedFile, documents, setDocuments } =
     useContextStore();
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -87,4 +87,4 @@ function DropFile() {
   );
 }
 
-export default DropFile;
+export default Dashboard;

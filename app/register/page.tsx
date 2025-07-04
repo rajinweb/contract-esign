@@ -1,31 +1,40 @@
 'use client';
 
 import GoogleSignInButton from '@/components/GoogleSignInButton';
+import usePasswordToggle from '@/utils/usePasswordToggle';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { LockKeyhole } from 'lucide-react';
 import { useState } from 'react';
-
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import zxcvbn from 'zxcvbn';
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const { isVisible, toggleVisibility } = usePasswordToggle();
   const [errors, setErrors] = useState({
+    passwordStrength: '',
     email: '',
     password: '',
   });
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newErrors: { email?: string; password?: string } = {};
     if (!email.trim()) newErrors.email = 'Email is required';
-    if (!password.trim()) newErrors.password = 'Password is required';
 
-    setErrors({
-      email: newErrors.email || '',
-      password: newErrors.password || '',
-    });
+    if (!password.trim()) {
+        newErrors.password = 'Password is required';
+     } else {
+      const strength = zxcvbn(password);
+        if (strength.score < 3) {
+        newErrors.password = 'Password is too weak.';
+              }
+    }
+
+    setErrors({ ...errors,  password: newErrors.password || '' });
 
     if (Object.keys(newErrors).length === 0) {
       setIsLoading(true);
@@ -56,6 +65,34 @@ export default function Register() {
     }
   };
 
+
+  const getPasswordStrength = (password: string) => {
+    if (!password) return 0;
+    const result = zxcvbn(password);
+    return result.score;
+  };
+
+
+  const passwordStrength = getPasswordStrength(password);
+
+  const strengthColor =
+    passwordStrength === 0
+      ? 'bg-white'
+      : passwordStrength <= 1
+      ? 'bg-red-500'
+      : passwordStrength <= 2
+      ? 'bg-yellow-500'
+      : 'bg-green-500';
+
+  const strengthText =
+    passwordStrength === 0
+      ? ''
+      : passwordStrength <= 1
+      ? 'Weak'
+      : passwordStrength <= 2
+      ? 'Fair'
+      : 'Strong';
+
   return (
     <div className="flex items-center justify-center py-16">
       <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md">
@@ -82,19 +119,37 @@ export default function Register() {
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="********"
-              className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none ${
-                errors.password ? 'border-red-500' : 'border-gray-300'
-              }`}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={isVisible ? 'text' : 'password'}
+                className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none pr-10 ${
+                  errors.password ? 'border-red-500' : 'border-gray-300'
+                }`}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={toggleVisibility}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
+              >
+                {isVisible ? <FaEye /> : <FaEyeSlash />}
+              </button>
+            </div>
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+            <div className="mt-2 h-3 w-full flex items-center">
+                <LockKeyhole size={16} />
+                <div
+                  className={`ml-4 h-1 rounded-full transition-all duration-500 ease-in-out ${strengthColor}`}
+                  style={{ width: `${(passwordStrength + 1) * 20}%` }}
+                ></div>
+             {strengthText && (
+                  <span className="text-sm ml-2 text-gray-700">{strengthText}</span>
+                )} 
+            </div>
+          
           </div>
-
           <button
             type="submit"
             disabled={isLoading}
@@ -107,13 +162,15 @@ export default function Register() {
             {isLoading ? 'Registering...' : 'Register'}
           </button>
         </form>
-
+        <div className="my-3 text-center text-sm text-gray-600">
+        <span className='text-2xl'>🎉 </span> No credit card required
+        </div>
         {message && (
           <p className="mt-4 text-center text-sm text-gray-700">
             {message}
           </p>
         )}
-         <p className="mt-4 text-center text-gray-600 text-sm">
+         <p className="mt-4 text-center text-gray-600 text-sm border-t pt-3">
          Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign in.</a>
           </p>
            {/* Include the Google Sign-In button */}

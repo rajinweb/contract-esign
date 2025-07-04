@@ -1,3 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.bg-gradient{
+background:radial-gradient(114.65277499741333% 178.72598544585446% at 109.96528067168683% 70.44444178034368%,#d8bcff,#d7d3ff 20.633621513843536%,#c2d6ff 37.56687461255907%,#d6e5ff 55.662161111831665%,#e0f1ff 67.38132238388062%,#f8f9fd)
+}

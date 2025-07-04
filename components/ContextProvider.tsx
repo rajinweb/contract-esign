@@ -10,6 +10,14 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
 
+  useEffect(() => {
+    const token = localStorage.getItem('AccessToken');
+    console.log(token)
+    if (token) {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   return (
     <ContextStore.Provider
       value={{ selectedFile, setSelectedFile, documents, setDocuments,  isLoggedIn,

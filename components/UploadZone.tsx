@@ -60,7 +60,7 @@ Date: _____________________`;
   return (
       <div className="flex flex-col items-center justify-center">
         <div
-          className="w-full bg-white border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors relative"
+          className="w-full bg-[#f4faff] border-2 border-dashed border-[#1ca4ff33] rounded-lg p-12 text-center hover:border-blue-300 transition-colors relative"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onDragEnter={(e) => {
