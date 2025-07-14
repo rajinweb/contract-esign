@@ -36,7 +36,7 @@ function DropFile() {
     return matchesStatus && matchesSearch;
   });
 
-  const [prevSelectedFile, setPrevSelectedFile] = useState<File | null>(null);
+  const [prevSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     console.log('DropFile useEffect', { isLoggedIn, selectedFile });

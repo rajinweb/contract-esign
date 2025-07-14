@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import UploadZone from '@/components/UploadZone';
 import Image from 'next/image';
 import useContextStore from '@/hooks/useContextStore';
