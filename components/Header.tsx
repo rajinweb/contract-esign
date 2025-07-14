@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 
 
 export function Header() {
-  const { isLoggedIn, setIsLoggedIn, setSelectedFile, selectedFile, setShowModal } = useContextStore();
+  const { isLoggedIn, selectedFile, setShowModal } = useContextStore();
   const router= useRouter();
   const [scrolled, setScrolled] = useState(false);
 

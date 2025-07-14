@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ChevronDown,
   Home,
@@ -13,7 +14,7 @@ import useContextStore from '@/hooks/useContextStore';
 
 const UserDropdown = () => {
 
-  const { isLoggedIn, setIsLoggedIn, setSelectedFile, selectedFile, setShowModal } = useContextStore();
+  const { setIsLoggedIn, setSelectedFile } = useContextStore();
   const router= useRouter();
   const handleLogout = () => {
     localStorage.removeItem('AccessToken');
@@ -29,10 +30,12 @@ const UserDropdown = () => {
         tabIndex={0}
         className="relative cursor-pointer focus:outline-none"
       >
-        <img
+        <Image
           src="https://i.pravatar.cc/40?img=3"
           alt="User"
           className="w-8 h-8 rounded-full"
+          width={40}
+          height={40}
         />
         <ChevronDown className="w-3 h-3 text-gray-500 bg-white rounded-full absolute top-[12px] -left-[10px]" />
       </div>
@@ -42,10 +45,12 @@ const UserDropdown = () => {
         {/* User Info */}
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="https://i.pravatar.cc/40?img=3"
               alt="User"
               className="w-10 h-10 rounded-full"
+              width={40}
+              height={40}
             />
             <div>
               <p className="text-sm font-semibold text-gray-800">John Doe</p>

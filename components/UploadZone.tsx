@@ -1,6 +1,6 @@
 'use client';
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, LoaderPinwheel, Images, MoveRight } from 'lucide-react';
+import { LoaderPinwheel  } from 'lucide-react';
 import Image from 'next/image';
 
 interface UploadZoneProps {
