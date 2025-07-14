@@ -1,17 +1,33 @@
 'use client'
-import React, { useEffect } from 'react';
-import { FileSignature } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, FileSignature } from 'lucide-react';
 import Link from 'next/link'
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 import UserDropdown from './UserDropdown';
+import { useEffect, useState } from 'react';
+
 
 export function Header() {
   const { isLoggedIn, setIsLoggedIn, setSelectedFile, selectedFile, setShowModal } = useContextStore();
   const router= useRouter();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPercentage = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+      if (scrollPercentage > 20) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
   
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   return (
-    <header className="">
+    <header className={`fixed w-full top-0 z-10 transition-colors duration-300 ${scrolled ? 'bg-white shadow-sm' : ''}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
@@ -44,6 +60,17 @@ export function Header() {
                 </button>
                 <Link href="/register" className="px-4 py-2  bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
                   Get Started
+                </Link>
+                
+                <Link
+                  href="/contact"
+                  className="bg-white flex justify-end p-0.5 relative rounded-full shadow-md w-[132] group transition-all"
+                >
+                  <span className="absolute left-0 py-1.5 px-2 text-sm z-10">Book a Demo</span>
+
+                  <div className="bg-blue-100 flex h-full items-center justify-end px-2 rounded-full w-8  transition-all duration-300 group-hover:w-full">
+                    <ArrowRight size={16} className='rotate-[-45deg] group-hover:rotate-[0deg]' />
+                  </div>
                 </Link>
                 </>
               )}

@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, LoaderPinwheel } from 'lucide-react';
-
+import { Upload, FileText, LoaderPinwheel, Images, MoveRight } from 'lucide-react';
+import Image from 'next/image';
 
 interface UploadZoneProps {
   onFileSelect: (file: File) => void;
@@ -18,7 +18,7 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
       const file = e.dataTransfer.files[0];
       if (file) onFileSelect(file);
     },
-    // Removed setIsLoading(false) as DocumentEditor will handle it on load success
+   
     [onFileSelect]
   );
 
@@ -29,7 +29,7 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
       setIsLoading(true);
     },
     [onFileSelect]
-    // Removed setIsLoading(false) as DocumentEditor will handle it on load success
+
   );
 
   const handleSampleContract = useCallback(() => {
@@ -58,20 +58,26 @@ Date: _____________________`;
   }, [onFileSelect]);
 
   return (
-      <div className="flex flex-col items-center justify-center">
-        <div
-          className="w-full bg-[#f4faff] border-2 border-dashed border-[#1ca4ff33] rounded-lg p-12 text-center hover:border-blue-300 transition-colors relative"
+    <section 
+          className="flex gap-10 items-center justify-center max-w-7xl min-h-[300] mx-auto p-10"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          onDragEnter={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
-          }}
+          // onDragEnter={(e) => {
+          //   e.preventDefault();
+          //   e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+          // }}
+          // onDragLeave={(e) => {
+          //   e.preventDefault();
+          //   e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+          // }}
         >
+          {isLoading ? (
+            <div>
+              <LoaderPinwheel size={30} className="animate-spin text-blue-600  m-auto" />
+              Processing...
+            </div>
+          ):(
+          <>
           <input
             type="file"
             id="fileInput"
@@ -79,47 +85,57 @@ Date: _____________________`;
             onChange={handleFileInput}
             accept=".pdf,.doc,.docx,.txt"
           />
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <LoaderPinwheel className="animate-spin text-blue-600 w-16 h-16" />
-              <p className="text-lg font-medium text-gray-900">Processing...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-blue-100 rounded-lg blur-sm"></div>
-                <Upload className="w-16 h-16 text-blue-600 relative" />
+          <label htmlFor="fileInput" className="grid grid-cols-2 items-center gap-6 bg-[#ecf1f7] p-6 rounded-lg">
+              <div className="h-full">
+                <h2 className="text-2xl font-semibold text-gray-800">Send my document for signature</h2>
+                <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
+                <span className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  onClick={() => handleFileInput} >
+                  Choose a document
+                </span>                
               </div>
-              <h3 className="text-2xl font-medium text-gray-900">
-                Drag and drop or Upload
-              </h3>
-              <p className="text-gray-500 max-w-sm">
-                Document to send for signature or sign yourself
-              </p>
-              <div className="flex gap-4 mt-4">
-                <label
-                  htmlFor="fileInput"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition-colors"
-                >
-                  Choose file
-                </label>
+              <div className="h-full items-center flex justify-center pointer-events-none">
+                <div>
+                  <Image
+                    src="/images/pdf-docs.svg"
+                    alt="Send my document for signature"
+                    width={200}
+                    height={200}
+                    className="m-auto"
+                    quality={100}
+                  />   
+                  <p className="text-sm text-gray-500 w-44 text-center mt-1">or, drop the file here</p> 
+                </div>       
               </div>
+          </label>
+    
+          {/* Sign My Own Document Form */}
+          <div className="grid grid-cols-2 items-center gap-6 bg-[#f2f7ff]  rounded-lg">
+            <div className="h-full p-6">
+              <h2 className="text-2xl font-semibold text-gray-800">Sign my own document</h2>
+              <p className="text-gray-600 mt-2">Add your eSignature to a document in a few clicks.</p>
+              <span className="font-medium inline-block mt-4 py-2 rounded text-blue-500 flex gap-2 cursor-pointer hover:underline"
+                  onClick={() => handleSampleContract} >
+                Try a sample contract →
+                </span>      
             </div>
-          )}
-        </div>
-  
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500 mb-3">
-            Don&apos;t have a document ready?
-          </p>
-          <button
-            onClick={handleSampleContract}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Try a sample contract
-          </button>
-        </div>
-      </div>
+            <div className="h-full items-center flex justify-end pointer-events-none">
+                
+                  <Image
+                    src="/images/signIcon.png"
+                    alt="Send my document for signature"
+                    width={123}
+                    height={123}
+                    className="w-[78%]"
+                    quality={100}
+                  />   
+               
+              </div>
+          </div>
+
+          </>
+          )
+        }
+        </section>
   );
 }

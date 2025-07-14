@@ -5,6 +5,7 @@ import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import UploadZone from '@/components/UploadZone';
 import Image from 'next/image';
 import useContextStore from '@/hooks/useContextStore';
+import FreeTrialForm from '@/components/FreeTrialForm';
 
 export default function Home() {
   const { setSelectedFile } = useContextStore();
@@ -16,9 +17,9 @@ export default function Home() {
   };
 
   return (
-    <main>
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid md:grid-cols-2 gap-12 items-center">
+   <>
+    <section className="bg-gradient">
+      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center px-4 sm:px-6 lg:px-8 py-20">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-20">
             Secure <br/> Digital Signatures <br/> for Your Business
@@ -28,7 +29,7 @@ export default function Home() {
             signatures. Fast, secure, and compliant.
           </p>
           <div className="mt-8 flex space-x-4">
-            <button
+            {/* <button
               onClick={() => router.push('/register')}
               className='px-8 py-3 bg-orange-400 text-gray-900 font-semibold rounded-lg shadow-md hover:bg-orange-500 transition duration-300'
             >
@@ -36,9 +37,10 @@ export default function Home() {
             </button>
             <button className="px-6 py-3 border border-gray-300 rounded-lg hover:border-blue-600 hover:text-blue-600">
               Watch Demo
-            </button>
+            </button> */}
+            <FreeTrialForm/>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-gray-500 text-sm mt-4">
+          {/* <div className="flex flex-wrap gap-x-6 gap-y-2 text-gray-500 text-sm">
               <div className="flex items-center">
                   <ShieldCheck className="w-5 h-5 mr-1 text-orange-500" />
                   eIDAS compliant
@@ -47,10 +49,10 @@ export default function Home() {
                   <LockKeyhole className="w-5 h-5 mr-1 text-orange-500" />
                   End-to-end encryption
               </div>
-          </div>
+          </div> */}
         </div>
-        <div className="relative">
-          <div className='absolute w-24 text-center top-[105] right-[70]'>
+        <div className="flex justify-end relative">
+          <div className='absolute w-20 text-center top-[90] right-[70]'>
             <Image
               src="/images/aadhaar-logo.svg"
               alt="Digital e-signature Platform"
@@ -64,7 +66,6 @@ export default function Home() {
          <Image
             src="/images/securesign.png"
             alt="Digital e-signature Platform"
-            className="w-full h-full"
             width={512}
             height={512}
             quality={100}
@@ -72,11 +73,7 @@ export default function Home() {
         </div>
       </div>
     </section>
-    <section className="bg-white">
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-      <UploadZone onFileSelect={handleFileSelect} />
-      </div>
-    </section>
-    </main>
+    <UploadZone onFileSelect={handleFileSelect} />
+    </>
   );
 }

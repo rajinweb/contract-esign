@@ -19,13 +19,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="min-h-screen bg-gradient">
+        <main>
           <ContextProvider>
             <Header />
             {children}
             <Footer />
           </ContextProvider>
-        </div>
+        </main>
       </body>
     </html>
   );
