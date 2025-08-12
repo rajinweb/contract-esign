@@ -64,7 +64,7 @@ export function Header() {
                 
                 <Link
                   href="/contact"
-                  className="bg-white flex justify-end p-0.5 relative rounded-full shadow-md w-[132] group transition-all"
+                  className="bg-white flex justify-end p-0.5 relative rounded-full shadow-md w-[132px] group transition-all"
                 >
                   <span className="absolute left-0 py-1.5 px-2 text-sm z-10">Book a Demo</span>
 
