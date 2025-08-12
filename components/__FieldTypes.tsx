@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Pencil,
-  User,
   Signature,
   Type,
   Calendar,

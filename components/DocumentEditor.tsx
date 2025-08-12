@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef, MouseEvent, Fragment, SetStateAction, ChangeEvent, useCallback } from 'react';
 import UploadZone from "@/components/UploadZone";
-import { CircleX, Dot, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
+import { CircleX, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import Fields from '@/components/Fields';
 import useContextStore from '@/hooks/useContextStore';

@@ -1,8 +1,5 @@
 import React from 'react';
 import {
-  Pencil,
-  User,
-  Download,
   Image as Pic,
   Signature,
   Type,
