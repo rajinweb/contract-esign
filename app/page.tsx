@@ -51,7 +51,7 @@ export default function Home() {
           </div> */}
         </div>
         <div className="flex justify-end relative">
-          <div className='absolute w-20 text-center top-[90] right-[70]'>
+          <div className='absolute w-20 text-center top-[90px] right-[70px]'>
             <Image
               src="/images/aadhaar-logo.svg"
               alt="Digital e-signature Platform"
