@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef, MouseEvent, Fragment, SetStateAction, ChangeEvent, useCallback } from 'react';
 import UploadZone from "@/components/UploadZone";
-import { CircleX, LoaderPinwheel } from 'lucide-react';
+import { CircleX, Dot, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import Fields from '@/components/Fields';
 import useContextStore from '@/hooks/useContextStore';
@@ -25,6 +25,7 @@ import MultilineTextField from './MultilineTextField';
 import Modal from './Modal';
 import DateField from './DateField';
 
+import ActionToolBar from '@/components/ActionToolBar';
 
 const DocumentEditor: React.FC = () => {
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
@@ -48,6 +49,9 @@ const DocumentEditor: React.FC = () => {
   const [dialog, setDialog] = useState<boolean>(false);   
   const [autoDate, setAutoDate] = useState<boolean>(true);
 
+  const [fileName, setFileName] = useState<string>('');
+  const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
+  
 
   // Function to generate page thumbnails
   const generateThumbnails = (numPages: number) => {
@@ -126,7 +130,7 @@ const DocumentEditor: React.FC = () => {
 const textFieldRef = useRef<HTMLInputElement>(null);
 
 const imageRef = useRef<HTMLInputElement>(null);
-
+const builderContainer=useRef<HTMLDivElement>(null);
 const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (file && selectedFile) {
@@ -183,7 +187,7 @@ const dropFields = (field:DroppedComponent) => {
   };
 
   const deleteField = (event: MouseEvent, item: DroppedComponent) => {
-   
+
     event.stopPropagation();
     const updatedComponents = droppedComponents.filter(
       (component) => component.id !== item.id
@@ -207,8 +211,20 @@ const dropFields = (field:DroppedComponent) => {
      setLoading(false);
       setError(null);
       setCurrentPage(1); 
-    }     
-  }, [selectedFile]);
+
+       // Extract file name if it's a File object
+      if (selectedFile instanceof File) {
+        setFileName(selectedFile.name);
+      } else if (typeof selectedFile === 'string') {
+        const urlParts = (selectedFile as string).split('/');
+        const lastPart = urlParts[urlParts.length - 1].split('?')[0];
+        setFileName(decodeURIComponent(lastPart));
+      }
+      if(builderContainer.current){
+      builderContainer.current.style.height=`${window.innerHeight-115}px`
+      }
+    }  
+  }, [selectedFile, builderContainer]);
 
   useEffect(() => {    
     const container = documentRef.current;
@@ -247,7 +263,7 @@ const dropFields = (field:DroppedComponent) => {
 
   const commonclass = 'after:m-auto flex after:bg-blue-500';
 
-  const handleSave = async () => {
+  const handleSave = async (isDownload: boolean = false) => {
     if (!isLoggedIn) {
       setShowModal(true);
       return;
@@ -343,38 +359,57 @@ const dropFields = (field:DroppedComponent) => {
     // Convert the Blob into a URL for downloading
     const pdfUrl = await blobToURL(blob);
 
-    setSelectedFile(pdfUrl);
-    setPosition({ x: 0, y: 0 });
-    setDroppedComponents([]);
+    if(isDownload){
+      // Sanitize and apply file name
+      const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
+      const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+    
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = finalFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      }
+      setSelectedFile(pdfUrl);
+      setPosition({ x: 0, y: 0 });
+      setDroppedComponents([]);
   };
 
   return (
     <>
-    {!isLoggedIn &&
-     <Modal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
+    {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}  /> }
+      
+      
+      <ActionToolBar
+        fileName={fileName}
+        setFileName={setFileName}
+        isEditingFileName={isEditingFileName}
+        setIsEditingFileName={setIsEditingFileName}
+        handleSave={handleSave}     
       />
-    }
-    <div className="flex space-x-4">
-      <Fields
-        activeComponent={draggingComponent?.component ?? null}
-        mouseDown={mouseDownOnField}
-        selectedFile={selectedFile}
-        handleReset={() => {
-          setSelectedFile(null);
-          setDroppedComponents([]);
-        }}
-      handleSave={handleSave}
-      />
-      {!selectedFile && (
-      <UploadZone
-        onFileSelect={async (file: File) => {
-          const URL = await blobToURL(file);
-          setSelectedFile(URL);
-        }}
-      />
-      )}
+    
+
+      <div className='bg-[#efefef] flex' ref={builderContainer}>
+        <Fields
+          activeComponent={draggingComponent?.component ?? null}
+          mouseDown={mouseDownOnField}
+          selectedFile={selectedFile}
+          handleReset={() => {
+            setSelectedFile(null);
+            setDroppedComponents([]);
+          }}
+        />
+        {!selectedFile && (
+        <UploadZone
+          onFileSelect={async (file: File) => {
+            const URL = await blobToURL(file);
+            setSelectedFile(URL);
+          }}
+        />
+        )}
       {selectedFile && (
         <>
         {draggingComponent && (
@@ -389,10 +424,9 @@ const dropFields = (field:DroppedComponent) => {
           </div>
         )}
       <input type="file" ref={imageRef} id="image" className="hidden" onChange={onUploadImage} />
-      <div className='max-h-screen overflow-auto relative'>
           { loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' /> )}
           <div
-            className={`flex relative ${draggingComponent && 'cursor-fieldpicked' }`}
+            className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked' }`}
             ref={documentRef}
             onClick={clickOnDropArea}
             onMouseMove={mouseMoveOnDropArea}
@@ -458,27 +492,36 @@ const dropFields = (field:DroppedComponent) => {
             );
           })}
           
-          <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)}>
+          <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)} className="">
               {pages.map((pageNum, index) => (
               <Fragment key={index}>
-                <Page pageNumber={pageNum} width={800} height={1200} loading={"Page Loading..."}/>
-              <small className='flex justify-center p-2'>Page {pageNum} of {pages.length}</small>
+                  <div className='flex justify-between w-full items-center p-2'>
+                      <small>{pageNum} of {pages.length}</small>
+                      <small> <Plus size={16} /> </small>
+                      <small> <Ellipsis size={16} /> </small>
+                    </div> 
+                <Page pageNumber={pageNum} width={890}  loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false}/>
               </Fragment>
             ))}
           </Document>
           </div>
-       </div>
+  
+
           {/* Aside Panel for Page Thumbnails */}
-          <aside className='max-h-screen overflow-auto'>
+          <aside className='w-64 overflow-auto bg-white p-5'>
             <Document file={selectedFile} className="w-26" >
               {pages.map((pageNum) => (
-                  <Fragment key={pageNum} >                          
-                  <Page pageNumber={pageNum} width={100} loading={"Page Loading..."} className={`flex justify-center bg-white p-2 border cursor-pointer ${currentPage == pageNum ? ' border-blue-500' : 'border-gray-300'}`}  onClick={() => {
-                
+                <Fragment key={pageNum}>                          
+                  <Page pageNumber={pageNum} width={100} loading={"Page Loading..."} className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}  onClick={() => {
                 handleThumbnailClick(pageNum)
-              }} />
-                  <small className='flex justify-center p-2'>Page {pageNum}</small>
-                  </Fragment>
+              }} renderAnnotationLayer={false} renderTextLayer={false}/>                 
+                  <small className='flex justify-center group relative h-10 cursor-pointer'>
+                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white">
+                      <Plus size={16} strokeWidth={3} className="w-4 h-4 text-center" />
+                    </span>
+                    <hr className="border-gray-300 w-full group-hover:border-blue-500 absolute top-1/2  z-9"/>
+                  </small>
+                </Fragment>
                 ))}
             </Document>
            </aside>
@@ -495,8 +538,8 @@ const dropFields = (field:DroppedComponent) => {
               }}
             />
           )}
-    </div>
-       </>
+      </div>
+    </>
   );
 };
 

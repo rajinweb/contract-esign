@@ -1,50 +1,67 @@
-import { PencilLine, Image as Pic, Type, Calendar, Download } from 'lucide-react';
-import {FieldsProps} from '@/types/types';
-const fieldTypes = [
-  { id: 'signature', icon: PencilLine, label: 'Signature' },
-  { id: 'image', icon: Pic, label: 'Image' },
-  { id: 'text', icon: Type, label: 'Text' },
-  { id: 'Date', icon: Calendar, label: 'Date' },
-];
-  // Utility function to trigger file download
-  function downloadURI(uri: string | File, name: string) {
-    const link = document.createElement("a");
-    link.download = name;
-    link.href = typeof uri === 'string' ? uri : URL.createObjectURL(uri);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+import React from 'react';
+import {
+  Pencil,
+  User,
+  Download,
+  Image as Pic,
+  Signature,
+  Type,
+  Calendar,
+  BadgeCheck,
+  UserCircle,
+  Mail,
+  CheckSquare,
+  CircleDot,
+  Paperclip,
+  ChevronDown,
+  Stamp,
+  FunctionSquare,
+} from 'lucide-react';
 
-export default function Fields({ activeComponent, mouseDown, handleReset, handleSave, selectedFile }: FieldsProps) {
-  const fileName = selectedFile?.name;  
+import {FieldsProps} from '@/types/types';
+
+const fieldTypes = [
+  { id: 'signature', icon: <Signature size={18} />, label: 'Signature' },
+  { id: 'image', icon: <Pic size={18} />, label: 'Image' },
+  { id: 'text', icon: <Type size={18} />, label: 'Text' },
+  { id: 'Date', icon: <Calendar size={18} />, label: 'Date and Time' },
+  { id: 'BadgeCheck', icon: <BadgeCheck size={18} />, label: 'Initials' },
+  { id: 'UserCircle',  icon: <UserCircle size={18} />, label: 'Full Name' },
+  { id: 'Mail', icon: <Mail size={18} />, label: 'Email' },
+  { id: 'CheckSquare', icon: <CheckSquare size={18} />, label: 'Checkbox' },
+  { id: 'CircleDot', icon: <CircleDot size={18} />, label: 'Radio Buttons' },
+  { id: 'Paperclip', icon: <Paperclip size={18} />, label: 'Attachment' },
+  { id: 'ChevronDown', icon: <ChevronDown size={18} />, label: 'Dropdown' },
+  { id: 'Stamp', icon: <Stamp size={18} />, label: 'Stamp' },
+  { id: 'FunctionSquare', icon: <FunctionSquare size={18} />, label: 'Formula' },
+];
+
+export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
+ 
   return (
-    <div className="w-64 bg-gray-50 p-4 border-r border-gray-200 space-y-5">
-       <div className="flex space-x-2    ">
-          <button className=" items-center px-4 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition-colors"
-          onClick={handleReset}> Reset </button>
-           <button onClick={handleSave} className=" items-center px-4 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition-colors"
-          > Send </button>
-           <button className=" items-center px-2 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition-colors"
-          onClick={() => selectedFile && downloadURI(selectedFile, fileName || 'download.pdf')} >
-            <Download size={20} />
-            </button>
-       </div>
-      <h2 className="text-lg font-medium text-gray-900 mb-4">Fields</h2>
-      <div className="space-y-3 text-sm">
-        {fieldTypes.map(({ id, icon: Icon, label }) => (
-          <div
-            key={id}
-            className={`flex items-center px-3 py-2 bg-white rounded-md shadow-md cursor-pointer hover:bg-gray-300 ${
-              activeComponent == label && 'hover:bg-blue-200 bg-blue-300'
-            }`}
-            onMouseDown={(event) => mouseDown(label, event)}
-          >
-            <Icon className="mr-2" size={15} />
-            <span className="">{label}</span>
-          </div>
-        ))}
-      </div>
+    <div className="w-72 p-4 border-r border-gray-200 space-y-5 bg-white select-none">
+      
+        <small className="text-sm text-gray-800 uppercase">Add Fields for the recipient by placing them on the document: </small>
+        <div className="flex space-x-4 mt-2 text-sm font-semibold border-b border-gray-200 -mx-4 px-4">
+          <div className="text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer">Default</div>
+          <div className="text-gray-500 cursor-pointer">Custom</div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {fieldTypes.map((field) => (
+            <div
+              key={field.id}
+              className={`flex items-center justify-start p-2 bg-blue-50 rounded hover:bg-blue-100 transition text-sm ${
+                activeComponent == field.label && 'hover:bg-blue-200 bg-blue-300'
+              }`}
+              onMouseDown={(event) => mouseDown(field.label, event)}
+            >
+              {field.icon}
+              <span className="ml-2">{field.label}</span>
+            </div>
+          ))}
+        </div>
+     
+
     </div>
   );
 }

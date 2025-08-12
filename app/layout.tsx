@@ -1,7 +1,5 @@
-import { Metadata } from 'next';
-import { Header } from '@/components//Header';
-import { Footer } from '@/components//Footer';
-import ContextProvider from '@/components/ContextProvider';
+import type { Metadata } from 'next';
+import LayoutWrapper from '@/components/LayoutWrapper';
 import './globals.css';
 export const metadata: Metadata = {
   title: 'Contract e-sign',
@@ -20,11 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <main>
-          <ContextProvider>
-            <Header />
-            {children}
-            <Footer />
-          </ContextProvider>
+          <LayoutWrapper>{children}</LayoutWrapper>
         </main>
       </body>
     </html>

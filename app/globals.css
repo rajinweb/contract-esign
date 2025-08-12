@@ -5,3 +5,25 @@
 .bg-gradient{
 background:radial-gradient(114.65277499741333% 178.72598544585446% at 109.96528067168683% 70.44444178034368%,#d8bcff,#d7d3ff 20.633621513843536%,#c2d6ff 37.56687461255907%,#d6e5ff 55.662161111831665%,#e0f1ff 67.38132238388062%,#f8f9fd)
 }
+
+.dropdown:focus-within .dropdown-menu {
+    opacity:1;
+    transform: translate(0) scale(1);
+    visibility: visible;
+  }
+.page-badge {
+  @apply hover:border-[#0777cf]
+    
+  }
+.page-badge::before {
+    content: attr(data-page-number); 
+    @apply absolute top-0 left-0 bg-gray-300 text-black hover:bg-[#0777cf] hover:text-white px-2 py-1 text-xs rounded-br-md;
+  }
+.page-badge.active-page::before{
+  @apply text-white bg-[#0777cf]
+}
+
+.active-page{
+  @apply border-[#0777cf]
+
+}

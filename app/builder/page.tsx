@@ -46,8 +46,8 @@ function DropFile() {
   },[isLoggedIn, selectedFile, router])
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {selectedFile ? ( <DocumentEditor/>) : (
+    <>
+      {selectedFile ? <DocumentEditor/> : (
         <div className="flex space-x-8">
           <Sidebar
             selectedStatus={selectedStatus}
@@ -83,7 +83,7 @@ function DropFile() {
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }
 
