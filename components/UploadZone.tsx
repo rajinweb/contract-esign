@@ -1,7 +1,9 @@
 'use client';
 import React, { useCallback, useState } from 'react';
+import { createPortal } from "react-dom";
 import { LoaderPinwheel  } from 'lucide-react';
 import Image from 'next/image';
+import { PDFDocument } from 'pdf-lib';
 
 interface UploadZoneProps {
   onFileSelect: (file: File) => void;
@@ -32,31 +34,45 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
 
   );
 
-  const handleSampleContract = useCallback(() => {
-    // Create a sample contract file
-    const sampleContent = `Sample Contract
 
-Customer Name: _____________________ Date: _____________________
-
-This is a sample contract for demonstration purposes.
-
-1. Terms and Conditions
-   - This is a sample term
-   - This is another sample term
-
-2. Agreement
-   The undersigned parties agree to the terms stated above.
-
-Signature: _____________________
-Date: _____________________`;
-
-    const file = new File([sampleContent], 'sample-contract.txt', {
-      type: 'text/plain',
+  const handleSampleContract = async () => {
+    // Create a new PDF
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([890, 842]); // A4 size
+  
+    // const form = pdfDoc.getForm();
+  
+    // // Add a text field
+    // const nameField = form.createTextField("customerName");
+    // nameField.setText("Enter Customer Name");
+    // nameField.addToPage(page, { x: 50, y: 700, width: 300, height: 30 });
+  
+    // const dateField = form.createTextField("date");
+    // dateField.setText("Enter Date");
+    // dateField.addToPage(page, { x: 50, y: 650, width: 300, height: 30 });
+  
+     // Serialize PDF
+     const pdfBytes = await pdfDoc.save();
+  
+    // Create a File object (so your UploadZone flow works)
+    const file = new File([pdfBytes], "sample-contract.pdf", {
+      type: "application/pdf",
     });
+  
     onFileSelect(file);
-    setIsLoading(true); // Set loading for sample contract as well
-  }, [onFileSelect]);
+  };
 
+  if(isLoading){
+    return createPortal(<div className="fixed inset-0 flex flex-col items-center justify-center bg-black/50 z-[9999]">
+        <LoaderPinwheel
+          size={40}
+          className="animate-spin text-blue-600 mb-2"
+        />
+        <span className="text-white">Processing...</span>
+      </div>,
+      document.body as HTMLElement
+    );
+  }
   return (
     <section 
           className="flex gap-10 items-center justify-center max-w-7xl min-h-[300] mx-auto p-10"
@@ -71,13 +87,7 @@ Date: _____________________`;
           //   e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
           // }}
         >
-          {isLoading ? (
-            <div>
-              <LoaderPinwheel size={30} className="animate-spin text-blue-600  m-auto" />
-              Processing...
-            </div>
-          ):(
-          <>
+         
           <input
             type="file"
             id="fileInput"
@@ -112,15 +122,14 @@ Date: _____________________`;
           {/* Sign My Own Document Form */}
           <div className="grid grid-cols-2 items-center gap-6 bg-[#f2f7ff]  rounded-lg">
             <div className="h-full p-6">
-              <h2 className="text-2xl font-semibold text-gray-800">Sign my own document</h2>
+              <h2 className="text-2xl font-semibold text-gray-800">Create and Sign my own document</h2>
               <p className="text-gray-600 mt-2">Add your eSignature to a document in a few clicks.</p>
               <span className="font-medium inline-block mt-4 py-2 rounded text-blue-500 flex gap-2 cursor-pointer hover:underline"
-                  onClick={() => handleSampleContract} >
-                Try a sample contract →
+                  onClick={handleSampleContract} >
+                Create a sample contract →
                 </span>      
             </div>
-            <div className="h-full items-center flex justify-end pointer-events-none">
-                
+                <div className="h-full items-center flex justify-end pointer-events-none">
                   <Image
                     src="/images/signIcon.png"
                     alt="Send my document for signature"
@@ -129,13 +138,8 @@ Date: _____________________`;
                     className="w-[78%]"
                     quality={100}
                   />   
-               
-              </div>
+               </div>
           </div>
-
-          </>
-          )
-        }
-        </section>
+    </section>
   );
 }

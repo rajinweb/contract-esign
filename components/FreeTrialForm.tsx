@@ -14,7 +14,7 @@ const FreeTrialForm = () => {
     }
 
     // If no errors, redirect (simulate GET method)
-    window.location.href = `/purchase/business_free_trial/loggedout?email=${encodeURIComponent(email)}`;
+    window.location.href = `/register?email=${encodeURIComponent(email)}`;
   };
 
   return (

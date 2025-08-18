@@ -4,11 +4,12 @@ import GoogleSignInButton from '@/components/GoogleSignInButton';
 import usePasswordToggle from '@/utils/usePasswordToggle';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LockKeyhole } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import zxcvbn from 'zxcvbn';
+import { useSearchParams } from "next/navigation";
 export default function Register() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,9 @@ export default function Register() {
     email: '',
     password: '',
   });
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get("email") || ""; // now always string ✅
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -93,6 +97,11 @@ export default function Register() {
       ? 'Fair'
       : 'Strong';
 
+    // set the initial email once on load
+    useEffect(() => {
+      setEmail(emailFromUrl);
+    }, [emailFromUrl]);
+    
   return (
     <div className="flex items-center justify-center py-16">
       <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md">
@@ -109,7 +118,7 @@ export default function Register() {
               className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none ${
                 errors.email ? 'border-red-500' : 'border-gray-300'
               }`}
-              value={email}
+              value={email}       
               onChange={(e) => setEmail(e.target.value)}
             />
             {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
