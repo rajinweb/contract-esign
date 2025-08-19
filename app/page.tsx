@@ -1,19 +1,11 @@
 'use client';
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import UploadZone from '@/components/UploadZone';
 import Image from 'next/image';
-import useContextStore from '@/hooks/useContextStore';
 import FreeTrialForm from '@/components/FreeTrialForm';
 
 export default function Home() {
-  const { setSelectedFile } = useContextStore();
-  const router = useRouter();
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file)
-    router.push('/builder');
-  };
 
   return (
    <>
@@ -53,7 +45,7 @@ export default function Home() {
         </div>
       </div>
     </section>
-    <UploadZone onFileSelect={handleFileSelect} />
+    <UploadZone />
     </>
   );
 }

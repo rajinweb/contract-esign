@@ -1,8 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import GoogleSignInButton from '@/components/GoogleSignInButton'; 
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
 import usePasswordToggle from '@/utils/usePasswordToggle';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -16,6 +16,9 @@ const LoginPage: React.FC = () => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const router = useRouter();
+ 
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get("email") || ""; 
 
   const validateForm = () => {
     let isValid = true;
@@ -56,7 +59,7 @@ const LoginPage: React.FC = () => {
         const data = await response.json();
        if (response.ok) {
           localStorage.setItem('AccessToken', data.token);
-          router.push('/builder');
+          router.push('/dashboard');
           setIsLoggedIn(true);
           setShowModal(false)
         } else {
@@ -69,6 +72,10 @@ const LoginPage: React.FC = () => {
       }
     }
   };
+
+  useEffect(() => {
+    setEmail(emailFromUrl);
+  }, [emailFromUrl]);
 
   return (
     <div className="flex items-center justify-center">

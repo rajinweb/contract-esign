@@ -1,32 +1,36 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, {useState } from 'react';
 import { Search } from 'lucide-react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
-import DocumentEditor from '@/components/DocumentEditor';
 import Sidebar from '@/components/Sidebar';
 import {  Doc } from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 
 function Dashboard() {
-  const { selectedFile, setSelectedFile, documents, setDocuments } =
-    useContextStore();
+  const {setSelectedFile, documents, setDocuments } = useContextStore();
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const router=useRouter();
-  const { isLoggedIn } = useContextStore();
+
   const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
-    const newDoc = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      status: 'to_sign',
-      createdAt: new Date(),
-      signers: [],
-    } as Doc;
-    setDocuments([newDoc, ...documents]);
-  };
+      const exists = documents.some(doc => doc.name === file.name);
+      if (exists) {
+        setSelectedFile(file); // Still set as selected
+        return; // Do not add duplicate
+      }
+      const newDoc = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        status: 'to_sign',
+        createdAt: new Date(),
+        signers: [],
+        file, 
+      } as Doc;
+      setDocuments([newDoc, ...documents]);
+      setSelectedFile(file);
+    };
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesStatus = !selectedStatus || doc.status === selectedStatus;
@@ -36,19 +40,11 @@ function Dashboard() {
     return matchesStatus && matchesSearch;
   });
 
-  const [prevSelectedFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    console.log('DropFile useEffect', { isLoggedIn, selectedFile });
-    if ((!isLoggedIn && !selectedFile) || (prevSelectedFile !== null && selectedFile === null)) {
-      router.push('/');
-    }
-  },[isLoggedIn, selectedFile, router])
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {selectedFile ? ( <DocumentEditor/>) : (
-        <div className="flex space-x-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
+      <h1>Dashboard</h1>
+      <div className="flex space-x-8">
           <Sidebar
             selectedStatus={selectedStatus}
             onStatusSelect={setSelectedStatus}
@@ -71,18 +67,23 @@ function Dashboard() {
             </div>
 
             {documents.length === 0 ? (
-              <UploadZone onFileSelect={handleFileSelect} />
+              <UploadZone />
             ) : (
               <DocumentList
                 documents={filteredDocuments}
-                onDocumentSelect={(doc) =>
-                  console.log('Selected document:', doc)
-                }
+                onDocumentSelect={(doc) =>{
+                  if (doc.file && doc.file instanceof File) {
+                      handleFileSelect(doc.file);
+                      router.push('/builder');
+                    } else {
+                      // Optionally show an error or handle differently
+                      alert('No file found for this document.');
+                    }
+                  } }
               />
             )}
           </div>
         </div>
-      )}
     </main>
   );
 }

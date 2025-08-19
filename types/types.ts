@@ -6,6 +6,9 @@ export interface Doc {
     name: string;
     createdAt: Date;
     status: 'shared' | 'to_sign' | 'signed' | 'cancelled' | 'expired';
+    signers?: string[];
+    file?: File;
+    fileUrl?: string; 
   }
 
 export interface ContextValue {

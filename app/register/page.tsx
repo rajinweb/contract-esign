@@ -4,16 +4,17 @@ import GoogleSignInButton from '@/components/GoogleSignInButton';
 import usePasswordToggle from '@/utils/usePasswordToggle';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LockKeyhole } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import zxcvbn from 'zxcvbn';
-import { useSearchParams } from "next/navigation";
-export default function Register() {
+import { useRouter, useSearchParams } from "next/navigation";
+
+function Register() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState<{ error?: string; message?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
+  const router = useRouter();
   const { isVisible, toggleVisibility } = usePasswordToggle();
   const [errors, setErrors] = useState({
     passwordStrength: '',
@@ -21,7 +22,7 @@ export default function Register() {
     password: '',
   });
   const searchParams = useSearchParams();
-  const emailFromUrl = searchParams.get("email") || ""; // now always string ✅
+  const emailFromUrl = searchParams.get("email") || ""; 
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -53,16 +54,17 @@ export default function Register() {
 
         const data = await response.json();
 
-        if (response.ok) {
-          setMessage(data.message || 'Registration successful!');
+        
+          setMessage(data);
           setEmail('');
           setPassword('');
-        } else {
-          setMessage(data.message || 'Registration failed.');
-        }
+        if (response.ok) {
+          // Registration successful
+            router.push('/login?email=' + encodeURIComponent(email));
+        } 
       } catch (error) {
         console.error('Registration error:', error);
-        setMessage('An error occurred during registration.');
+        setMessage({ error: 'An error occurred during registration.' });
       } finally {
         setIsLoading(false);
       }
@@ -174,11 +176,13 @@ export default function Register() {
         <div className="my-3 text-center text-sm text-gray-600">
         <span className='text-2xl'>🎉 </span> No credit card required
         </div>
+
         {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">
-            {message}
+          <p className={`mt-4 text-center text-xs ${message?.error ? 'text-red-700' : 'text-green-700'} `}>
+            {message?.error || message?.message}
           </p>
         )}
+
          <p className="mt-4 text-center text-gray-600 text-sm border-t pt-3">
          Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign in.</a>
           </p>
@@ -191,5 +195,13 @@ export default function Register() {
           </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Register />
+    </Suspense>
   );
 }

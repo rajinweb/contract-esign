@@ -5,34 +5,73 @@ import { LoaderPinwheel  } from 'lucide-react';
 import Image from 'next/image';
 import { PDFDocument } from 'pdf-lib';
 
-interface UploadZoneProps {
-  onFileSelect: (file: File) => void;
-}
+import { useRouter } from 'next/navigation';
+import useContextStore from '@/hooks/useContextStore';
 
-export default function UploadZone({ onFileSelect }: UploadZoneProps) {
+
+export default function UploadZone() {
+
+  const {setSelectedFile, setDocuments } = useContextStore();
+  const router=useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
+
+  //const [prevSelectedFile] = useState<File | null>(null);
+  
+  // useEffect(() => {
+  //   console.log('DropFile useEffect', { isLoggedIn, selectedFile });
+  //   if ((!isLoggedIn && !selectedFile) || (prevSelectedFile !== null && selectedFile === null)) {
+  //     console.log('Redirecting to home page');
+  //     router.push('/');
+  //   }
+  // },[isLoggedIn, selectedFile, router])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsLoading(true);
       const file = e.dataTransfer.files[0];
-      if (file) onFileSelect(file);
+      if (file) {
+        setSelectedFile(file);
+        setDocuments(prevDocs => [
+        ...prevDocs,
+        {
+          id: `${Date.now()}-${file.name}`,
+          name: file.name,
+          createdAt: new Date(),
+          status: 'to_sign',
+          signers: [],
+          file: file
+        }
+      ]);
+      }
     },
    
-    [onFileSelect]
+    [setSelectedFile, setDocuments]
   );
 
   const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) onFileSelect(file);
+  (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setDocuments(prevDocs => [
+        ...prevDocs,
+        {
+          id: `${Date.now()}-${file.name}`,
+          name: file.name,
+          createdAt: new Date(),
+          status: 'to_sign',
+          signers: [],
+          file: file
+        }
+      ]);
       setIsLoading(true);
-    },
-    [onFileSelect]
-
-  );
+      router.push('/builder');
+    }
+  },
+  [setSelectedFile, setDocuments, router]
+);
 
 
   const handleSampleContract = async () => {
@@ -55,11 +94,13 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
      const pdfBytes = await pdfDoc.save();
   
     // Create a File object (so your UploadZone flow works)
+    // @ts-expect-error // This is a workaround since File constructor is not available in Node.js
     const file = new File([pdfBytes], "sample-contract.pdf", {
       type: "application/pdf",
     });
   
-    onFileSelect(file);
+    setSelectedFile(file);
+     router.push('/builder');
   };
 
   if(isLoading){
