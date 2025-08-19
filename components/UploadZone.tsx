@@ -38,7 +38,7 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
   const handleSampleContract = async () => {
     // Create a new PDF
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([890, 842]); // A4 size
+    //const page = pdfDoc.addPage([890, 842]); // A4 size
   
     // const form = pdfDoc.getForm();
   
