@@ -49,7 +49,7 @@ const LoginPage: React.FC = () => {
     if (validateForm()) {
       console.log('Form is valid. Submitting:', { email, password });
       try {
-        const response = await fetch('/api/login', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -78,8 +78,8 @@ const LoginPage: React.FC = () => {
   }, [emailFromUrl]);
 
   return (
-    <div className="flex items-center justify-center">
-      <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md">
+    
+      <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md  m-auto mt-20">
         <h3 className="text-2xl font-bold text-center">Login to SecureSign</h3>
         <form onSubmit={handleSubmit}>
           <div className="mt-4">
@@ -124,7 +124,7 @@ const LoginPage: React.FC = () => {
        
           {/* Include the Google Sign-In button */}
           <div className="flex justify-center mt-4">
-            <GoogleOAuthProvider clientId="475170635447-lrrlsb0coohf3dicefsges3keo386at5.apps.googleusercontent.com">
+            <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
               <GoogleSignInButton />
             </GoogleOAuthProvider>
             {/* Add other social login buttons here */}
@@ -134,7 +134,7 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
+   
   );
 };
 

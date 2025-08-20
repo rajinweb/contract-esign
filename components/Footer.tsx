@@ -32,7 +32,7 @@ export function Footer() {
           <ul className="flex space-x-4 justify-center mb-6">
             <li>
               <a
-                href="https://www.facebook.com/esignaturesignnow"
+                href="https://www.facebook.com/securesign"
                 title="Facebook"
                 target="_blank"
                 rel="nofollow"
@@ -48,7 +48,7 @@ export function Footer() {
           
             <li>
               <a
-                href="https://x.com/signnow"
+                href="https://x.com/securesign"
                 title="Twitter"
                 target="_blank"
                 rel="nofollow"
@@ -62,7 +62,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href="https://www.linkedin.com/company/signnow-esignature"
+                href="https://www.linkedin.com/company/securesign"
                 title="LinkedIn"
                 target="_blank"
                 rel="nofollow"
@@ -76,7 +76,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href="https://www.youtube.com/channel/UCap5EPWIJNTDtNQEofyg0Hg"
+                href="https://www.youtube.com/channel/securesign"
                 title="YouTube"
                 target="_blank"
                 rel="nofollow"
