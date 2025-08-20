@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import Sidebar from '@/components/Sidebar';
-import {  Doc } from '@/types/types';
+import {Doc} from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 
@@ -17,8 +17,8 @@ function Dashboard() {
   const handleFileSelect = (file: File) => {
       const exists = documents.some(doc => doc.name === file.name);
       if (exists) {
-        setSelectedFile(file); // Still set as selected
-        return; // Do not add duplicate
+        setSelectedFile(file);
+        return; 
       }
       const newDoc = {
         id: Math.random().toString(36).substr(2, 9),
@@ -50,9 +50,8 @@ function Dashboard() {
             onStatusSelect={setSelectedStatus}
           />
 
-          {/* Main content */}
           <div className="flex-1">
-            {/* Search bar */}
+
             <div className="mb-6 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
@@ -76,7 +75,7 @@ function Dashboard() {
                       handleFileSelect(doc.file);
                       router.push('/builder');
                     } else {
-                      // Optionally show an error or handle differently
+                  
                       alert('No file found for this document.');
                     }
                   } }

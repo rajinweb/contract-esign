@@ -402,14 +402,7 @@ const dropFields = (field:DroppedComponent) => {
             setDroppedComponents([]);
           }}
         />
-        {!selectedFile && (
-        <UploadZone
-          onFileSelect={async (file: File) => {
-            const URL = await blobToURL(file);
-            setSelectedFile(URL);
-          }}
-        />
-        )}
+      {!selectedFile && ( <UploadZone /> )}
       {selectedFile && (
         <>
         {draggingComponent && (

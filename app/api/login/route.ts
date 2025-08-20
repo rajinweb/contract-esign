@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
+import { serialize } from 'cookie';
 const UserSchema = new mongoose.Schema({ email: String, password: String });
 const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 
@@ -33,23 +33,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Generate JWT
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key'; // Use environment variable for secret
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
     const token = jwt.sign(
       { userId: user._id, email: user.email }, // Payload with user info
       jwtSecret,
-      { expiresIn: '1h' } // Token expires in 1 hour
+      { expiresIn: '7d' }
     );
-
-    return NextResponse.json({
+    const response = NextResponse.json({
+      success: true,
       message: 'Login successful',
       token, 
       user: { 
         email: user.email, 
-        name: 'Rajesh', 
-        photo: null
+        // name: 'Rajesh', 
+        // photo: null
        }
     });
+    response.headers.set(
+    'Set-Cookie',
+    serialize('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    })
+  );
+
+  return response;
+
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

@@ -94,10 +94,12 @@ export default function UploadZone() {
      const pdfBytes = await pdfDoc.save();
   
     // Create a File object (so your UploadZone flow works)
-    // @ts-expect-error // This is a workaround since File constructor is not available in Node.js
-    const file = new File([pdfBytes], "sample-contract.pdf", {
-      type: "application/pdf",
-    });
+    
+    const file = new File(
+      [new Uint8Array(pdfBytes.buffer as ArrayBuffer)],
+      "sample-contract.pdf",
+      { type: "application/pdf" }
+    );
   
     setSelectedFile(file);
      router.push('/builder');

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import GoogleSignInButton from '@/components/GoogleSignInButton'; 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -59,14 +59,14 @@ const LoginPage: React.FC = () => {
         const data = await response.json();
        if (response.ok) {
           localStorage.setItem('AccessToken', data.token);
-          router.push('/dashboard');
           setIsLoggedIn(true);
+          router.replace('/dashboard');
           setShowModal(false)
         } else {
-          // Handle error (show message to user)
+        
           alert(data.message || 'Login failed');
         }
-        // Handle the API response (e.g., redirect on success, display error on failure)
+      
       } catch (error) {
         console.error('Error during login:', error);
       }
@@ -137,4 +137,12 @@ const LoginPage: React.FC = () => {
     </div>
   );
 };
-export default LoginPage;
+
+
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginPage />
+    </Suspense>
+  );
+}

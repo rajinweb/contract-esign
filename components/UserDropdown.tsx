@@ -13,15 +13,16 @@ import useContextStore from '@/hooks/useContextStore';
 
 
 const UserDropdown = () => {
-
   const { setIsLoggedIn, setSelectedFile } = useContextStore();
   const router= useRouter();
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch('/api/logout', {
+      method: 'POST',
+    });
     localStorage.removeItem('AccessToken');
     setIsLoggedIn(false);
-    // Optionally clear user data, tokens, etc.
-    router.push('/'); // Redirect to home or login page
     setSelectedFile(null);
+    router.replace('/'); 
   };
   return (
     <div className="relative group">
@@ -82,14 +83,14 @@ const UserDropdown = () => {
           Settings
         </Link>
 
-        <Link
-          href="#"
+        <button
+          type="button"
           onClick={handleLogout}
-          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
         >
           <LogOut className="w-4 h-4 mr-2 text-gray-500" />
           logout
-        </Link>
+        </button>
       </div>
     </div>
   );
