@@ -13,13 +13,14 @@ import useContextStore from '@/hooks/useContextStore';
 
 
 const UserDropdown = () => {
-  const { setIsLoggedIn, setSelectedFile } = useContextStore();
+  const { setIsLoggedIn, setSelectedFile, user } = useContextStore();
   const router= useRouter();
   const handleLogout = async () => {
     await fetch('/api/logout', {
       method: 'POST',
     });
     localStorage.removeItem('AccessToken');
+    localStorage.removeItem('User');
     setIsLoggedIn(false);
     setSelectedFile(null);
     router.replace('/'); 
@@ -32,7 +33,7 @@ const UserDropdown = () => {
         className="relative cursor-pointer focus:outline-none"
       >
         <Image
-          src="https://i.pravatar.cc/40?img=3"
+          src={user?.picture || 'https://i.pravatar.cc/40?img=5'}
           alt="User"
           className="w-8 h-8 rounded-full"
           width={40}
@@ -47,15 +48,15 @@ const UserDropdown = () => {
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <Image
-              src="https://i.pravatar.cc/40?img=3"
+              src={user?.picture || 'https://i.pravatar.cc/40?img=5'}
               alt="User"
               className="w-10 h-10 rounded-full"
               width={40}
               height={40}
             />
             <div>
-              <p className="text-sm font-semibold text-gray-800">John Doe</p>
-              <p className="text-xs text-gray-500">john@example.com</p>
+              <p className="text-sm font-semibold text-gray-800">{user?.name || 'No Name'}</p>
+              <p className="text-xs text-gray-500">{user?.email}</p>
             </div>
           </div>
         </div>

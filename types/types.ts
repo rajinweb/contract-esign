@@ -7,7 +7,7 @@ export interface Doc {
     createdAt: Date;
     status: 'shared' | 'to_sign' | 'signed' | 'cancelled' | 'expired';
     signers?: string[];
-    file?: File;
+    file?: File | string;
     fileUrl?: string; 
   }
 
@@ -17,9 +17,11 @@ export interface ContextValue {
   documents: Doc[];
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
   isLoggedIn: boolean;
-  setIsLoggedIn: (loggedIn: boolean) => void;
-  showModal:boolean;
-  setShowModal:(ModalVisible: boolean) => void;
+  setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
+  showModal: boolean;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<any>>;
 }
 
 export interface ContextProviderProps {
@@ -56,4 +58,11 @@ export interface  DroppedComponent extends DroppingField {
   width: number;
   height: number;
   data?: any;
+}
+export interface User {
+  email: string;
+  password?: string;
+  name?: string;
+  picture?: string;
+  id?: string;
 }

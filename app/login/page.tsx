@@ -9,7 +9,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const { isVisible, toggleVisibility } = usePasswordToggle();
-  const {setShowModal, setIsLoggedIn} = useContextStore();
+  const {setShowModal, setIsLoggedIn, setUser} = useContextStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
  
@@ -60,6 +60,7 @@ const LoginPage: React.FC = () => {
        if (response.ok) {
           localStorage.setItem('AccessToken', data.token);
           setIsLoggedIn(true);
+          setUser(data.user);
           router.replace('/dashboard');
           setShowModal(false)
         } else {

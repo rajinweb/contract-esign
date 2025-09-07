@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import Users from '@/models/Users';
 import { serialize } from 'cookie';
-const UserSchema = new mongoose.Schema({ email: String, password: String });
-const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,14 +13,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (mongoose.connection.readyState === 0) {
+      if (!process.env.MONGODB_URI) {
+        console.error('MONGODB_URI not defined');
+        return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
+      }
       await mongoose.connect(process.env.MONGODB_URI as string);
     }
 
-    const user = await UserModel.findOne({ email });
-    console.log('User from DB:', user);
-    console.log('Submitted password:', password);
-    console.log('Hashed password from DB:', user?.password);
-
+    const user = await Users.findOne({ email });
     if (!user || !user.password) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
@@ -33,32 +32,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
-    const token = jwt.sign(
-      { userId: user._id, email: user.email }, // Payload with user info
-      jwtSecret,
-      { expiresIn: '7d' }
-    );
+    const jwtSecret = process.env.JWT_SECRET as string;
+    if (!jwtSecret) {
+          console.error('JWT_SECRET not defined');
+          return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
+    }
+    
+    const appToken = jwt.sign({ id: user._id, email: user.email }, jwtSecret, { expiresIn: '7d' });
+
     const response = NextResponse.json({
       success: true,
-      message: 'Login successful',
-      token, 
-      user: { 
-        email: user.email, 
-        // name: 'Rajesh', 
-        // photo: null
-       }
+      user: { email: user.email, name: user.name , picture: user.picture },
+      token: appToken
     });
+    
+    // Set httpOnly cookie (secure only in production)
     response.headers.set(
-    'Set-Cookie',
-    serialize('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-    })
-  );
+      'Set-Cookie',
+        serialize('token', appToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 7 * 24 * 3600,
+        })
+    );
 
   return response;
 
