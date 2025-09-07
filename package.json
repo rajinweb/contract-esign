@@ -52,6 +52,7 @@
     "react-pdf": "^5.7.2",
     "react-signature-canvas": "^1.0.3",
     "tailwindcss": "^3.4.1",
+    "turbo": "^2.5.6",
     "typescript": "^5"
   }
 }
