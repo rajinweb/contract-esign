@@ -25,6 +25,7 @@ const UserDropdown = () => {
     setSelectedFile(null);
     router.replace('/'); 
   };
+  const noImage = 'https://i.pravatar.cc/40?img=5';
   return (
     <div className="relative group">
       {/* Focusable dropdown trigger */}
@@ -33,9 +34,9 @@ const UserDropdown = () => {
         className="relative cursor-pointer focus:outline-none"
       >
         <Image
-          src={user?.picture || 'https://i.pravatar.cc/40?img=5'}
+          src={user?.picture || noImage}
           alt="User"
-          className="w-8 h-8 rounded-full"
+          className="w-8 h-8 rounded-full border border-gray-300"
           width={40}
           height={40}
         />
@@ -48,7 +49,7 @@ const UserDropdown = () => {
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <Image
-              src={user?.picture || 'https://i.pravatar.cc/40?img=5'}
+              src={user?.picture || noImage}
               alt="User"
               className="w-10 h-10 rounded-full"
               width={40}

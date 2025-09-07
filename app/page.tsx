@@ -3,9 +3,10 @@ import React from 'react';
 import UploadZone from '@/components/UploadZone';
 import Image from 'next/image';
 import FreeTrialForm from '@/components/FreeTrialForm';
+import useContextStore from '@/hooks/useContextStore';
 
 export default function Home() {
-
+  const {user} = useContextStore()
 
   return (
    <>
@@ -19,9 +20,11 @@ export default function Home() {
             Transform your document signing process with legally valid digital
             signatures. Fast, secure, and compliant.
           </p>
-          <div className="mt-8 flex space-x-4">       
+          {!user && (
+            <div className="mt-8 flex space-x-4">       
             <FreeTrialForm/>
           </div>
+          )}
         </div>
         <div className="flex justify-end relative">
           <div className='absolute w-20 text-center top-[90px] right-[70px]'>
