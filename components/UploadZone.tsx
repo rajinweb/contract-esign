@@ -167,7 +167,7 @@ export default function UploadZone() {
             <div className="h-full p-6">
               <h2 className="text-2xl font-semibold text-gray-800">Create and Sign my own document</h2>
               <p className="text-gray-600 mt-2">Add your eSignature to a document in a few clicks.</p>
-              <span className="font-medium inline-block mt-4 py-2 rounded text-blue-500 flex gap-2 cursor-pointer hover:underline"
+              <span className="font-medium mt-4 py-2 rounded text-blue-500 flex gap-2 cursor-pointer hover:underline"
                   onClick={handleSampleContract} >
                 Create a sample contract →
                 </span>      
