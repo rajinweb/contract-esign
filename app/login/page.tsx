@@ -1,118 +1,67 @@
 'use client';
-import React, { useEffect, useState, Suspense } from 'react';
-import GoogleSignInButton from '@/components/GoogleSignInButton'; 
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import React, { Suspense } from 'react';
+import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
-import usePasswordToggle from '@/utils/usePasswordToggle';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import GoogleSignInButton from '@/components/GoogleSignInButton'; 
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import Input from '@/components/forms/Input';
+import toast from 'react-hot-toast';
+
+type FormValues = {
+  email: string;
+  password: string;
+};
 
 const LoginPage: React.FC = () => {
-  const { isVisible, toggleVisibility } = usePasswordToggle();
-  const {setShowModal, setIsLoggedIn, setUser} = useContextStore();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
- 
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const { setIsLoggedIn, setUser, setShowModal } = useContextStore();
   const router = useRouter();
- 
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams.get("email") || ""; 
+  const { register, handleSubmit, formState } = useForm<FormValues>({ defaultValues: { email: emailFromUrl ? emailFromUrl : '', password: '' } });
 
-  const validateForm = () => {
-    let isValid = true;
-    setEmailError('');
-    setPasswordError('');
-
-    if (!email) {
-      setEmailError('Email is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Invalid email format');
-      isValid = false;
-    }
-
-    if (!password) {
-      setPasswordError('Password is required');
-      isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
-      isValid = false;
-    }
-
-    return isValid;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      console.log('Form is valid. Submitting:', { email, password });
-      try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await response.json();
-       if (response.ok) {
-          localStorage.setItem('AccessToken', data.token);
-          setIsLoggedIn(true);
-          setUser(data.user);
-          router.replace('/dashboard');
-          setShowModal(false)
-        } else {
-        
-          alert(data.message || 'Login failed');
-        }
-      
-      } catch (error) {
-        console.error('Error during login:', error);
+  const onSubmit = async (data: FormValues) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(json?.message || 'Login failed')
+        return;
       }
+
+      if (json?.token) localStorage.setItem('AccessToken', json.token);
+      if (json?.user) {
+        localStorage.setItem('User', JSON.stringify(json.user));
+        setUser(json.user);
+      }
+      setIsLoggedIn(true);
+      router.replace('/dashboard');
+      setShowModal(false)
+    } catch (err) {
+      console.error(err);
+      toast('Network error')
     }
   };
-
-  useEffect(() => {
-    setEmail(emailFromUrl);
-  }, [emailFromUrl]);
 
   return (
     
       <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md  m-auto mt-20">
         <h3 className="text-2xl font-bold text-center">Login to SecureSign</h3>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="mt-4">
             <div>
-              <label className="block" htmlFor="email">Email</label>
-              <input type="email" placeholder="Email"
-                className={`w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 ${emailError ? 'border-red-500 focus:ring-red-600' : 'focus:ring-blue-600'}`}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
+              <Input label="Email" type="email" {...register('email', { required: 'Email required' })} error={formState.errors.email?.message} />
             </div>
             <div className="mt-4">
-              <label className="block mb-2" htmlFor="password">Password</label>
-              <div className="relative flex items-center">
-                <input type={isVisible ? 'text' : 'password'} placeholder="Password"
-                className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-1 ${passwordError ? 'border-red-500 focus:ring-red-600' : 'focus:ring-blue-600'}`}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-               <button
-                type="button"
-                onClick={toggleVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
-              >
-                {isVisible ? <FaEye /> : <FaEyeSlash />}
-              </button>
-              </div>
-              {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
+              <Input label="Password" type="password" {...register('password', { required: 'Password required' })} error={formState.errors.password?.message} />
             </div>
-        
-              <button type="submit" className="w-full px-6 py-2 mt-4 text-white bg-blue-600 rounded-md hover:bg-blue-900">Login</button>
+              <button type="submit" className="w-full px-6 py-2 mt-4 text-white bg-blue-600 rounded-md hover:bg-blue-900">
+                {formState.isSubmitting ? 'Signing in...' : 'Sign in'}
+              </button>
               <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</a>
           
           </div>

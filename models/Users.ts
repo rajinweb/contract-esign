@@ -6,6 +6,12 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: false },
   picture: { type: String, required: false },
   id: { type: String, required: false },
+
+  // Added for password reset
+  passwordResetToken: {
+    token: { type: String },
+    expires: { type: Date },
+  },
 });
 
 export default mongoose.models.Users || mongoose.model('Users', UserSchema);

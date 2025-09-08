@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import {Doc} from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 function Dashboard() {
   const {setSelectedFile, documents, setDocuments } = useContextStore();
@@ -75,8 +76,7 @@ function Dashboard() {
                       handleFileSelect(doc.file);
                       router.push('/builder');
                     } else {
-                  
-                      alert('No file found for this document.');
+                      toast("No file found for this document.")
                     }
                   } }
               />
