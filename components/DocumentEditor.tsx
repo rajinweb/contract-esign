@@ -26,6 +26,7 @@ import Modal from './Modal';
 import DateField from './DateField';
 
 import ActionToolBar from '@/components/ActionToolBar';
+import PageThumbnailMenu from '@/components/PageThumbnailMenu';
 
 const DocumentEditor: React.FC = () => {
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
@@ -52,6 +53,10 @@ const DocumentEditor: React.FC = () => {
   const [fileName, setFileName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
   
+  const [menuTriggerElement, setMenuTriggerElement] = useState<HTMLElement | null>(null);
+  const toggleMenu = (event: React.MouseEvent) => {
+    setMenuTriggerElement(event.currentTarget as HTMLElement);
+  };
 
   // Function to generate page thumbnails
   const generateThumbnails = (numPages: number) => {
@@ -67,10 +72,34 @@ const DocumentEditor: React.FC = () => {
     if (documentRef.current) {
       const page = documentRef.current.querySelector(`[data-page-number="${pageNum}"]`);
       if (page) {     
-      (documentRef.current.parentElement as HTMLDivElement).scrollTop = (page as HTMLElement).offsetTop;   
+        page.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest',
+        });
       }
     }
   };
+
+  const insertBlankPageAt = async (index: number) => {
+    if (!selectedFile) return;
+    const arrayBuffer = typeof selectedFile === 'string'
+      ? await fetch(selectedFile).then(res => res.arrayBuffer())
+      : await selectedFile.arrayBuffer();
+
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+    const [width, height] = [595.28, 841.89]; // A4 size
+    pdfDoc.insertPage(index, [width, height]);
+
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+    const newURL = await blobToURL(blob);
+
+    setSelectedFile(newURL);
+    setDroppedComponents([]);
+  };
+
 
    // Check which page is visible and update the currentPage
   const checkVisiblePage = useCallback(() => {
@@ -104,7 +133,7 @@ const DocumentEditor: React.FC = () => {
       setPosition(xy);
     };
 
-  const mouseMoveOnDropArea = (event: MouseEvent) => {
+  const mouseMoveOnDropArea = (event: React.MouseEvent<HTMLDivElement>) => {
      if (
       draggingEle.current &&
       (event.target as HTMLElement).classList.contains('react-draggable')
@@ -158,7 +187,7 @@ const dropFields = (field:DroppedComponent) => {
     }
   }
   // Handle placing the component in the panel
-  const clickOnDropArea = (event: MouseEvent) => {
+  const clickOnDropArea = (event: React.MouseEvent<HTMLDivElement>) => {
     const targetElem=event.target as HTMLElement;
     if(!targetElem.closest('.react-draggable')){
       if (draggingComponent && documentRef.current) {
@@ -178,7 +207,7 @@ const dropFields = (field:DroppedComponent) => {
         };
 
         setDroppedComponents((prev) => [...prev, newComponent]);
-        setElementId(elementId + 1);
+        setElementId(prev => prev + 1);
 
       }
 
@@ -490,31 +519,46 @@ const dropFields = (field:DroppedComponent) => {
               <Fragment key={index}>
                   <div className='flex justify-between w-full items-center p-2'>
                       <small>{pageNum} of {pages.length}</small>
-                      <small> <Plus size={16} /> </small>
-                      <small> <Ellipsis size={16} /> </small>
+                      <button onClick={() => insertBlankPageAt(pageNum)} className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Plus size={16} /> </button>
+                      <div className='relative' onClick={toggleMenu}>
+                        <button  className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
+                      </div>
                     </div> 
                 <Page pageNumber={pageNum} width={890}  loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false}/>
               </Fragment>
             ))}
           </Document>
           </div>
-  
 
           {/* Aside Panel for Page Thumbnails */}
           <aside className='w-64 overflow-auto bg-white p-5'>
             <Document file={selectedFile} className="w-26" >
               {pages.map((pageNum) => (
-                <Fragment key={pageNum}>                          
-                  <Page pageNumber={pageNum} width={100} loading={"Page Loading..."} className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}  onClick={() => {
-                handleThumbnailClick(pageNum)
-              }} renderAnnotationLayer={false} renderTextLayer={false}/>                 
+
+                <Fragment key={pageNum}>   
+
+                  <div className='relative group'>                       
+                    <Page pageNumber={pageNum} width={100} loading={"Page Loading..."} 
+                    className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}  
+                    onClick={() => { handleThumbnailClick(pageNum)}} renderAnnotationLayer={false} renderTextLayer={false}/>   
+                    <div className='absolute right-2 top-2'>
+                      <div className='relative' onClick={toggleMenu}>
+                        <button className={`hidden group-hover:block  bg-gray-300 hover:bg-blue-500  hover:text-white p-0.5 rounded-sm`}> 
+                            <Ellipsis size={20} /> 
+                        </button>
+                      </div>
+                    </div>
+                  </div>    
+
                   <small className='flex justify-center group relative h-10 cursor-pointer'>
-                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white">
+                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white" onClick={() => insertBlankPageAt(pageNum)}>
                       <Plus size={16} strokeWidth={3} className="w-4 h-4 text-center" />
                     </span>
                     <hr className="border-gray-300 w-full group-hover:border-blue-500 absolute top-1/2  z-9"/>
                   </small>
+
                 </Fragment>
+                
                 ))}
             </Document>
            </aside>
@@ -532,6 +576,13 @@ const dropFields = (field:DroppedComponent) => {
             />
           )}
       </div>
+     
+       {menuTriggerElement &&
+        <PageThumbnailMenu
+          triggerElement={menuTriggerElement}
+          onClose={() => setMenuTriggerElement(null)}
+        />
+        }
     </>
   );
 };

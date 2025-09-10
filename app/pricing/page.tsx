@@ -81,7 +81,7 @@ const plans = [
 const PricingPlans = () => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
   return (
-    <section className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 mt-20">
+    <section className="py-12 px-4 sm:px-6 lg:px-8 mt-20 container mx-auto">
       <div className="text-center mb-12">
         <p className="text-indigo-600 text-sm font-semibold uppercase">Unlimited users for all plans</p>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">
