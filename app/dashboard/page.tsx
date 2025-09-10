@@ -43,7 +43,7 @@ function Dashboard() {
 
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
+    <main className="max-w-7xl container  mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
       <h1>Dashboard</h1>
       <div className="flex space-x-8">
           <Sidebar

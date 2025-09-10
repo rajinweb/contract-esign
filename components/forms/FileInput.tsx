@@ -3,13 +3,11 @@ import React from 'react';
 type Props = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   error?: string | boolean;
-  // allow register's ref to be passed as a normal prop
-  ref?: any;
+  ref?: React.Ref<HTMLInputElement>;
 };
 
 const FileInput: React.FC<Props> = (props) => {
-  // pick up the ref that may be passed in via {...register(...)}
-  const { label, error, className = '', ref: inputRef, ...rest } = props as any;
+  const { label, error, className = '', ref: inputRef, ...rest } = props;
 
   return (
     <label className="block">

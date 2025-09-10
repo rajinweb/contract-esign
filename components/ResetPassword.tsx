@@ -3,10 +3,18 @@
 import { useForm, SubmitHandler } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+
+// Define the PasswordInputs type for the form
 type PasswordInputs = {
   newPassword: string;
   confirmPassword: string;
 };
+
+// Define the Body type for the API request payload
+interface ResetPasswordBody {
+  newPassword: string;
+  token?: string; // Optional, only included in reset flow
+}
 
 type ResetPasswordProps = {
   token?: string | null;
@@ -15,7 +23,7 @@ type ResetPasswordProps = {
 
 const ResetPassword = ({ token, email }: ResetPasswordProps) => {
   const isResetFlow = !!token; // true if accessed via reset link with token
-  const router= useRouter();
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -30,10 +38,10 @@ const ResetPassword = ({ token, email }: ResetPasswordProps) => {
     }
 
     const endpoint = isResetFlow
-      ? '/api/user/reset-password'     // reset via token (forgot password)
-      : '/api/user/change-password';   // update while logged-in
+      ? '/api/user/reset-password' // reset via token (forgot password)
+      : '/api/user/change-password'; // update while logged-in
 
-    const body: any = { newPassword: data.newPassword };
+    const body: ResetPasswordBody = { newPassword: data.newPassword };
     if (isResetFlow && token) {
       body.token = token;
     }
@@ -49,7 +57,7 @@ const ResetPassword = ({ token, email }: ResetPasswordProps) => {
         toast.success(isResetFlow ? 'Password reset successful' : 'Password updated');
         reset();
         if (isResetFlow) {
-          const redirectUrl =  `/login?email=${email ? encodeURIComponent(email) : '' } `;
+          const redirectUrl = `/login?email=${email ? encodeURIComponent(email) : ''}`;
           // Optionally redirect to login page after reset
           router.push(redirectUrl);
         }

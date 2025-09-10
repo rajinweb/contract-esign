@@ -2,11 +2,11 @@ import React from 'react';
 
 type Props = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
-  ref?: any;
+  ref?: React.Ref<HTMLInputElement>;
 };
 
 const Checkbox: React.FC<Props> = (props) => {
-  const { label, className = '', ref: inputRef, ...rest } = props as any;
+  const { label, className = '', ref: inputRef, ...rest } = props;
 
   return (
     <label className="inline-flex items-center space-x-2">

@@ -1,23 +1,26 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import {
-  RotateCcw,
-  ArrowUp,
-  ArrowDown,
-  FileSymlink,
-  Replace,
-  Copy,
-  Trash2,
-} from "lucide-react";
+import { RotateCcw, ArrowUp, ArrowDown, Copy, Trash2, FileSymlink, Replace } from "lucide-react";
+import { PDFDocument, degrees } from "pdf-lib";
 
 interface Props {
   onClose: () => void;
-  triggerElement?:  HTMLElement | null | undefined;
+  triggerElement?: HTMLElement | null;
+  pdfDoc: PDFDocument;
+  pageIndex: number;
+  onPdfUpdated: (updatedDoc: PDFDocument) => void;
 }
 
-const PageThumbnailMenu: React.FC<Props> = ({ onClose, triggerElement }) => {
+const PageThumbnailMenu: React.FC<Props> = ({
+  onClose,
+  triggerElement,
+  pdfDoc,
+  pageIndex,
+  onPdfUpdated,
+}) => {
   const ref = useRef<HTMLDivElement>(null);
-  // Close on outside click
+
+  // Close menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -27,39 +30,85 @@ const PageThumbnailMenu: React.FC<Props> = ({ onClose, triggerElement }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
-  const listItemCss="flex items-center gap-2 hover:bg-gray-100 p-2 cursor-pointer";
+
+  // --- Page operations ---
+  const rotatePage = async () => {
+    const page = pdfDoc.getPage(pageIndex);
+    const rotation = page.getRotation().angle;
+    page.setRotation(degrees((rotation + 90) % 360));
+    onPdfUpdated(pdfDoc); // ✅ Let parent handle save + reload
+    onClose();
+  };
+
+  const duplicatePage = async () => {
+    const [copiedPage] = await pdfDoc.copyPages(pdfDoc, [pageIndex]);
+    pdfDoc.insertPage(pageIndex + 1, copiedPage);
+    await onPdfUpdated(pdfDoc);
+    onClose();
+  };
+
+  const removePage = async () => {
+    pdfDoc.removePage(pageIndex);
+    await onPdfUpdated(pdfDoc);
+    onClose();
+  };
+
+  const movePageUp = async () => {
+    if (pageIndex <= 0) return;
+    const [page] = await pdfDoc.copyPages(pdfDoc, [pageIndex]);
+    pdfDoc.removePage(pageIndex);
+    pdfDoc.insertPage(pageIndex - 1, page);
+    await onPdfUpdated(pdfDoc);
+    onClose();
+  };
+
+  const movePageDown = async () => {
+    if (pageIndex >= pdfDoc.getPageCount() - 1) return;
+    const [page] = await pdfDoc.copyPages(pdfDoc, [pageIndex]);
+    pdfDoc.removePage(pageIndex);
+    pdfDoc.insertPage(pageIndex + 1, page);
+    await onPdfUpdated(pdfDoc);
+    onClose();
+  };
+
+  const listItemCss =
+    "flex items-center gap-2 hover:bg-gray-100 p-2 cursor-pointer";
+
   const menu = (
     <div
       ref={ref}
       className="absolute z-50 bg-white shadow-md border rounded w-48 right-0"
-     >
-        <ul className="text-sm p-2">
-            <li className={listItemCss}>
-                <RotateCcw size={16} /> Rotate Page
-            </li>
-            <li className={listItemCss}>
-                <ArrowUp size={16} /> Move Page Up
-            </li>
-            <li className={listItemCss}>
-                <ArrowDown size={16} /> Move Page Down
-            </li>
-            <li className={listItemCss}>
-                <FileSymlink size={16} /> Move Page To...
-            </li>
-            <li className={listItemCss}>
-                <Replace size={16} /> Replace Page
-            </li>
-            <li className={listItemCss}>
-                <Copy size={16} /> Duplicate Page
-            </li>
-            <li className={`${listItemCss} text-red-600`}>
-                <Trash2 size={16} /> Remove Page
-            </li>
-        </ul>
+    >
+      <ul className="text-sm p-2">
+        <li className={listItemCss} onClick={rotatePage}>
+          <RotateCcw size={16} /> Rotate Page
+        </li>
+        <li className={listItemCss} onClick={movePageUp}>
+          <ArrowUp size={16} /> Move Page Up
+        </li>
+        <li className={listItemCss} onClick={movePageDown}>
+          <ArrowDown size={16} /> Move Page Down
+        </li>
+         <li className={listItemCss}>
+            <FileSymlink size={16} /> Move Page To...
+        </li>
+        <li className={listItemCss}>
+            <Replace size={16} /> Replace Page
+        </li>
+        <li className={listItemCss} onClick={duplicatePage}>
+          <Copy size={16} /> Duplicate Page
+        </li>
+        <li
+          className={`${listItemCss} text-red-600`}
+          onClick={removePage}
+        >
+          <Trash2 size={16} /> Remove Page
+        </li>
+      </ul>
     </div>
   );
 
-  return createPortal(menu, triggerElement !== null? triggerElement! : document.body!);
+  return createPortal(menu, triggerElement || document.body);
 };
 
 export default PageThumbnailMenu;

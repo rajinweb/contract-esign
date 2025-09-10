@@ -93,7 +93,7 @@ export default function SettingsPage() {
           }
         }
       } catch (err) {
-        /* ignore */
+        console.error(err);
       } finally {
         setLoadingSettings(false);
       }
@@ -129,6 +129,7 @@ export default function SettingsPage() {
     } catch (err) {
       localStorage.setItem('userSettings', JSON.stringify(payload));
       toast('Saved locally');
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -165,6 +166,7 @@ export default function SettingsPage() {
         inviteMessage: watchInvite('inviteMessage'),
       };
       localStorage.setItem('userSettings', JSON.stringify(payload));
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -186,6 +188,7 @@ export default function SettingsPage() {
       }
     } catch (err) {
       toast('Network error');
+      console.error(err);
     } finally {
       setDeleting(false);
     }

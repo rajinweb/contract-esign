@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <main>
+        <main className='flex flex-col h-screen'>
           <LayoutWrapper>{children}</LayoutWrapper>
         </main>
          {/* Global toaster here */}

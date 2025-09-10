@@ -21,7 +21,7 @@ type FormValues = {
 
 function Register() {
   const router = useRouter();
-  const { register, handleSubmit, control, setValue, formState, watch } = useForm<FormValues>({
+  const { register, handleSubmit, setValue, formState, watch } = useForm<FormValues>({
     defaultValues: { name: '', email: '', password: '', confirmPassword: '', picture: null },
   });
   const password = watch('password');

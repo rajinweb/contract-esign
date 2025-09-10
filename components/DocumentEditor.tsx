@@ -1,84 +1,90 @@
 'use client';
-import React, { useEffect, useState, useRef, MouseEvent, Fragment, SetStateAction, ChangeEvent, useCallback } from 'react';
-import UploadZone from "@/components/UploadZone";
-import { CircleX, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  MouseEvent,
+  Fragment,
+  ChangeEvent,
+} from 'react';
+
+// Third-party
+import { Document, Page, pdfjs } from "react-pdf";
+import { PDFDocument, rgb, degrees } from "pdf-lib";
 import { Rnd } from 'react-rnd';
+import dayjs from "dayjs";
+import { CircleX, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
+import { DraggableData } from 'react-draggable';
+
+// Project utils & types
+import { blobToURL } from "@/utils/Utils";
+import { DroppingField, DroppedComponent } from '@/types/types';
+
+// Components
+import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/Fields';
 import useContextStore from '@/hooks/useContextStore';
-
-import { blobToURL } from "@/utils/Utils"
-import {DroppingField, DroppedComponent} from '@/types/types'
-
-import { Document, Page, pdfjs } from "react-pdf";
-// PDF.js worker setup
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-
-
-import { degrees, PDFDocument, rgb } from "pdf-lib";
-import dayjs from "dayjs";
-
-
 import { AddSigDialog } from "@/components/AddSigDialog";
 import ImageField from './ImageField';
-import { DraggableData } from 'react-draggable';
 import MultilineTextField from './MultilineTextField';
 import Modal from './Modal';
 import DateField from './DateField';
-
 import ActionToolBar from '@/components/ActionToolBar';
 import PageThumbnailMenu from '@/components/PageThumbnailMenu';
 
+// PDF.js worker setup
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+
 const DocumentEditor: React.FC = () => {
+  // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
-  
-  const [isDragging, setIsDragging] = useState(false);
-  const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
-  const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
-  const [position, setPosition] = useState<{ x: number; y: number }>({x: 0, y: 0 });
-  const [elementId, setElementId] = useState(0);
 
-  const corners = { width: 10, height: 10 };
-  const draggingEle = useRef<HTMLDivElement | null>(null);
-
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const documentRef = useRef<HTMLDivElement | null>(null);
+  // ========= PDF State =========
+  const [pdfDoc, setPdfDoc] = useState<PDFDocument | null>(null);
   const [pages, setPages] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [dialog, setDialog] = useState<boolean>(false);   
-  const [autoDate, setAutoDate] = useState<boolean>(true);
+  // ========= Page Menu =========
+  const [showMenu, setShowMenu] = useState(false);
+  const [selectedPageIndex, setSelectedPageIndex] = useState<number | null>(null);
+  const [menuTriggerElement, setMenuTriggerElement] = useState<HTMLElement | null>(null);
 
+  // ========= Drag & Drop =========
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
+  const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [elementId, setElementId] = useState(0);
+
+  // ========= UI State =========
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<boolean>(false);
+  const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
+  const [autoDate, setAutoDate] = useState<boolean>(true);
   const [fileName, setFileName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
-  
-  const [menuTriggerElement, setMenuTriggerElement] = useState<HTMLElement | null>(null);
-  const toggleMenu = (event: React.MouseEvent) => {
-    setMenuTriggerElement(event.currentTarget as HTMLElement);
-  };
 
-  // Function to generate page thumbnails
+  // ========= Refs =========
+  const documentRef = useRef<HTMLDivElement | null>(null);
+  const draggingEle = useRef<HTMLDivElement | null>(null);
+  const textFieldRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+
+  const corners = { width: 10, height: 10 };
+  const commonclass = 'after:m-auto flex after:bg-blue-500';
+
+  // ==========================================================
+  // PDF & Page Handling
+  // ==========================================================
   const generateThumbnails = (numPages: number) => {
-    const thumbnails = [];
-    for (let i = 1; i <= numPages; i++) {
-      thumbnails.push(i); // Store page numbers for thumbnails
-    }
-    setPages(thumbnails);
+    setPages(Array.from({ length: numPages }, (_, i) => i + 1));
   };
 
-  const handleThumbnailClick = (pageNum:number) => {
+  const handleThumbnailClick = (pageNum: number) => {
     setCurrentPage(pageNum);
-    if (documentRef.current) {
-      const page = documentRef.current.querySelector(`[data-page-number="${pageNum}"]`);
-      if (page) {     
-        page.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest',
-        });
-      }
-    }
+    const page = documentRef.current?.querySelector(`[data-page-number="${pageNum}"]`);
+    page?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
   };
 
   const insertBlankPageAt = async (index: number) => {
@@ -87,212 +93,123 @@ const DocumentEditor: React.FC = () => {
       ? await fetch(selectedFile).then(res => res.arrayBuffer())
       : await selectedFile.arrayBuffer();
 
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    const pdfDocLocal = await PDFDocument.load(arrayBuffer);
+    pdfDocLocal.insertPage(index, [595.28, 841.89]); // A4 size
 
-    const [width, height] = [595.28, 841.89]; // A4 size
-    pdfDoc.insertPage(index, [width, height]);
-
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-    const newURL = await blobToURL(blob);
-
-    setSelectedFile(newURL);
+    await handlePdfUpdated(pdfDocLocal);
     setDroppedComponents([]);
   };
 
+  const handlePdfUpdated = async (updatedDoc: PDFDocument) => {
+    try {
+      const bytes = await updatedDoc.save();
+      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+      const url = await blobToURL(blob);
 
-   // Check which page is visible and update the currentPage
-  const checkVisiblePage = useCallback(() => {
-      const container = documentRef.current?.parentElement;
-      if (container) {
-        const containerTop = container.scrollTop;
-        const containerBottom = containerTop + container.clientHeight;
-        
-        // Check which page is currently in view
-        pages.forEach((page, index) => {
-          const pageDOM=container.querySelector(`[data-page-number="${page}"]`) as HTMLElement;
-        if(pageDOM){
-          const pageTop = pageDOM.offsetTop;
-          const pageBottom = pageTop + pageDOM.clientHeight;
-
-          // If page is within the container's scrollable area, it's visible
-          if (pageTop <= containerBottom && pageBottom >= containerTop) {
-            setCurrentPage(index + 1); // Set current page based on visibility
-          }
-        }
-        });
-      }
-    },[pages]);
-
-  const mouseDownOnField = (
-    component: string,
-    event: React.MouseEvent<HTMLDivElement>
-    ) => {
-      const xy={  x: event.clientX, y: event.clientY}
-      setDraggingComponent({ ...draggingComponent, component, ...xy });
-      setPosition(xy);
-    };
-
-  const mouseMoveOnDropArea = (event: React.MouseEvent<HTMLDivElement>) => {
-     if (
-      draggingEle.current &&
-      (event.target as HTMLElement).classList.contains('react-draggable')
-    ) {
-      draggingEle.current.style.display = 'none';
-    } else {
-      if (draggingComponent && draggingEle.current) {
-        draggingEle.current.style.display = 'block';
-        setPosition({
-          x: event.clientX -65,
-          y: event.clientY,
-        });
-      }
+      setSelectedFile(url);
+      setPdfDoc(updatedDoc);
+      generateThumbnails(updatedDoc.getPageCount());
+    } catch (err) {
+      console.error("handlePdfUpdated failed:", err);
     }
   };
 
-  const mouseLeaveOnDropArea = () => {
+  // ==========================================================
+  // Drag & Drop
+  // ==========================================================
+  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>) => {
+    const xy = { x: e.clientX, y: e.clientY };
+    setDraggingComponent({ ...draggingComponent, component, ...xy });
+    setPosition(xy);
+  };
+
+  const mouseMoveOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
     if (draggingComponent && draggingEle.current) {
-      draggingEle.current.style.display = 'none';
+      draggingEle.current.style.display = 'block';
+      setPosition({ x: e.clientX - 65, y: e.clientY });
     }
   };
 
-const textFieldRef = useRef<HTMLInputElement>(null);
+  const clickOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
+    if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable')) return;
 
-const imageRef = useRef<HTMLInputElement>(null);
-const builderContainer=useRef<HTMLDivElement>(null);
-const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (file && selectedFile) {
-    const url = await blobToURL(file) as string;
-    updateField(url)
-  }
-  // Reset the file input value
-  e.target.value = '';
-};
+    const rect = documentRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-const updateField=(data: React.SetStateAction<string | null>)=> {
-  console.log('updateField'); 
-  const updates = droppedComponents.map(component => 
-    component.id === (draggingComponent as DroppedComponent)?.id ? { ...component, data } : component
-    )
-  setDroppedComponents(updates);   
-}
-const dropFields = (field:DroppedComponent) => {
-    const fieldtName=field.component;
-    if(fieldtName=='Signature'){
-      setDialog(true);
-    }
-    if(fieldtName=='Image'){
-      imageRef.current?.click();   
-    }
-  }
-  // Handle placing the component in the panel
-  const clickOnDropArea = (event: React.MouseEvent<HTMLDivElement>) => {
-    const targetElem=event.target as HTMLElement;
-    if(!targetElem.closest('.react-draggable')){
-      if (draggingComponent && documentRef.current) {
-
-        const panelRect = documentRef.current.getBoundingClientRect();
-        const offsetX = event.clientX - panelRect.left;
-        const offsetY = event.clientY - panelRect.top;
-
-        // Place at current mouse position within the panel
-        const newComponent: DroppedComponent = {
-          id: elementId,
-          component: draggingComponent.component,
-          x: offsetX - 50,
-          y: offsetY,
-          width: 100,
-          height: 50,
-        };
-
-        setDroppedComponents((prev) => [...prev, newComponent]);
-        setElementId(prev => prev + 1);
-
-      }
-
-    }
-
-  };
-
-  const deleteField = (event: MouseEvent, item: DroppedComponent) => {
-
-    event.stopPropagation();
-    const updatedComponents = droppedComponents.filter(
-      (component) => component.id !== item.id
-    );
-  
-    setDroppedComponents(updatedComponents);
-  };
-
-  const clickField=(event: MouseEvent,item: DroppedComponent) => {
-    if(isDragging){
-      setIsDragging(false);
-    }else{
-      // console.log('Component clicked operation goes here', event, item);
-      dropFields(item)
-      setDraggingComponent(item);
-    }
-  } 
-
-  useEffect(() => {
-    if (selectedFile) {
-     setLoading(false);
-      setError(null);
-      setCurrentPage(1); 
-
-       // Extract file name if it's a File object
-      if (selectedFile instanceof File) {
-        setFileName(selectedFile.name);
-      } else if (typeof selectedFile === 'string') {
-        const urlParts = (selectedFile as string).split('/');
-        const lastPart = urlParts[urlParts.length - 1].split('?')[0];
-        setFileName(decodeURIComponent(lastPart));
-      }
-      if(builderContainer.current){
-      builderContainer.current.style.height=`${window.innerHeight-115}px`
-      }
-    }  
-  }, [selectedFile, builderContainer]);
-
-  useEffect(() => {    
-    const container = documentRef.current;
-    if (container && container.parentElement) {      
-        container.parentElement.addEventListener('scroll', checkVisiblePage);
-    }
-    return () => {
-      if (container  && container.parentElement) {
-        container.parentElement.removeEventListener('scroll', checkVisiblePage);
-      }
+    const newComponent: DroppedComponent = {
+      id: elementId,
+      component: draggingComponent.component,
+      x: e.clientX - rect.left - 50,
+      y: e.clientY - rect.top,
+      width: 100,
+      height: 50,
     };
-  }, [pages, checkVisiblePage]);
+
+    setDroppedComponents((prev) => [...prev, newComponent]);
+    setElementId((id) => id + 1);
+  };
+
+  const deleteField = (e: MouseEvent, item: DroppedComponent) => {
+    e.stopPropagation();
+    setDroppedComponents((prev) => prev.filter((c) => c.id !== item.id));
+  };
 
   const handleDragStop = (item: DroppedComponent, data: DraggableData) => {
-    const updatedComponents = droppedComponents.map((component) =>
-      component.id === item.id ? { ...component, x: data.x, y: data.y } : component
+    setDroppedComponents((prev) =>
+      prev.map((c) => (c.id === item.id ? { ...c, x: data.x, y: data.y } : c))
     );
-    setDroppedComponents(updatedComponents);
-    
   };
 
-  const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string; }; }, position: {x:number, y:number}) => {
-    const updatedComponents = droppedComponents.map((component) =>
-      component.id === item.id
-        ? {
-            ...component,
-            width: parseInt(ref.style.width, 10),
-            height: parseInt(ref.style.height, 10),
-            ...position,
-          }
-        : component
+  const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => {
+    setDroppedComponents((prev) =>
+      prev.map((c) =>
+        c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
+      )
     );
+  };
 
-    setDroppedComponents(updatedComponents);
-  }
+  // ==========================================================
+  // Effects
+  // ==========================================================
+  useEffect(() => {
+    if (!selectedFile) return;
 
-  const commonclass = 'after:m-auto flex after:bg-blue-500';
+    setLoading(false);
+    setError(null);
+    setCurrentPage(1);
 
-  const handleSave = async (isDownload: boolean = false) => {
+    if (selectedFile instanceof File) setFileName(selectedFile.name);
+    else setFileName(decodeURIComponent((selectedFile as string).split('/').pop()?.split('?')[0] || ''));
+
+  }, [selectedFile]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!selectedFile) return setPdfDoc(null);
+
+      try {
+        setLoading(true);
+        const buffer = typeof selectedFile === 'string'
+          ? await fetch(selectedFile).then(res => res.arrayBuffer())
+          : await selectedFile.arrayBuffer();
+
+        const loadedDoc = await PDFDocument.load(buffer);
+        if (!mounted) return;
+        setPdfDoc(loadedDoc);
+        generateThumbnails(loadedDoc.getPageCount());
+      } catch {
+        setError("Failed to load PDF");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [selectedFile]);
+
+  //File Handling
+ const handleSave = async (isDownload: boolean = false) => {
     if (!isLoggedIn) {
       setShowModal(true);
       return;
@@ -406,22 +323,93 @@ const dropFields = (field:DroppedComponent) => {
       setPosition({ x: 0, y: 0 });
       setDroppedComponents([]);
   };
+  // Drag & Drop Helpers
+  const mouseLeaveOnDropArea = () => {
+    if (draggingEle.current) {
+      draggingEle.current.style.display = 'none';
+    }
+  };
+  const clickField = (event: MouseEvent, item: DroppedComponent) => {
+    event.stopPropagation(); // prevent parent clicks (like drop area)
 
+    if (isDragging) {
+      setIsDragging(false);
+      return; // ignore click while dragging
+    }
+
+    // Set the currently selected component
+    setDraggingComponent(item);
+
+    // Handle component-specific actions
+    switch (item.component) {
+      case "Signature":
+         setSelectedFieldForDialog(item); 
+        setDialog(true); // open signature modal
+        break;
+      case "Image":
+        setSelectedFieldForDialog(item); 
+        imageRef.current?.click(); // trigger file input
+        break;
+      case "Text":
+      case "Date":
+        setSelectedFieldForDialog(item); 
+        break;
+      default:
+        console.warn("Unknown component clicked:", item.component);
+    }
+  };
+
+const updateField = (data: string | null, id: number) => {
+  setDroppedComponents(prev =>
+    prev.map(c => (c.id === id ? { ...c, data } : c))
+  );
+};
+
+
+
+
+  const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const url = await blobToURL(file);
+
+  // Update the DroppedComponent that is currently being dragged
+  if (draggingComponent && 'id' in draggingComponent) {
+    setDroppedComponents(prev =>
+      prev.map(comp =>
+        comp.id === draggingComponent.id
+          ? { ...comp, data: url }
+          : comp
+      )
+    );
+  }
+
+  e.target.value = '';
+};
+
+ const toggleMenu = (event: React.MouseEvent, pageIndex?: number) => {
+  setMenuTriggerElement(event.currentTarget as HTMLElement);
+  if (typeof pageIndex === 'number') {
+    setSelectedPageIndex(pageIndex);
+  }
+  setShowMenu(true);
+};
+
+  // ==========================================================
+  // Render
+  // ==========================================================
   return (
     <>
-    {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}  /> }
-      
-      
+      {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
       <ActionToolBar
         fileName={fileName}
         setFileName={setFileName}
         isEditingFileName={isEditingFileName}
         setIsEditingFileName={setIsEditingFileName}
-        handleSave={handleSave}     
+        handleSave={handleSave}
       />
-    
-
-      <div className='bg-[#efefef] flex' ref={builderContainer}>
+      <div className='bg-[#efefef] flex h-screen'>
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
@@ -431,253 +419,167 @@ const dropFields = (field:DroppedComponent) => {
             setDroppedComponents([]);
           }}
         />
-      {!selectedFile && ( <UploadZone /> )}
-      {selectedFile && (
-        <>
-        {draggingComponent && (
-          <div
-            className="bg-[#f4faff] border border-1 border-blue-300 px-2 text-center text-[12px] fixed min-w-[100px] z-[999999] left-[7px] top-[38px]"
-            style={{
-              transform: `translate(${position.x + 50}px, ${position.y + 2}px)`,
-            }}
-            ref={draggingEle}
-          >
-          {draggingComponent.component}
-          </div>
-        )}
-      <input type="file" ref={imageRef} id="image" className="hidden" onChange={onUploadImage} />
-          { loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' /> )}
-          <div
-            className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked' }`}
-            ref={documentRef}
-            onClick={clickOnDropArea}
-            onMouseMove={mouseMoveOnDropArea}
-            onMouseLeave={mouseLeaveOnDropArea}
-            id="dropzone"
-            >
-      
-            {error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white">
-                <div className="text-red-500 text-center p-4">
-                  <p className="font-medium">{error}</p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Try uploading another PDF file
-                  </p>
-                </div>
+        {!selectedFile && (<UploadZone />)}
+        {selectedFile && (
+          <>
+            {draggingComponent && (
+              <div
+                className="bg-[#f4faff] border border-1 border-blue-300 px-2 text-center text-[12px] fixed min-w-[100px] z-[999999] left-[7px] top-[38px]"
+                style={{
+                  transform: `translate(${position.x + 50}px, ${position.y + 2}px)`,
+                }}
+                ref={draggingEle}
+              >
+                {draggingComponent.component}
               </div>
             )}
-    
-            {droppedComponents.map((item, index) => {
-         
-              return (
-                <Rnd
-                  key={index}
-                  bounds={'parent'}
-                  className="group absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
-                  position={{ x: item.x, y: item.y }}
-                  size={{ width: item.width, height: item.height }}
-                  onDrag={()=>setIsDragging(true)}
-                  onDragStop={(e, data) => handleDragStop(item, data)}
-                  onClick={(e:MouseEvent)=>clickField(e, item)}
-                  onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
-                  resizeHandleStyles={{
-                    topLeft: { ...corners, left: -5, top: -5 },
-                    topRight: { ...corners, right: -5, top: -5 },
-                    bottomLeft: { ...corners, left: -5, bottom: -5 },
-                    bottomRight: { ...corners, right: -5, bottom: -5 },
-                  }}
-                  resizeHandleClasses={{
-                    bottomLeft: 'border-b-2 border-l-2 border-gray-900',
-                    bottomRight: 'border-b-2 border-r-2 border-gray-900',
-                    topLeft: 'border-t-2 border-l-2 border-gray-900',
-                    topRight: 'border-t-2 border-r-2 border-gray-900',
-                    top: `${commonclass} after:h-[1px] after:w-1/2 after:mt-0`,
-                    right: `${commonclass} after:h-1/2 after:w-[1px] after:mr-0`,
-                    bottom: `${commonclass} after:h-[1px] after:w-1/2 after:mb-0`,
-                    left: `${commonclass} after:h-1/2 after:w-[1px] after:ml-0`,
-                  }}
-                  resizeHandleWrapperClass="hidden group-hover:block"
-                >
-                  <CircleX
-                    className="absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer"
-                    size={18}
-                    color="red"
-                    onClick={(e) => deleteField(e, item)}
-                  />
-                  {item.data && 
-                    (item.component=="Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
-                    item.component=="Text" ? <MultilineTextField textInput={updateField} ref={textFieldRef as unknown as React.RefObject<HTMLTextAreaElement>} /> :
-                    item.component=="Date" ? <DateField textInput={updateField} defaultDate={item.data} ref={textFieldRef} /> : item.component.toLowerCase()
-                    
-                  }
-                </Rnd>
-            );
-          })}
-          
-          <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)} className="">
-              {pages.map((pageNum, index) => (
-              <Fragment key={index}>
-                  <div className='flex justify-between w-full items-center p-2'>
+            <input type="file" ref={imageRef} id="image" className="hidden"  onChange={onUploadImage}  />
+            {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
+            <div
+              className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`}
+              ref={documentRef}
+              onClick={clickOnDropArea}
+              onMouseMove={mouseMoveOnDropArea}
+              onMouseLeave={mouseLeaveOnDropArea}
+              id="dropzone"
+            >
+
+              {error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white">
+                  <div className="text-red-500 text-center p-4">
+                    <p className="font-medium">{error}</p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Try uploading another PDF file
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {droppedComponents.map((item) => {
+
+                return (
+                  <Rnd
+                    key={item.id} 
+                    bounds={'parent'}
+                    className="group absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
+                    position={{ x: item.x, y: item.y }}
+                    size={{ width: item.width, height: item.height }}
+                    onDrag={() => setIsDragging(true)}
+                    onDragStop={(e, data) => handleDragStop(item, data)}
+                    onClick={(e: MouseEvent) => clickField(e, item)}
+                    onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
+                    resizeHandleStyles={{
+                      topLeft: { ...corners, left: -5, top: -5 },
+                      topRight: { ...corners, right: -5, top: -5 },
+                      bottomLeft: { ...corners, left: -5, bottom: -5 },
+                      bottomRight: { ...corners, right: -5, bottom: -5 },
+                    }}
+                    resizeHandleClasses={{
+                      bottomLeft: 'border-b-2 border-l-2 border-gray-900',
+                      bottomRight: 'border-b-2 border-r-2 border-gray-900',
+                      topLeft: 'border-t-2 border-l-2 border-gray-900',
+                      topRight: 'border-t-2 border-r-2 border-gray-900',
+                      top: `${commonclass} after:h-[1px] after:w-1/2 after:mt-0`,
+                      right: `${commonclass} after:h-1/2 after:w-[1px] after:mr-0`,
+                      bottom: `${commonclass} after:h-[1px] after:w-1/2 after:mb-0`,
+                      left: `${commonclass} after:h-1/2 after:w-[1px] after:ml-0`,
+                    }}
+                    resizeHandleWrapperClass="hidden group-hover:block"
+                  >
+                    <CircleX
+                      className="absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer"
+                      size={18}
+                      color="red"
+                      onClick={(e) => deleteField(e, item)}
+                    />
+                    {item.data &&
+                      (item.component == "Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
+                      item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)}ref={textFieldRef as unknown as React.RefObject<HTMLTextAreaElement>} /> :
+                      item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data} ref={textFieldRef} /> : item.component.toLowerCase()
+
+                    }
+                  </Rnd>
+                );
+              })}
+
+              <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)} className="">
+                {pages.map((pageNum, index) => (
+                  <Fragment key={index}>
+                    <div className='flex justify-between w-full items-center p-2'>
                       <small>{pageNum} of {pages.length}</small>
                       <button onClick={() => insertBlankPageAt(pageNum)} className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Plus size={16} /> </button>
-                      <div className='relative' onClick={toggleMenu}>
-                        <button  className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
-                      </div>
-                    </div> 
-                <Page pageNumber={pageNum} width={890}  loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false}/>
-              </Fragment>
-            ))}
-          </Document>
-          </div>
-
-          {/* Aside Panel for Page Thumbnails */}
-          <aside className='w-64 overflow-auto bg-white p-5'>
-            <Document file={selectedFile} className="w-26" >
-              {pages.map((pageNum) => (
-
-                <Fragment key={pageNum}>   
-
-                  <div className='relative group'>                       
-                    <Page pageNumber={pageNum} width={100} loading={"Page Loading..."} 
-                    className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}  
-                    onClick={() => { handleThumbnailClick(pageNum)}} renderAnnotationLayer={false} renderTextLayer={false}/>   
-                    <div className='absolute right-2 top-2'>
-                      <div className='relative' onClick={toggleMenu}>
-                        <button className={`hidden group-hover:block  bg-gray-300 hover:bg-blue-500  hover:text-white p-0.5 rounded-sm`}> 
-                            <Ellipsis size={20} /> 
-                        </button>
+                      <div className='relative'  onClick={(e) => toggleMenu(e, pageNum - 1)}>
+                        {/* Ellipsis opens menu for this page (pageNum is 1-based; convert to 0-based for pdf-lib) */}
+                        <button className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
                       </div>
                     </div>
-                  </div>    
-
-                  <small className='flex justify-center group relative h-10 cursor-pointer'>
-                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white" onClick={() => insertBlankPageAt(pageNum)}>
-                      <Plus size={16} strokeWidth={3} className="w-4 h-4 text-center" />
-                    </span>
-                    <hr className="border-gray-300 w-full group-hover:border-blue-500 absolute top-1/2  z-9"/>
-                  </small>
-
-                </Fragment>
-                
+                    <Page pageNumber={pageNum} width={890} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
+                  </Fragment>
                 ))}
-            </Document>
-           </aside>
-       </>    
-       )}
-        {dialog  && (
-            <AddSigDialog
-              autoDate={autoDate}
-              setAutoDate={setAutoDate}
-              onClose={() => setDialog(false)}
-              onConfirm={(data: SetStateAction<string | null>) => { 
-                updateField(data)           
-                setDialog(false);
-              }}
-            />
-          )}
+              </Document>
+            </div>
+
+            {/* Aside Panel for Page Thumbnails */}
+            <aside className='w-64 overflow-auto bg-white p-5'>
+              <Document file={selectedFile} className="w-26" >
+                {pages.map((pageNum) => (
+
+                  <Fragment key={pageNum}>
+
+                    <div className='relative group'>
+                      <Page pageNumber={pageNum} width={100} loading={"Page Loading..."}
+                        className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}
+                        onClick={() => { handleThumbnailClick(pageNum) }} renderAnnotationLayer={false} renderTextLayer={false} />
+                      <div className='absolute right-2 top-2'>
+                        <div className='relative' onClick={(e) => toggleMenu(e, pageNum - 1)} >
+                          {/* open menu for this page in aside */}
+                          <button className={`hidden group-hover:block  bg-gray-300 hover:bg-blue-500  hover:text-white p-0.5 rounded-sm`}>
+                            <Ellipsis size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <small className='flex justify-center group relative h-10 cursor-pointer'>
+                      <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white" onClick={() => insertBlankPageAt(pageNum)}>
+                        <Plus size={16} strokeWidth={3} className="w-4 h-4 text-center" />
+                      </span>
+                      <hr className="border-gray-300 w-full group-hover:border-blue-500 absolute top-1/2  z-9" />
+                    </small>
+
+                  </Fragment>
+
+                ))}
+              </Document>
+            </aside>
+          </>
+        )}
+        {dialog && (
+          <AddSigDialog
+            autoDate={autoDate}
+            setAutoDate={setAutoDate}
+            onClose={() => setDialog(false)}
+            onConfirm={(data: string | null) => {
+             if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
+             setDialog(false);
+            }}
+          />
+        )}
       </div>
-     
-       {menuTriggerElement &&
-        <PageThumbnailMenu
-          triggerElement={menuTriggerElement}
-          onClose={() => setMenuTriggerElement(null)}
-        />
-        }
+
+      {/* -- PageThumbnailMenu integration (uses pdfDoc, pageIndex and onPdfUpdated) */}
+     {pdfDoc && showMenu && selectedPageIndex !== null && (
+      <PageThumbnailMenu
+        onClose={() => setShowMenu(false)}
+        triggerElement={menuTriggerElement}
+        pdfDoc={pdfDoc}
+        pageIndex={selectedPageIndex}
+        onPdfUpdated={handlePdfUpdated} 
+      />
+      )}
     </>
   );
 };
 
 export default DocumentEditor;
 
-
-/*
- 
-  
-    useEffect(() => {
-      if (fields.component && fields.value) {
-        updatePDFWithPosition(fields.value);
-      }
-      return 
-    }, [fields]);
-
-    const updatePDFWithPosition = async (
-    imageURL: string | File,
-    ): Promise<string> => {
-
-    if (!pageDetails || !position) return ""; 
-    if (!documentRef.current) return "";
-
-        const { originalHeight, originalWidth } = pageDetails;
-        const scale = documentRef.current ? originalWidth / documentRef.current.clientWidth : 1;
-    
-        // Calculate new X and Y positions relative to the document size   
-        const y = documentRef.current.clientHeight - (position.y + documentRef.current.offsetTop);
-        const x = position.x - documentRef.current.offsetLeft;
-    
-        const newY = (y * originalHeight) / documentRef.current.clientHeight;
-        const newX = (x * originalWidth) / documentRef.current.clientWidth;
-    
-        // Fetch and load the selected PDF
-        const arrayBuffer = typeof selectedFile === 'string' 
-          ? await fetch(selectedFile).then(res => res.arrayBuffer()) 
-          : await selectedFile!.arrayBuffer();
-    
-        const pdfDoc = await PDFDocument.load(arrayBuffer);
-    
-        // Get the specified page (pageNum)
-        const pages = pdfDoc.getPages();
-        const page = pages[pageNum];
-    
-        // Check if the page is rotated
-        const IsPageRotated = page.getRotation().angle;
-        console.log("Page rotation: ", IsPageRotated);
-
-        const adjustedY = originalHeight - newY;
-        const adjustedX = originalWidth - newX;
-
-        // Draw the signature on the page at the new position
-        if (fields.component =="Text" || fields.component=="Date") {
-          page.drawText(fields.value as unknown as string, {
-            x: IsPageRotated ? adjustedX-10 : newX+10,
-            y: IsPageRotated ? adjustedY+30 : newY-25,
-            size: IsPageRotated ? 20 * -scale : 20 * scale, 
-          });
-        } else {
-          // Load and embed PNG image
-          const pngImage = await pdfDoc.embedPng(imageURL as unknown as string);
-          const pngDims = pngImage.scale(IsPageRotated ? -scale * 0.3 : scale * 0.3)
-          page.drawImage(pngImage, {
-            x: IsPageRotated ? adjustedX-10 : newX+10,
-            y: IsPageRotated ? adjustedY+30 : newY-25,
-            width: pngDims.width,
-            height: pngDims.height,
-          });
-        }
-        // Add a timestamp if autoDate is true
-        if (autoDate) {
-          page.drawText(
-            `Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
-            {
-              x: IsPageRotated ? adjustedX+40 : newX,
-              y: (IsPageRotated ? adjustedY+40 : newY-35) , 
-              size: IsPageRotated ? 14 * -scale : 14 * scale, 
-              color: rgb(0.074, 0.545, 0.262),
-            }
-          );
-        }
-    
-        // Save the modified PDF to bytes and convert to a Blob
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-    
-        // Convert the Blob into a URL for downloading
-        const pdfUrl = await blobToURL(blob);
-        
-        dispatch({type: 'Reset', payload:'' })
-
-        setSelectedFile(pdfUrl);
-        setPosition(null); 
-        return pdfUrl;
-    };
-
-*/

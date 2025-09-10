@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 import { blobToURL } from '@/utils/Utils';
+import Image from 'next/image';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
@@ -83,10 +84,13 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSave} className="space-y-6 bg-white p-6 rounded shadow">
         <div className="flex items-center space-x-4">
-          <img
+          <Image
             src={picture || noImage}
             alt={name || email}
             className="w-20 h-20 rounded-full object-cover border"
+            width={80}
+            height={80}
+            unoptimized
           />
           <div>
             <label className="block text-sm font-medium text-gray-700">Change picture</label>

@@ -4,6 +4,16 @@ import Users from '@/models/Users';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
+interface JwtPayload {
+  id: string;
+}
+
+// Define the structure of the update object
+interface UpdateUser {
+  name?: string;
+  picture?: string;
+}
+
 async function getUserIdFromReq(req: NextRequest) {
   // 1) check Authorization header
   const auth = req.headers.get('authorization') || '';
@@ -19,7 +29,7 @@ async function getUserIdFromReq(req: NextRequest) {
   try {
     const secret = process.env.JWT_SECRET as string;
     if (!secret) return null;
-    const decoded = jwt.verify(token, secret) as any;
+    const decoded = jwt.verify(token, secret) as JwtPayload;
     return decoded?.id || null;
   } catch (err) {
     console.error('Token verify error', err);
@@ -38,7 +48,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { name, picture } = body;
 
-    const update: any = {};
+    const update: UpdateUser = {};
     if (typeof name === 'string') update.name = name;
     if (typeof picture === 'string') update.picture = picture;
 

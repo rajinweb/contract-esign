@@ -221,7 +221,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
           <button
             type="button"
             className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200"
-            onClick={() => handleSave}
+            onClick={() => handleSave()}
           >
             Save and Close
           </button>
