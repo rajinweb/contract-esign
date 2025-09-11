@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useState } from 'react';
 import { createPortal } from "react-dom";
-import { LoaderPinwheel  } from 'lucide-react';
+import { LoaderPinwheel, Upload  } from 'lucide-react';
 import Image from 'next/image';
 import { PDFDocument } from 'pdf-lib';
 
@@ -39,7 +39,7 @@ export default function UploadZone() {
           id: `${Date.now()}-${file.name}`,
           name: file.name,
           createdAt: new Date(),
-          status: 'to_sign',
+          status: 'draft',
           signers: [],
           file: file
         }
@@ -61,7 +61,7 @@ export default function UploadZone() {
           id: `${Date.now()}-${file.name}`,
           name: file.name,
           createdAt: new Date(),
-          status: 'to_sign',
+          status: 'draft',
           signers: [],
           file: file
         }
@@ -142,10 +142,13 @@ export default function UploadZone() {
               <div className="h-full">
                 <h2 className="text-2xl font-semibold text-gray-800">Send my document for signature</h2>
                 <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
-                <span className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                <button className="w-full mt-4 primary-button cursor-pointer"
                   onClick={() => handleFileInput} >
-                  Choose a document
-                </span>                
+                  <span className='flex gap-2 items-center justify-center'>
+                    <Upload size={18}/>
+                     Choose a document
+                  </span>
+                </button>                
               </div>
               <div className="h-full items-center flex justify-center pointer-events-none">
                 <div>

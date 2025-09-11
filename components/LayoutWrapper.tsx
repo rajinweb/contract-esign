@@ -6,7 +6,7 @@ import ContextProvider from '@/components/ContextProvider';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideHeaderFooter = pathname === '/builder';
+  const hideHeaderFooter = pathname === '/builder' || pathname.startsWith('/dashboard');
 
   return (
     <ContextProvider>

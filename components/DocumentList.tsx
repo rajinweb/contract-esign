@@ -6,40 +6,47 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  SearchX,
+  AlertTriangle,
 } from 'lucide-react';
-import { Doc} from '@/types/types';
+import { Doc, statuses} from '@/types/types';
 
 interface DocumentListProps {
   documents: Doc[];
   onDocumentSelect: (doc: Doc) => void;
 }
 
-const statusIcons = {
-  shared: Clock,
-  to_sign: AlertCircle,
+const statusIcons: Record<Doc['status'], React.ElementType> = {
+  unfinished: Clock,
+  waiting_for_me: AlertCircle,
+  waiting_for_others: AlertCircle,
   signed: CheckCircle,
-  cancelled: XCircle,
+  pending: Clock,
+  draft: FileText,
+  declined: XCircle,
   expired: Clock,
-};
-
-const statusColors = {
-  shared: 'text-blue-500',
-  to_sign: 'text-yellow-500',
-  signed: 'text-green-500',
-  cancelled: 'text-red-500',
-  expired: 'text-gray-500',
-};
+  delivery_failed: AlertTriangle,
+}
 
 export default function DocumentList({
   documents,
   onDocumentSelect,
 }: DocumentListProps) {
+   if (documents.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+       <SearchX size={50}/>
+        <p className="text-lg font-medium">No documents found</p>
+        <p className="text-sm">Try adjusting your filters or search query.</p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
       {documents.map((doc) => {
+        const statusObj=statuses.find(item => item?.value == doc.status)
         const StatusIcon = statusIcons[doc.status];
-        const statusColor = statusColors[doc.status];
-
+        const statusColor = statusObj?.color;
         return (
           <div
             key={doc.id}

@@ -2,15 +2,35 @@
 import { ReactNode } from "react";
 
 export interface Doc {
-    id: string;
-    name: string;
-    createdAt: Date;
-    status: 'shared' | 'to_sign' | 'signed' | 'cancelled' | 'expired';
-    signers?: string[];
-    file?: File | string;
-    fileUrl?: string; 
-  }
-
+  id: string;
+  name: string;
+  createdAt: Date;
+  status:
+    | 'unfinished'
+    | 'waiting_for_me'
+    | 'waiting_for_others'
+    | 'signed'
+    | 'pending'
+    | 'draft'
+    | 'declined'
+    | 'expired'
+    | 'delivery_failed';
+  signers?: string[];
+  file?: File | string;
+  fileUrl?: string;
+}
+export const statuses = [
+  { value: "all", label: "All Statuses", color: "text-blue-600", dot: "bg-white" },
+  { value: "unfinished", label: "Unfinished", color: "text-yellow-500", dot: "bg-yellow-500" },
+  { value: "waiting_me", label: "Waiting for Me", color: "text-blue-600", dot: "bg-blue-600" },
+  { value: "waiting_others", label: "Waiting for Others", color: "text-teal-500", dot: "bg-teal-500" },
+  { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
+  { value: "pending", label: "Pending", color: "text-orange-500", dot: "bg-orange-500" },
+  { value: "draft", label: "Draft", color: "text-gray-400", dot: "bg-gray-400" },
+  { value: "declined", label: "Declined", color: "text-red-500", dot: "bg-red-500" },
+  { value: "expired", label: "Expired", color: "text-red-400", dot: "bg-red-400" },
+  { value: "delivery_failed", label: "Delivery Failed", color: "text-red-600", dot: "bg-red-600" },
+];
 export interface ContextValue {
   selectedFile: File | null;
   setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
