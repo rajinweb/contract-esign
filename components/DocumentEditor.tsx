@@ -409,7 +409,7 @@ const updateField = (data: string | null, id: number) => {
         setIsEditingFileName={setIsEditingFileName}
         handleSave={handleSave}
       />
-      <div className='bg-[#efefef] flex h-screen'>
+      <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}

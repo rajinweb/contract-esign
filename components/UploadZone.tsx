@@ -118,7 +118,7 @@ export default function UploadZone() {
   }
   return (
     <section 
-          className="flex gap-10 items-center justify-center max-w-7xl min-h-[300] mx-auto p-10"
+          className="flex h-[calc(100vh-64px)] gap-10 items-center justify-center max-w-7xl min-h-[300] mx-auto p-10"
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           // onDragEnter={(e) => {
@@ -142,13 +142,9 @@ export default function UploadZone() {
               <div className="h-full">
                 <h2 className="text-2xl font-semibold text-gray-800">Send my document for signature</h2>
                 <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
-                <button className="w-full mt-4 primary-button cursor-pointer"
-                  onClick={() => handleFileInput} >
-                  <span className='flex gap-2 items-center justify-center'>
-                    <Upload size={18}/>
-                     Choose a document
-                  </span>
-                </button>                
+                <div className="w-full mt-4 primary-button cursor-pointer flex gap-2 items-center justify-center">
+                    <Upload size={18}/> Choose a document            
+                </div>                
               </div>
               <div className="h-full items-center flex justify-center pointer-events-none">
                 <div>
