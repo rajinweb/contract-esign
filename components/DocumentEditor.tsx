@@ -405,7 +405,7 @@ const updateField = (data: string | null, id: number) => {
   }
   setShowMenu(true);
 };
-
+  const pdfHeight = 890;
   // ==========================================================
   // Render
   // ==========================================================
@@ -446,14 +446,7 @@ const updateField = (data: string | null, id: number) => {
             )}
             <input type="file" ref={imageRef} id="image" className="hidden"  onChange={onUploadImage}  />
             {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
-            <div
-              className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`}
-              ref={documentRef}
-              onClick={clickOnDropArea}
-              onMouseMove={mouseMoveOnDropArea}
-              onMouseLeave={mouseLeaveOnDropArea}
-              id="dropzone"
-            >
+            <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
 
               {error && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white">
@@ -465,7 +458,12 @@ const updateField = (data: string | null, id: number) => {
                   </div>
                 </div>
               )}
-
+              {/* this line is important to make dnd work properly, 40 hardcoded pageBrakeHeight */}
+            <div style={{ minHeight: `${pages.length * (pdfHeight+40)}px` }}  onClick={clickOnDropArea}
+              onMouseMove={mouseMoveOnDropArea}
+              onMouseLeave={mouseLeaveOnDropArea}
+              ref={documentRef}
+               >
               {droppedComponents.map((item) => {
 
                 return (
@@ -524,12 +522,12 @@ const updateField = (data: string | null, id: number) => {
                         <button className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
                       </div>
                     </div>
-                    <Page pageNumber={pageNum} width={890} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
+                    <Page pageNumber={pageNum} width={pdfHeight} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
                   </Fragment>
                 ))}
               </Document>
             </div>
-
+            </div>
             {/* Aside Panel for Page Thumbnails */}
             <aside className='w-64 overflow-auto bg-white p-5'>
               <Document file={selectedFile} className="w-26" >
