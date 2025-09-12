@@ -5,7 +5,7 @@ import { Doc, ContextValue, ContextProviderProps, User } from '@/types/types';
 export const ContextStore = createContext<ContextValue | undefined>(undefined);
 
 const ContextProvider = ({ children }: ContextProviderProps) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | string | null>(null);
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
