@@ -131,7 +131,7 @@ const DocumentEditor: React.FC = () => {
   };
 
   const clickOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
-    if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable')) return;
+    if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable') || e.target instanceof HTMLElement && e.target?.closest('.page-brake')) return;
 
     const rect = documentRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -514,7 +514,7 @@ const updateField = (data: string | null, id: number) => {
               <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)} className="">
                 {pages.map((pageNum, index) => (
                   <Fragment key={index}>
-                    <div className='flex justify-between w-full items-center p-2'>
+                    <div className='flex justify-between w-full items-center p-2 page-brake' onClick={(e) => e.stopPropagation()}>
                       <small>{pageNum} of {pages.length}</small>
                       <button onClick={() => insertBlankPageAt(pageNum)} className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Plus size={16} /> </button>
                       <div className='relative'  onClick={(e) => toggleMenu(e, pageNum - 1)}>
