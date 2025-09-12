@@ -78,6 +78,7 @@ export interface  DroppedComponent extends DroppingField {
   width: number;
   height: number;
   data?: any;
+  pageNumber?:number
 }
 export interface User {
   email: string;

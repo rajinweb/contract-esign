@@ -70,7 +70,7 @@ const DocumentEditor: React.FC = () => {
   const draggingEle = useRef<HTMLDivElement | null>(null);
   const textFieldRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
-
+  const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const corners = { width: 10, height: 10 };
   const commonclass = 'after:m-auto flex after:bg-blue-500';
 
@@ -155,10 +155,57 @@ const DocumentEditor: React.FC = () => {
   };
 
   const handleDragStop = (item: DroppedComponent, data: DraggableData) => {
-    setDroppedComponents((prev) =>
-      prev.map((c) => (c.id === item.id ? { ...c, x: data.x, y: data.y } : c))
-    );
-  };
+  if (!documentRef.current) return;
+
+  const parentRect = documentRef.current.getBoundingClientRect();
+  const scrollY = window.scrollY;
+
+  const fieldTopAbs = data.y + parentRect.top + scrollY;
+  const fieldBottomAbs = fieldTopAbs + item.height;
+
+  let newY = data.y;
+  let newPageNumber = item.pageNumber;
+
+  // Check each page
+  for (let i = 0; i < pageRefs.current.length; i++) {
+    const pageEl = pageRefs.current[i];
+    if (!pageEl) continue;
+
+    const rect = pageEl.getBoundingClientRect();
+    const pageTopAbs = rect.top + scrollY;
+    const pageBottomAbs = pageTopAbs + rect.height;
+
+    if (fieldTopAbs >= pageTopAbs && fieldBottomAbs <= pageBottomAbs) {
+      // Fully inside this page -> no snapping
+      newY = data.y;
+      newPageNumber = i + 1;
+      break;
+    }
+
+    if (fieldBottomAbs > pageTopAbs && fieldTopAbs < pageBottomAbs) {
+      // Intersecting page break -> snap to nearest edge
+      const distToTop = Math.abs(fieldTopAbs - pageTopAbs);
+      const distToBottom = Math.abs(fieldBottomAbs - pageBottomAbs);
+
+      if (distToTop < distToBottom) {
+        newY = pageTopAbs - parentRect.top + 1; // snap to top
+      } else {
+        newY = pageBottomAbs - item.height - parentRect.top - 1; // snap to bottom
+      }
+      newPageNumber = i + 1;
+      break;
+    }
+  }
+
+  // Update state
+  setDroppedComponents(prev =>
+    prev.map(c =>
+      c.id === item.id
+        ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
+        : c
+    )
+  );
+};
 
   const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => {
     setDroppedComponents((prev) =>
@@ -522,7 +569,15 @@ const updateField = (data: string | null, id: number) => {
                         <button className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
                       </div>
                     </div>
+                    <div
+                      key={pageNum}
+                      ref={(el: HTMLDivElement | null) => {
+                          pageRefs.current[pageNum - 1] = el;
+                        }}
+                      className="relative"
+                    >
                     <Page pageNumber={pageNum} width={pdfHeight} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
+                    </div>
                   </Fragment>
                 ))}
               </Document>
