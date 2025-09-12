@@ -32,8 +32,8 @@ export const statuses = [
   { value: "delivery_failed", label: "Delivery Failed", color: "text-red-600", dot: "bg-red-600" },
 ];
 export interface ContextValue {
-  selectedFile: File | null;
-  setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
+  selectedFile: File | string | null;
+  setSelectedFile: React.Dispatch<React.SetStateAction<File | string | null>>;
   documents: Doc[];
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
   isLoggedIn: boolean;

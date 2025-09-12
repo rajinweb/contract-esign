@@ -7,7 +7,7 @@ import React, {
   Fragment,
   ChangeEvent,
 } from 'react';
-
+import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from '@/utils/indexDB';
 // Third-party
 import { Document, Page, pdfjs } from "react-pdf";
 import { PDFDocument, rgb, degrees } from "pdf-lib";
@@ -172,8 +172,18 @@ const DocumentEditor: React.FC = () => {
   // Effects
   // ==========================================================
   useEffect(() => {
-    if (!selectedFile) return;
+    // Restore file on reload
+    (async () => {
+      const file = await getFileFromIndexedDB();
+      if (file) {
+        setSelectedFile(file as File); // or add proper type-check
+      }
+    })();
+  }, []);
 
+  useEffect(() => {
+    if (!selectedFile) return;
+    saveFileToIndexedDB(selectedFile);
     setLoading(false);
     setError(null);
     setCurrentPage(1);
@@ -413,10 +423,11 @@ const updateField = (data: string | null, id: number) => {
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
-          selectedFile={selectedFile}
+          selectedFile={selectedFile as File}
           handleReset={() => {
             setSelectedFile(null);
             setDroppedComponents([]);
+            clearFileFromIndexedDB();
           }}
         />
         {!selectedFile && (<UploadZone />)}
