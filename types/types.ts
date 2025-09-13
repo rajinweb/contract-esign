@@ -68,17 +68,20 @@ export interface FieldsProps {
 
 // Define types for the dropped components
 export interface DroppingField {
-  component: string;
-  x: number;
-  y: number;
+    component: string;
+    x: number;
+    y: number;
 }
 export interface  DroppedComponent extends DroppingField {
-  value?: any;
-  id: number;
-  width: number;
-  height: number;
-  data?: any;
-  pageNumber?:number
+     id: number;
+    component: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    data?: string | null;
+    pageNumber?: number;
+    mimeType?: string;
 }
 export interface User {
   email: string;
