@@ -300,7 +300,7 @@ const DocumentEditor: React.FC = () => {
     const isPageRotated = page.getRotation().angle;
 
     const pageWidth = page.getSize().width;
-    const pageHeight =    page.getSize().height;
+    const pageHeight = page.getSize().height;
 
     for (const item of droppedComponents) {
       const { x, y, component, width, height, data } = item;
@@ -329,16 +329,40 @@ const DocumentEditor: React.FC = () => {
           size: 12,
           ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
         });
-      } else {
-        // Load and embed PNG image
-        const pngImage = await pdfDoc.embedPng(data as string);
-        page.drawImage(pngImage, {
-          x: adjustedX,
-          y: adjustedY,
-          width: width * scaleX,
-          height: height ,
-          ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
-        });
+      } else if (component === "Signature" || component === "Image") {
+         try {
+            const imgUrl = data as string;
+            if (!imgUrl) continue;
+
+            const res = await fetch(imgUrl);
+            const imgBytes = await res.arrayBuffer();
+
+            // Check actual file signature (magic numbers)
+            const bytes = new Uint8Array(imgBytes);
+            let embeddedImage;
+
+            if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+              // PNG
+              embeddedImage = await pdfDoc.embedPng(imgBytes);
+            } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+              // JPEG
+              embeddedImage = await pdfDoc.embedJpg(imgBytes);
+            } else {
+              console.warn("⚠️ Unsupported image format (not PNG/JPEG). Skipped.");
+              continue;
+            }
+
+            page.drawImage(embeddedImage, {
+              x: adjustedX,
+              y: adjustedY,
+              width: width * scaleX,
+              height: height,
+              ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {}),
+            });
+          } catch (err) {
+            console.error("❌ Failed to embed image:", err);
+            continue;
+          }
       }
     }
       // Add a timestamp if autoDate is true
@@ -386,6 +410,7 @@ const DocumentEditor: React.FC = () => {
       draggingEle.current.style.display = 'none';
     }
   };
+
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
 
@@ -491,7 +516,7 @@ const updateField = (data: string | null, id: number) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  onChange={onUploadImage}  />
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg"onChange={onUploadImage}  />
             {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
 
@@ -551,7 +576,7 @@ const updateField = (data: string | null, id: number) => {
                     {item.data &&
                       (item.component == "Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
                       item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)}ref={textFieldRef as unknown as React.RefObject<HTMLTextAreaElement>} /> :
-                      item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data} ref={textFieldRef} /> : item.component.toLowerCase()
+                      item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} ref={textFieldRef} /> : item.component.toLowerCase()
 
                     }
                   </Rnd>

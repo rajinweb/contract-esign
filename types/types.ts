@@ -53,7 +53,7 @@ export interface ImageFieldProps {
   }
 export interface InputProps {
     textInput:(data:string)=>void;
-    defaultDate?:null;
+    defaultDate?: string | null;
   }
 
   
