@@ -71,6 +71,7 @@ const DocumentEditor: React.FC = () => {
   const textFieldRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
   const corners = { width: 10, height: 10 };
   const commonclass = 'after:m-auto flex after:bg-blue-500';
 
@@ -478,6 +479,46 @@ const updateField = (data: string | null, id: number) => {
   setShowMenu(true);
 };
   const pdfHeight = 890;
+  //auto-highlighted thumbnails when scrolling
+ useEffect(() => {
+    if (!pages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (visible) {
+          const pageNum = parseInt(
+            visible.target.getAttribute('data-page') || '0',
+            10
+          );
+          if (pageNum) {
+            setCurrentPage(pageNum);
+          }
+        }
+      },
+      { root: null, threshold: [0.25, 0.5, 0.75] }
+    );
+
+    pageRefs.current.forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [pages]);
+
+  // 🔥 Auto-scroll active thumbnail into view
+  useEffect(() => {
+    const activeThumb = thumbRefs.current[currentPage - 1];
+    if (activeThumb) {
+      activeThumb.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [currentPage]);
   // ==========================================================
   // Render
   // ==========================================================
@@ -596,10 +637,11 @@ const updateField = (data: string | null, id: number) => {
                     </div>
                     <div
                       key={pageNum}
+                       data-page={pageNum}
                       ref={(el: HTMLDivElement | null) => {
                           pageRefs.current[pageNum - 1] = el;
                         }}
-                      className="relative"
+                      className="relative pdf-page"
                     >
                     <Page pageNumber={pageNum} width={pdfHeight} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
                     </div>
@@ -612,10 +654,8 @@ const updateField = (data: string | null, id: number) => {
             <aside className='w-64 overflow-auto bg-white p-5'>
               <Document file={selectedFile} className="w-26" >
                 {pages.map((pageNum) => (
-
                   <Fragment key={pageNum}>
-
-                    <div className='relative group'>
+                    <div className='relative group' ref={(el) => { thumbRefs.current[pageNum - 1] = el }}>
                       <Page pageNumber={pageNum} width={100} loading={"Page Loading..."}
                         className={`flex justify-center p-2 border cursor-pointer page-badge ${currentPage == pageNum ? 'active-page' : ''}`}
                         onClick={() => { handleThumbnailClick(pageNum) }} renderAnnotationLayer={false} renderTextLayer={false} />
