@@ -622,7 +622,7 @@ const updateField = (data: string | null, id: number) => {
                       <div className='absolute right-2 top-2'>
                         <div className='relative' onClick={(e) => toggleMenu(e, pageNum - 1)} >
                           {/* open menu for this page in aside */}
-                          <button className={`hidden group-hover:block  bg-gray-300 hover:bg-blue-500  hover:text-white p-0.5 rounded-sm`}>
+                          <button className={`${currentPage == pageNum ? 'block' : 'hidden'}  group-hover:block bg-gray-300 hover:bg-blue-500  hover:text-white p-0.5 rounded-sm`}>
                             <Ellipsis size={20} />
                           </button>
                         </div>

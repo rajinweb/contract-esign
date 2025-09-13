@@ -17,6 +17,7 @@ import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
+import MoreActions from "./MoreActionMenu";
 
 interface ActionToolBarProps {
   fileName: string;
@@ -26,9 +27,7 @@ interface ActionToolBarProps {
   handleSave: (isDownload?: boolean) => void;
 }
 
-
-const iconButtonStyle =
-  "w-8 h-8 p-1 text-gray-500 hover:text-gray-700 rounded transition hover:bg-gray-100 flex items-center justify-center";
+  
   
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   fileName,
@@ -110,7 +109,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
               type="button"
               aria-label="Press to go back"
               tabIndex={200}
-              className="h-8 w-8 flex justify-center items-center border border-gray-300 rounded hover:bg-gray-100"
+              className="iconButton border border-gray-300 text-md"
               onClick={onBackClick}
             >
               <ChevronLeft  className="w-4 h-4 text-gray-700" />
@@ -210,13 +209,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         {/* Right actions */}
         <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
           {/* Settings Button */}
-          <button
-            type="button"
-            className="h-8 w-8 border border-gray-300 rounded flex justify-center items-center hover:bg-gray-100"
-          >
-            <Settings className="w-4 h-4 text-gray-700" />
-          </button>
-
+            <MoreActions  />
           {/* Save and Close Button */}
           <button
             type="button"
@@ -241,10 +234,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     <div className="flex items-center gap-4 px-4 py-2 bg-white border-b text-sm font-medium">
     {/* Undo / Redo */}
     <div className="flex items-center gap-2">
-      <button aria-label="Undo" className={iconButtonStyle}>
+      <button aria-label="Undo" className="iconButton">
         <Undo size={20} />
       </button>
-      <button aria-label="Redo" className={`${iconButtonStyle} opacity-50`} disabled>
+      <button aria-label="Redo" className="iconButton opacity-50" disabled>
         <Redo size={20} />
       </button>
     </div>
@@ -252,20 +245,20 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     <div className="w-px h-6 bg-gray-200 mx-2" />
 
     {/* Tool Buttons */}
-    <div className="flex items-center gap-2">
-      <button aria-label="Text Tool" className={iconButtonStyle}>
+    {/* <div className="flex items-center gap-2">
+      <button aria-label="Text Tool" className="iconButton">
         <Text size={16} />
       </button>
-      <button aria-label="Checkbox Tool" className={iconButtonStyle}>
+      <button aria-label="Checkbox Tool" className="iconButton">
         <CheckSquare size={16} />
       </button>
-      <button aria-label="Date Tool" className={iconButtonStyle}>
+      <button aria-label="Date Tool" className="iconButton">
         <CalendarDays size={16} />
       </button>
-    </div>
+    </div> 
 
     <div className="w-px h-6 bg-gray-200 mx-2" />
-
+*/}
     {/* Spacer */}
     <div className="flex-grow" />
 
@@ -276,22 +269,19 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         <span>Open Preview</span>
       </button>
       <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className={iconButtonStyle} aria-label="Download" onClick={() => handleSave(true)}>
+      <button className="iconButton" aria-label="Download" onClick={() => handleSave(true)}>
         <Download size={16} />
       </button>
       <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className={iconButtonStyle} aria-label="Help">
+      <button className="iconButton" aria-label="Help">
         <HelpCircle size={16} />
       </button>
       <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className={iconButtonStyle} aria-label="Settings">
+      <button className="iconButton"  aria-label="Settings">
         <Settings size={20} />
       </button>
       <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button
-        className={`${iconButtonStyle} text-blue-600 bg-blue-50`}
-        aria-label="Thumbnails"
-      >
+      <button className="iconButton text-blue-600 bg-blue-50" aria-label="Thumbnails" >
         <LayoutGrid size={20} />
       </button>
     </div>
