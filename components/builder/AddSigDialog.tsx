@@ -1,5 +1,5 @@
 'use client';
-import { Dialog } from "./Dialog";
+import { Dialog } from "../Dialog";
 import SignatureCanvas from "react-signature-canvas";
 import { useRef } from "react";
 

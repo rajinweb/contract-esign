@@ -17,7 +17,7 @@ import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
-import MoreActions from "./MoreActionMenu";
+import MoreActions from "../MoreActionMenu";
 
 interface ActionToolBarProps {
   fileName: string;
