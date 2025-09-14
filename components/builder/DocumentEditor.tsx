@@ -398,8 +398,6 @@ const DocumentEditor: React.FC = () => {
       URL.revokeObjectURL(url);
       }
       setSelectedFile(pdfUrl);
-      setPosition({ x: 0, y: 0 });
-      setDroppedComponents([]);
   };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
@@ -572,7 +570,6 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                  <DroppedComponents 
                     droppedComponents={droppedComponents}
                     setDroppedComponents={setDroppedComponents}
-                    setIsDragging={setIsDragging}
                     clickField={clickField}
                     deleteField={deleteField}
                     updateField={updateField}

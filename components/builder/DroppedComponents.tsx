@@ -10,7 +10,6 @@ import { CircleX } from 'lucide-react';
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
   setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>;
-  setIsDragging: React.Dispatch<React.SetStateAction<boolean>>;
   clickField: (event: MouseEvent, item: DroppedComponent) => void;
   deleteField: (e: MouseEvent, item: DroppedComponent) => void;
   updateField: (data: string | null, id: number) => void;
@@ -25,7 +24,6 @@ const commonclass = 'after:m-auto flex after:bg-blue-500';
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
   droppedComponents,
-  setIsDragging,
   clickField,
   deleteField, 
   updateField,
@@ -47,7 +45,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             className="group absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
-            onDrag={() => setIsDragging(true)}
             onDragStop={(e, data) => handleDragStop(item, data)}
             onClick={(e: MouseEvent) => clickField(e, item)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
