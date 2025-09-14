@@ -1,5 +1,5 @@
 'use client';
-import React, { Fragment, useEffect, useRef } from 'react';
+import React, { Fragment } from 'react';
 import { Document, Page } from "react-pdf";
 
 interface PDFViewerProps {

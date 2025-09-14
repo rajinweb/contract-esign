@@ -30,11 +30,11 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({ pageRefs, documen
   // ----------------------
   // Drag Preview / Mouse
   // ----------------------
-  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>) => {
+/*  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>) => {
     setDraggingComponent({ component });
     setPosition({ x: e.clientX, y: e.clientY });
   };
-
+*/
   const mouseMoveOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
     if (draggingComponent) {
       setPosition({ x: e.clientX - 65, y: e.clientY });

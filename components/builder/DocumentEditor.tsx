@@ -225,9 +225,10 @@ const DocumentEditor: React.FC = () => {
     (async () => {
       const file = await getFileFromIndexedDB();
       if (file) {
-        setSelectedFile(file as File); // or add proper type-check
+        setSelectedFile(file as File); 
       }
     })();
+  //@typescript-eslint/ban-ts-comment
   }, []);
 
   useEffect(() => {
