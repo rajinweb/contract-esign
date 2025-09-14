@@ -4,16 +4,15 @@ import React, {
   useState,
   useRef,
   MouseEvent,
-  Fragment,
   ChangeEvent,
 } from 'react';
 import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from '@/utils/indexDB';
 // Third-party
-import { Document, Page, pdfjs } from "react-pdf";
+import { pdfjs } from "react-pdf";
 import { PDFDocument, rgb, degrees } from "pdf-lib";
 import { Rnd } from 'react-rnd';
 import dayjs from "dayjs";
-import { CircleX, Ellipsis, LoaderPinwheel, Plus } from 'lucide-react';
+import { CircleX, LoaderPinwheel } from 'lucide-react';
 import { DraggableData } from 'react-draggable';
 
 // Project utils & types
@@ -32,6 +31,7 @@ import DateField from './DateField';
 import ActionToolBar from '@/components/builder/ActionToolBar';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
+import PDFViewer from './PDFViewer';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -624,31 +624,8 @@ const updateField = (data: string | null, id: number) => {
                   </Rnd>
                 );
               })}
-
-              <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)} className="">
-                {pages.map((pageNum, index) => (
-                  <Fragment key={index}>
-                    <div className='flex justify-between w-full items-center p-2 page-brake' onClick={(e) => e.stopPropagation()}>
-                      <small>{pageNum} of {pages.length}</small>
-                      <button onClick={() => insertBlankPageAt(pageNum)} className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Plus size={16} /> </button>
-                      <div className='relative'  onClick={(e) => toggleMenu(e, pageNum - 1)}>
-                        {/* Ellipsis opens menu for this page (pageNum is 1-based; convert to 0-based for pdf-lib) */}
-                        <button className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> <Ellipsis size={16} /> </button>
-                      </div>
-                    </div>
-                    <div
-                      key={pageNum}
-                       data-page={pageNum}
-                      ref={(el: HTMLDivElement | null) => {
-                          pageRefs.current[pageNum - 1] = el;
-                        }}
-                      className="relative pdf-page"
-                    >
-                    <Page pageNumber={pageNum} width={pdfHeight} loading={"Page Loading..."} renderAnnotationLayer={false} renderTextLayer={false} />
-                    </div>
-                  </Fragment>
-                ))}
-              </Document>
+              <PDFViewer selectedFile={selectedFile} pages={pages} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
+            
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
