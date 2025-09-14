@@ -16,7 +16,7 @@ const UserDropdown = () => {
   const { setIsLoggedIn, setSelectedFile, user } = useContextStore();
   const router= useRouter();
   const handleLogout = async () => {
-    await fetch('/api/logout', {
+    await fetch('/api/auth/logout', {
       method: 'POST',
     });
     localStorage.removeItem('AccessToken');
