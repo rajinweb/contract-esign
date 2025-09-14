@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, forwardRef } from "react";
 import { InputProps } from '@/types/types';
+import { toast } from "react-hot-toast"; // or any toast lib you use
 
 const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref">>((props, ref) => {
   const { textInput } = props;
@@ -17,6 +18,14 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref
   // Handle typing and adjusting height
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
+
+    // ✅ English-only check //To-Do
+    const englishOnly = /^[\x00-\x7F]*$/;
+    if (!englishOnly.test(value)) {
+      toast.error("Only English characters are supported right now.");
+      return; // ignore non-English input
+    }
+
     setText(value);
     textInput(value)
   };
@@ -40,7 +49,7 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref
         }
       }}
       placeholder="Type here..."
-      className="bg-transparent overflow-auto resize-none p-2 h-full w-full cursor-move text-[12px]"
+      className="bg-transparent overflow-auto resize-none p-2 h-full w-full cursor-move overflow-y-auto"
       value={text}
     />
   );

@@ -1,15 +1,9 @@
 "use client";
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  MouseEvent,
-  ChangeEvent,
-} from 'react';
+import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent} from 'react';
 import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from '@/utils/indexDB';
 // Third-party
 import { pdfjs } from "react-pdf";
-import { PDFDocument, rgb, degrees } from "pdf-lib";
+import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
 import dayjs from "dayjs";
 import { LoaderPinwheel } from 'lucide-react';
@@ -69,6 +63,7 @@ const DocumentEditor: React.FC = () => {
   const imageRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
 
   // ==========================================================
   // PDF & Page Handling
@@ -341,12 +336,36 @@ const DocumentEditor: React.FC = () => {
     if (data) {
       // Draw the component (Text, Date, or Image)
       if (component === "Text" || component === "Date") {
-          // For text/date we only need position (size handled by font)
-        page.drawText(data as string, {
-          x: finalX,
-          y: finalY,
-          size: 12,
-          ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+        
+        // PDFDocument load ke baad
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontSize = 12;
+        const lineHeight = fontSize * 1.2;
+        const maxWidth = width * scaleX; // textarea width scaled to PDF
+        const textLines: string[] = []; // lines to draw
+        
+
+        data.split('\n').forEach((paragraph) => {
+          let line = '';
+          paragraph.split(' ').forEach((word) => {
+            const testLine = line ? line + ' ' + word : word;            
+            const lineWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+            if (lineWidth > maxWidth) {
+              textLines.push(line);
+              line = word;
+            } else {
+              line = testLine;
+            }
+          });
+          if (line) textLines.push(line);
+        });
+
+        // Draw lines within rectangle
+        let cursorY = adjustedY + height * scaleY - lineHeight;
+        textLines.forEach((line) => {
+          if (cursorY < adjustedY) return; // clip if overflows
+          page.drawText(line, { x: adjustedX, y: cursorY, size: fontSize, font: helveticaFont });
+          cursorY -= lineHeight;
         });
       } else if (component === "Signature" || component === "Image") {
          try {
@@ -494,7 +513,6 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
   }
   setShowMenu(true);
 };
-  const pdfHeight = 890;
   //auto-highlighted thumbnails when scrolling
  useEffect(() => {
     if (!pages) return;
@@ -538,6 +556,11 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
   // ==========================================================
   // Render
   // ==========================================================
+  const containerHeight = pageRefs.current.reduce((acc, page) => {
+    if (!page) return acc;
+    const rect = page.getBoundingClientRect();
+    return acc + rect.height + 40; // 40 for margin/padding between pages
+  }, 0);
   return (
     <>
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
@@ -573,7 +596,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg"onChange={onUploadImage}  />
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onUploadImage}  />
             {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
 
@@ -587,7 +610,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
               )}
-            <div style={{ minHeight: `${pages.length * (pdfHeight+40)}px` }}  onClick={clickOnDropArea}
+            <div style={{ minHeight: `${containerHeight}px` }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
               ref={documentRef}
@@ -600,7 +623,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     updateField={updateField}
                     handleDragStop={handleDragStop}
                     handleResizeStop={handleResizeStop}
-                    onUploadImage={onUploadImage}
+                    textFieldRefs={textFieldRefs}
                   />
               <PDFViewer selectedFile={selectedFile} pages={pages} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             

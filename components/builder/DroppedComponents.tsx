@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, MouseEvent, ChangeEvent } from 'react';
+import React, { MouseEvent } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
 import { DroppedComponent } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
@@ -15,8 +15,7 @@ interface DroppedComponentsProps {
   updateField: (data: string | null, id: number) => void;
   handleDragStop: (item: DroppedComponent, data: DraggableData) => void;
   handleResizeStop: (item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => void;
-  onUploadImage: (e: ChangeEvent<HTMLInputElement>) => void;
-
+  textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
 }
 
 const corners = { width: 10, height: 10 };
@@ -29,15 +28,11 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   updateField,
   handleDragStop,
   handleResizeStop,
-  onUploadImage,
+  textFieldRefs,
 }) => {
-
-  const textFieldRef = useRef<HTMLTextAreaElement | null>(null);
-  const imageRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
-     <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg"onChange={onUploadImage}  />
       {droppedComponents.map((item) => (
           <Rnd
             key={item.id}
@@ -74,8 +69,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             />
             {item.data &&
               (item.component == "Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
-              item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)}ref={textFieldRef as unknown as React.RefObject<HTMLTextAreaElement>} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} ref={textFieldRef as unknown as React.Ref<HTMLInputElement>} /> : item.component.toLowerCase()
+              item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
+              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : item.component.toLowerCase()
 
             }
           </Rnd>
