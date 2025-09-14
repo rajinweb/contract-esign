@@ -300,29 +300,51 @@ const DocumentEditor: React.FC = () => {
     const pageHeight = page.getSize().height;
 
     for (const item of droppedComponents) {
-      const { x, y, component, width, height, data } = item;
+      const { x, y, component, width, height, data, pageNumber } = item;
 
-      const scaleX = pageWidth / canvasRect.width;
-      const scaleY = pageHeight / canvasRect.height;
+      // Find the corresponding page element in DOM (must exist)
+      const pageIndex = (pageNumber ?? currentPage) - 1;
+      const pageEl = pageRefs.current[pageIndex];
+      if (!pageEl) {
+        console.warn('Page element not found for item, skipping', item);
+        continue;
+      }
 
-      // Calculate adjusted positions
-      let adjustedX = x * scaleX;
-      let adjustedY = pageHeight - (y + height);
+      const pageRect = pageEl.getBoundingClientRect();
 
+      // Calculate scale using the actual page element dimensions (DOM -> PDF)
+      const scaleX = pageWidth / pageRect.width;
+      const scaleY = pageHeight / pageRect.height;
 
-      // Boundary checks
-      if (adjustedX < 0) adjustedX = 0;
-      if (adjustedX + width * scaleX > pageWidth) adjustedX = pageWidth - width * scaleX;
+      // Compute coordinates of the item RELATIVE TO the page element.
+      // droppedComponents.x/y are relative to documentRef (canvas). Convert to page-local.
+      const relativeX = x - (pageRect.left - canvasRect.left);
+      const relativeY = y - (pageRect.top - canvasRect.top);
 
-      if (adjustedY < 0) adjustedY = 0;
-      if (adjustedY + height * scaleY > pageHeight) adjustedY = pageHeight - height * scaleY;
+      // Convert to PDF coordinates (PDF origin bottom-left)
+      const adjustedX = relativeX * scaleX;
+      const adjustedY = pageHeight - (relativeY + height) * scaleY;
 
-    if(data){
+      // Boundary checks (use scaled sizes for comparisons)
+      const scaledW = width * scaleX;
+      const scaledH = height * scaleY;
+
+      let finalX = adjustedX;
+      let finalY = adjustedY;
+
+      if (finalX < 0) finalX = 0;
+      if (finalX + scaledW > pageWidth) finalX = pageWidth - scaledW;
+
+      if (finalY < 0) finalY = 0;
+      if (finalY + scaledH > pageHeight) finalY = pageHeight - scaledH;
+
+    if (data) {
       // Draw the component (Text, Date, or Image)
       if (component === "Text" || component === "Date") {
+          // For text/date we only need position (size handled by font)
         page.drawText(data as string, {
-          x: adjustedX,
-          y: adjustedY,
+          x: finalX,
+          y: finalY,
           size: 12,
           ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
         });
@@ -345,19 +367,19 @@ const DocumentEditor: React.FC = () => {
               // JPEG
               embeddedImage = await pdfDoc.embedJpg(imgBytes);
             } else {
-              console.warn("⚠️ Unsupported image format (not PNG/JPEG). Skipped.");
+              console.warn("Unsupported image format (not PNG/JPEG). Skipped.");
               continue;
             }
 
             page.drawImage(embeddedImage, {
-              x: adjustedX,
-              y: adjustedY,
-              width: width * scaleX,
-              height: height,
+              x: finalX,
+              y: finalY,
+              width: scaledW,
+              height: scaledH,
               ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {}),
             });
           } catch (err) {
-            console.error("❌ Failed to embed image:", err);
+            console.error("Failed to embed image:", err);
             continue;
           }
       }
@@ -366,8 +388,8 @@ const DocumentEditor: React.FC = () => {
       if (autoDate) {
         page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
           {
-            x: adjustedX,
-            y: adjustedY - 20 * Math.min(scaleX, scaleY),
+            x: finalX,
+            y: finalY - 20 * Math.min(scaleX, scaleY),
             size: 10,
             color: rgb(0.074, 0.545, 0.262),
             ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
@@ -380,12 +402,12 @@ const DocumentEditor: React.FC = () => {
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
 
-    // Convert the Blob into a URL for downloading
+    // Convert the Blob into a URL for downloading / preview
     const pdfUrl = await blobToURL(blob);
 
-    if(isDownload){
+    if (isDownload) {
       // Sanitize and apply file name
-      const safeFileName = fileName.replace(/[<>:"/\|?*]+/g, '').trim();
+      const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
       const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
     
       const url = URL.createObjectURL(blob);
@@ -398,6 +420,9 @@ const DocumentEditor: React.FC = () => {
       URL.revokeObjectURL(url);
       }
       setSelectedFile(pdfUrl);
+      /* Clean up filed after merge into pdf*/
+      setPosition({ x: 0, y: 0 });
+      setDroppedComponents([]);
   };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
