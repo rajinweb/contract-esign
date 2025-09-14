@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import React, {
   useEffect,
   useState,
@@ -10,10 +10,9 @@ import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from
 // Third-party
 import { pdfjs } from "react-pdf";
 import { PDFDocument, rgb, degrees } from "pdf-lib";
-import { Rnd } from 'react-rnd';
+import { DraggableData } from 'react-rnd';
 import dayjs from "dayjs";
-import { CircleX, LoaderPinwheel } from 'lucide-react';
-import { DraggableData } from 'react-draggable';
+import { LoaderPinwheel } from 'lucide-react';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
@@ -24,14 +23,12 @@ import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
 import { AddSigDialog } from "@/components/builder/AddSigDialog";
-import ImageField from './ImageField';
-import MultilineTextField from './MultilineTextField';
 import Modal from '../Modal';
-import DateField from './DateField';
 import ActionToolBar from '@/components/builder/ActionToolBar';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
+import DroppedComponents from './DroppedComponents';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -69,12 +66,9 @@ const DocumentEditor: React.FC = () => {
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
   const draggingEle = useRef<HTMLDivElement | null>(null);
-  const textFieldRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const corners = { width: 10, height: 10 };
-  const commonclass = 'after:m-auto flex after:bg-blue-500';
 
   // ==========================================================
   // PDF & Page Handling
@@ -391,7 +385,7 @@ const DocumentEditor: React.FC = () => {
 
     if(isDownload){
       // Sanitize and apply file name
-      const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
+      const safeFileName = fileName.replace(/[<>:"/\|?*]+/g, '').trim();
       const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
     
       const url = URL.createObjectURL(blob);
@@ -450,10 +444,7 @@ const updateField = (data: string | null, id: number) => {
   );
 };
 
-
-
-
-  const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
+const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -573,58 +564,22 @@ const updateField = (data: string | null, id: number) => {
                   </div>
                 </div>
               )}
-              {/* this line is important to make dnd work properly, 40 hardcoded pageBrakeHeight */}
             <div style={{ minHeight: `${pages.length * (pdfHeight+40)}px` }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
               ref={documentRef}
                >
-              {droppedComponents.map((item) => {
-
-                return (
-                  <Rnd
-                    key={item.id} 
-                    bounds={'parent'}
-                    className="group absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
-                    position={{ x: item.x, y: item.y }}
-                    size={{ width: item.width, height: item.height }}
-                    onDrag={() => setIsDragging(true)}
-                    onDragStop={(e, data) => handleDragStop(item, data)}
-                    onClick={(e: MouseEvent) => clickField(e, item)}
-                    onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
-                    resizeHandleStyles={{
-                      topLeft: { ...corners, left: -5, top: -5 },
-                      topRight: { ...corners, right: -5, top: -5 },
-                      bottomLeft: { ...corners, left: -5, bottom: -5 },
-                      bottomRight: { ...corners, right: -5, bottom: -5 },
-                    }}
-                    resizeHandleClasses={{
-                      bottomLeft: 'border-b-2 border-l-2 border-gray-900',
-                      bottomRight: 'border-b-2 border-r-2 border-gray-900',
-                      topLeft: 'border-t-2 border-l-2 border-gray-900',
-                      topRight: 'border-t-2 border-r-2 border-gray-900',
-                      top: `${commonclass} after:h-[1px] after:w-1/2 after:mt-0`,
-                      right: `${commonclass} after:h-1/2 after:w-[1px] after:mr-0`,
-                      bottom: `${commonclass} after:h-[1px] after:w-1/2 after:mb-0`,
-                      left: `${commonclass} after:h-1/2 after:w-[1px] after:ml-0`,
-                    }}
-                    resizeHandleWrapperClass="hidden group-hover:block"
-                  >
-                    <CircleX
-                      className="absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer"
-                      size={18}
-                      color="red"
-                      onClick={(e) => deleteField(e, item)}
-                    />
-                    {item.data &&
-                      (item.component == "Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
-                      item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)}ref={textFieldRef as unknown as React.RefObject<HTMLTextAreaElement>} /> :
-                      item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} ref={textFieldRef} /> : item.component.toLowerCase()
-
-                    }
-                  </Rnd>
-                );
-              })}
+                 <DroppedComponents 
+                    droppedComponents={droppedComponents}
+                    setDroppedComponents={setDroppedComponents}
+                    setIsDragging={setIsDragging}
+                    clickField={clickField}
+                    deleteField={deleteField}
+                    updateField={updateField}
+                    handleDragStop={handleDragStop}
+                    handleResizeStop={handleResizeStop}
+                    onUploadImage={onUploadImage}
+                  />
               <PDFViewer selectedFile={selectedFile} pages={pages} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             
             </div>
@@ -669,4 +624,3 @@ const updateField = (data: string | null, id: number) => {
 };
 
 export default DocumentEditor;
-
