@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
-import Sidebar from '@/components/Sidebar';
+import Sidebar from '@/components/dashboard/Sidebar';
 import { Doc } from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';

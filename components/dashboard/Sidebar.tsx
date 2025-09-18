@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronDown,
   FileText,
@@ -16,6 +16,7 @@ import {
   Plus,
   ChevronRight,
 } from 'lucide-react';
+import useDropZone from '@/hooks/useDropZone'
 
 const Header = () => (
   <header className="border-b border-gray-200 px-5 flex items-center justify-between h-16">
@@ -43,10 +44,10 @@ type SidebarType = 'documents' | 'contacts' | 'reports';
 const PrimarySidebar = ({
   active,
   setActive,
-}: {
-  active: SidebarType;
-  setActive: (s: SidebarType) => void;
-}) => (
+  }: {
+    active: SidebarType;
+    setActive: (s: SidebarType) => void;
+  }) => (
   <aside className="w-14 border-r border-gray-200 flex flex-col justify-between">
     <div className="pt-4 flex flex-col items-center gap-3">
       {/* Document  click */}
@@ -133,29 +134,14 @@ export default function Sidebar() {
 }
 
 export const DocumentsMenu = () => {
-    const [open, setOpen] = useState(false);
+
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Documents</h2>     
-      <div className="relative">
-        <div className="flex">
-          <button className="w-full primary-button rounded-tr-none rounded-br-none">
-            <span className='flex gap-1 justify-center'>
-              <Plus/>
-              New Document
-            </span>
-          </button>
-          <button
-            onClick={() => setOpen(!open)}
-            className="primary-button rounded-tl-none rounded-bl-none px-2.5  border border-r border-blue-800"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
-        </div>
-
+  
         {/* Dropdown */}
-        {open && ( <NewDocMenu/> )}
-      </div>
+      <NewDocMenu/>
+     
       <div className="mt-6 flex items-center gap-2 text-slate-500 text-xs font-medium uppercase">
         Quick Access
       </div>
@@ -355,10 +341,29 @@ export function ReportsSidebar() {
 
 
 const NewDocMenu=()=>{
+  const {handleSampleContract, handleFileInput}=useDropZone();
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="absolute left-0 mt-1 w-[300] bg-white border border-gray-200 rounded-md shadow-lg z-30">
-      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+        <div className="relative group">
+        <div className="flex">
+          <button className="w-full primary-button rounded-tr-none rounded-br-none"  onClick={handleSampleContract}>
+            <span className='flex gap-1 justify-center'>
+              <Plus/>
+              New Document
+            </span>
+          </button>
+          <button
+            onClick={() => setOpen(!open)}
+            className="primary-button rounded-tl-none rounded-bl-none px-2.5  border border-r border-blue-800"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>
+
+    <div className="absolute left-0 mt-1 w-[300] bg-white border border-gray-200 rounded-md shadow-lg z-30 hidden group-focus-within:block " tabIndex={-1}>          
+      <label className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+        <input type="file" className="hidden" onChange={handleFileInput} accept=".pdf,.doc,.docx,.txt" />
           <div className="flex gap-2 w-[250px]">
             <div className='w-10'>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
@@ -371,11 +376,11 @@ const NewDocMenu=()=>{
             </div>
             <div className='text-left'>
               <div className="font-bold text-gray-800">Document</div>
-              <div className="text-gray-500">Upload a file to get it signed</div>
+              <div className="text-gray-500">Upload a file to be signed</div>
             </div>
         </div>
         <ChevronRight className="ml-4 w-6 h-6 text-gray-400"/>
-      </button>
+      </label>
       <button className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
         <div className="flex gap-2 w-[250px]">
           <div className='w-10'>
@@ -390,12 +395,13 @@ const NewDocMenu=()=>{
             </div>
             <div className='text-left'>
               <div className="font-bold text-gray-800">Template</div>
-              <div className="text-gray-500">Upload a file to resend it multiple times</div>
+              <div className="text-gray-500">Ready-made pre-built file</div>
             </div>
         </div>
         <ChevronRight className="ml-4 w-6 h-6 text-gray-400"/>
       </button>
     </div>
+     </div>
   )
 
 }

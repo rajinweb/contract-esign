@@ -1,110 +1,11 @@
 'use client';
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { createPortal } from "react-dom";
 import { LoaderPinwheel, Upload  } from 'lucide-react';
 import Image from 'next/image';
-import { PDFDocument } from 'pdf-lib';
-
-import { useRouter } from 'next/navigation';
-import useContextStore from '@/hooks/useContextStore';
-
-
+import useDropZone from '@/hooks/useDropZone'
 export default function UploadZone() {
-
-  const {setSelectedFile, setDocuments } = useContextStore();
-  const router=useRouter();
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  //const [prevSelectedFile] = useState<File | null>(null);
-  
-  // useEffect(() => {
-  //   console.log('DropFile useEffect', { isLoggedIn, selectedFile });
-  //   if ((!isLoggedIn && !selectedFile) || (prevSelectedFile !== null && selectedFile === null)) {
-  //     console.log('Redirecting to home page');
-  //     router.push('/');
-  //   }
-  // },[isLoggedIn, selectedFile, router])
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsLoading(true);
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        setSelectedFile(file);
-        setDocuments(prevDocs => [
-        ...prevDocs,
-        {
-          id: `${Date.now()}-${file.name}`,
-          name: file.name,
-          createdAt: new Date(),
-          status: 'draft',
-          signers: [],
-          file: file
-        }
-      ]);
-      }
-    },
-   
-    [setSelectedFile, setDocuments]
-  );
-
-  const handleFileInput = useCallback(
-  (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setDocuments(prevDocs => [
-        ...prevDocs,
-        {
-          id: `${Date.now()}-${file.name}`,
-          name: file.name,
-          createdAt: new Date(),
-          status: 'draft',
-          signers: [],
-          file: file
-        }
-      ]);
-      setIsLoading(true);
-      router.push('/builder');
-    }
-  },
-  [setSelectedFile, setDocuments, router]
-);
-
-
-  const handleSampleContract = async () => {
-    // Create a new PDF
-    const pdfDoc = await PDFDocument.create();
-    //const page = pdfDoc.addPage([890, 842]); // A4 size
-  
-    // const form = pdfDoc.getForm();
-  
-    // // Add a text field
-    // const nameField = form.createTextField("customerName");
-    // nameField.setText("Enter Customer Name");
-    // nameField.addToPage(page, { x: 50, y: 700, width: 300, height: 30 });
-  
-    // const dateField = form.createTextField("date");
-    // dateField.setText("Enter Date");
-    // dateField.addToPage(page, { x: 50, y: 650, width: 300, height: 30 });
-  
-     // Serialize PDF
-     const pdfBytes = await pdfDoc.save();
-  
-    // Create a File object (so your UploadZone flow works)
-    
-    const file = new File(
-      [new Uint8Array(pdfBytes.buffer as ArrayBuffer)],
-      "sample-contract.pdf",
-      { type: "application/pdf" }
-    );
-  
-    setSelectedFile(file);
-     router.push('/builder');
-  };
-
+  const {isLoading, handleDrop, handleSampleContract, handleFileInput}=useDropZone();
   if(isLoading){
     return createPortal(<div className="fixed inset-0 flex flex-col items-center justify-center bg-black/50 z-[9999]">
         <LoaderPinwheel
@@ -131,14 +32,8 @@ export default function UploadZone() {
           // }}
         >
          
-          <input
-            type="file"
-            id="fileInput"
-            className="hidden"
-            onChange={handleFileInput}
-            accept=".pdf,.doc,.docx,.txt"
-          />
-          <label htmlFor="fileInput" className="grid grid-cols-2 items-center gap-6 bg-[#ecf1f7] p-6 rounded-lg">
+          <label className="grid grid-cols-2 items-center gap-6 bg-[#ecf1f7] p-6 rounded-lg">
+              <input type="file" className="hidden"  onChange={handleFileInput} accept=".pdf,.doc,.docx,.txt" />
               <div className="h-full">
                 <h2 className="text-2xl font-semibold text-gray-800">Send my document for signature</h2>
                 <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
@@ -162,7 +57,7 @@ export default function UploadZone() {
           </label>
     
           {/* Sign My Own Document Form */}
-          <div className="grid grid-cols-2 items-center gap-6 bg-[#f2f7ff]  rounded-lg">
+          <div className="grid grid-cols-2 items-center gap-6 bg-[#f2f7ff] rounded-lg">
             <div className="h-full p-6">
               <h2 className="text-2xl font-semibold text-gray-800">Create and Sign my own document</h2>
               <p className="text-gray-600 mt-2">Add your eSignature to a document in a few clicks.</p>
