@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Poppins } from 'next/font/google';
 import LayoutWrapper from '@/components/LayoutWrapper';
 import './globals.css';
 import { Toaster } from "react-hot-toast";
@@ -10,6 +11,14 @@ export const metadata: Metadata = {
   },
 };
 import connectDB from '../utils/db';
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['200', '400', '500', '600', '700', '800', '900'],
+  variable: '--font-poppins',
+  display: 'swap',
+  preload: true,
+});
+
 
 await connectDB();
 export default function RootLayout({
@@ -17,7 +26,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${poppins.variable}`}>
         <main className='flex flex-col h-screen'>
           <LayoutWrapper>{children}</LayoutWrapper>
         </main>

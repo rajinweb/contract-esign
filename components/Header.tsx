@@ -1,28 +1,27 @@
 'use client'
-import React from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { ArrowRight, FileSignature } from 'lucide-react';
 import Link from 'next/link'
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 import UserDropdown from './UserDropdown';
-import { useEffect, useState } from 'react';
 
 
 export function Header() {
   const { isLoggedIn, selectedFile, setShowModal } = useContextStore();
   const router= useRouter();
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
+  
+  const handleScroll = () => {
       const scrollPercentage = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-      if (scrollPercentage > 20) {
+      if (scrollPercentage > 10) {
         setScrolled(true);
       } else {
         setScrolled(false);
       }
     };
-  
+  useLayoutEffect(() => {
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);

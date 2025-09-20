@@ -6,9 +6,11 @@ export function Footer() {
   return (
     <div className="mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+        <h2 className="text-3xl font-medium text-black text-center">
           Why Choose SecureSign?
         </h2>
+        <p className='max-w-5xl
+         text-gray-500 text-center m-auto my-4'>Aadhaar-based eSign is a government-authorized digital signing method that allows you to sign documents securely using your Aadhaar number and a one-time password (OTP).</p>
         <div className="grid md:grid-cols-3 gap-8">
           <FeatureCard
             icon={<Shield className="h-8 w-8 text-blue-600" />}
@@ -117,7 +119,7 @@ export function Footer() {
 
 function FeatureCard({ icon, title, description }:{icon: React.ReactElement, title:string, description:string}) {
   return (
-    <div className="p-6 bg-white rounded-lg border border-gray-100 hover:shadow-lg transition-shadow">
+    <div className="p-6 bg-gray-100/25 rounded-lg border-2 border-gray-100 hover:shadow-lg transition-shadow">
       <div className="mb-4">{icon}</div>
       <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
       <p className="text-gray-600">{description}</p>

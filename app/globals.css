@@ -34,4 +34,9 @@
   .iconButton{
     @apply w-8 h-8 p-1 text-gray-500 hover:text-gray-700 rounded transition hover:bg-gray-100 flex items-center justify-center;
   }
+
+  body {
+    @apply text-[#4B5563];
+    font-family: var(--font-poppins), system-ui, sans-serif; 
+  }
 }
