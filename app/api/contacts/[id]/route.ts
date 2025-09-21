@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
 import Contact from '@/models/Contact';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 
 interface JwtPayload {
   id: string;

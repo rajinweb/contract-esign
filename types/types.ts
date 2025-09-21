@@ -90,7 +90,7 @@ export interface User {
   picture?: string;
   id?: string;
 }
-
+/* contacts  */
 export interface Contact {
   _id?: string;
   firstName: string;
