@@ -72,7 +72,7 @@ const ContactList: React.FC<ContactListProps> = ({
   }
 
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-md">
+    <div className="bg-white shadow overflow-hidden sm:rounded-md mt-6">
       <ul className="divide-y divide-gray-200">
         {contacts.map((contact) => (
           <li key={contact._id} className="px-6 py-4 hover:bg-gray-50">
@@ -122,7 +122,7 @@ const ContactList: React.FC<ContactListProps> = ({
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => onEditContact(contact)}
-                  className="text-gray-400 hover:text-blue-600 p-1"
+                  className="text-blue-400 hover:text-blue-600 p-1"
                   title="Edit contact"
                 >
                   <Edit className="h-4 w-4" />
@@ -130,7 +130,7 @@ const ContactList: React.FC<ContactListProps> = ({
                 <button
                   onClick={() => handleDelete(contact)}
                   disabled={deletingId === contact._id}
-                  className="text-gray-400 hover:text-red-600 p-1 disabled:opacity-50"
+                  className="text-red-400 hover:text-red-600 p-1 disabled:opacity-50"
                   title="Delete contact"
                 >
                   <Trash2 className="h-4 w-4" />

@@ -17,32 +17,10 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import useDropZone from '@/hooks/useDropZone'
-import { useRouter } from 'next/navigation';
+import useContextStore from '@/hooks/useContextStore';
 
-const Header = () => (
-  <header className="border-b border-gray-200 px-5 flex items-center justify-between h-16">
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-lg">
-        S
-      </div>
-      <div className="leading-tight">
-        <div className="text-sm font-medium text-slate-900">
-          rajuxdesigns@gmail.com
-        </div>
-        <div className="text-xs text-slate-500">Personal Account</div>
-      </div>
-    </div>
-
-    <button
-      className="text-slate-400 hover:text-slate-600"
-      aria-label="account menu"
-    >
-      <ChevronDown className="w-5 h-5" />
-    </button>
-  </header>
-);
 type SidebarType = 'documents' | 'contacts' | 'reports';
-const PrimarySidebar = ({
+export const PrimarySidebar = ({
   active,
   setActive,
   }: {
@@ -109,7 +87,7 @@ const PrimarySidebar = ({
   </aside>
 );
 
-const SecondarySidebar = ({ active }: { active: SidebarType }) => (
+export const SecondarySidebar = ({ active }: { active: SidebarType }) => (
   <aside className="w-72">
     <div className="p-5 h-full Xoverflow-auto">
       {active === 'documents' && <DocumentsMenu />}
@@ -118,21 +96,6 @@ const SecondarySidebar = ({ active }: { active: SidebarType }) => (
     </div>
   </aside>
 );
-
-export default function Sidebar() {
-  const [activeSidebar, setActiveSidebar] = useState<SidebarType>('documents');
-
-  return (
-    <div className="min-h-screen flex flex-col w-[300px] bg-white border-r border-gray-200">
-      <Header />
-      <main className="flex flex-1">
-        <PrimarySidebar active={activeSidebar} setActive={setActiveSidebar} />
-        <SecondarySidebar active={activeSidebar} />
-        <div className="flex-1 bg-gray-50"></div>
-      </main>
-    </div>
-  );
-}
 
 export const DocumentsMenu = () => {
 
@@ -210,8 +173,7 @@ export const DocumentsMenu = () => {
 
 export function ContactsSidebar() {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-
+  const {setShowModal} = useContextStore()
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Contacts</h2>
@@ -219,7 +181,7 @@ export function ContactsSidebar() {
       <div className="relative">
         <div className="flex">
             <button 
-              onClick={() => router.push('/contacts')}
+              onClick={() => setShowModal(true)}
               className="w-full primary-button rounded-tr-none rounded-br-none"
             >
             <span className='flex gap-1 justify-center'>
@@ -249,13 +211,12 @@ export function ContactsSidebar() {
       {/* Side Nav */}
       <nav className="mt-6 space-y-2 text-sm">
         <button 
-          onClick={() => router.push('/contacts')}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 text-slate-800"
         >
           <Users className="w-4 h-4" />
           All Contacts
         </button>
-
+        {/*
         <div className="flex justify-between items-center px-3 py-2 rounded-md hover:bg-slate-50 text-slate-700">
           <span className="flex items-center gap-2">
             <UserPlus className="w-4 h-4" />
@@ -271,6 +232,7 @@ export function ContactsSidebar() {
           </span>
           <span className="text-slate-500">0</span>
         </div>
+        */}
       </nav>
     </>
   );

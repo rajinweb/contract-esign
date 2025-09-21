@@ -24,8 +24,16 @@ async function getUserIdFromReq(req: NextRequest) {
   }
 }
 
+// Utility to extract contact ID from the request URL
+function getContactIdFromUrl(req: NextRequest): string | null {
+  const url = new URL(req.url);
+  const parts = url.pathname.split('/');
+  const id = parts[parts.length - 1];
+  return id || null;
+}
+
 // GET - Fetch a specific contact
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const userId = await getUserIdFromReq(req);
@@ -33,7 +41,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const contact = await Contact.findOne({ _id: params.id, userId });
+    const contactId = getContactIdFromUrl(req);
+    if (!contactId) {
+      return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
+    }
+
+    const contact = await Contact.findOne({ _id: contactId, userId });
     if (!contact) {
       return NextResponse.json({ message: 'Contact not found' }, { status: 404 });
     }
@@ -46,12 +59,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT - Update a contact
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest) {
   try {
     await connectDB();
     const userId = await getUserIdFromReq(req);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const contactId = getContactIdFromUrl(req);
+    if (!contactId) {
+      return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
     }
 
     const body = await req.json();
@@ -75,7 +93,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const contact = await Contact.findOneAndUpdate(
-      { _id: params.id, userId },
+      { _id: contactId, userId },
       {
         firstName,
         lastName,
@@ -102,7 +120,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE - Delete a contact
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest) {
   try {
     await connectDB();
     const userId = await getUserIdFromReq(req);
@@ -110,7 +128,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const contact = await Contact.findOneAndDelete({ _id: params.id, userId });
+    const contactId = getContactIdFromUrl(req);
+    if (!contactId) {
+      return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
+    }
+
+    const contact = await Contact.findOneAndDelete({ _id: contactId, userId });
     if (!contact) {
       return NextResponse.json({ message: 'Contact not found' }, { status: 404 });
     }

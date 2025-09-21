@@ -1,6 +1,6 @@
 import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-
+import Image from 'next/image';
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/autoplay';
@@ -67,7 +67,7 @@ const Carousel = () => {
             {logos.map((logo, index) => (
               <SwiperSlide key={index}>
                 <div className="flex justify-center items-center p-4">
-                  <img
+                  <Image
                     alt={logo.alt}
                     height="55"
                     src={logo.src}
