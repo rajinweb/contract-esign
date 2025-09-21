@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import useDropZone from '@/hooks/useDropZone'
+import { useRouter } from 'next/navigation';
 
 const Header = () => (
   <header className="border-b border-gray-200 px-5 flex items-center justify-between h-16">
@@ -213,6 +214,7 @@ export const DocumentsMenu = () => {
 
 export function ContactsSidebar() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <>
@@ -221,6 +223,10 @@ export function ContactsSidebar() {
       <div className="relative">
         <div className="flex">
           <button className="w-full primary-button rounded-tr-none rounded-br-none">
+            <button 
+              onClick={() => router.push('/contacts')}
+              className="w-full primary-button rounded-tr-none rounded-br-none"
+            >
             <span className='flex gap-1 justify-center'>
               <Plus/>
               Create Contact
@@ -247,7 +253,10 @@ export function ContactsSidebar() {
 
       {/* Side Nav */}
       <nav className="mt-6 space-y-2 text-sm">
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 text-slate-800">
+        <button 
+          onClick={() => router.push('/contacts')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 text-slate-800"
+        >
           <Users className="w-4 h-4" />
           All Contacts
         </button>

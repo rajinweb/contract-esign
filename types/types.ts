@@ -90,3 +90,25 @@ export interface User {
   picture?: string;
   id?: string;
 }
+
+export interface Contact {
+  _id?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  companyName?: string;
+  jobTitle?: string;
+  address?: {
+    country?: string;
+    streetAddress?: string;
+    apartment?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+  };
+  description?: string;
+  userId: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

@@ -37,6 +37,7 @@ export function Header() {
             <Link href="/" className="text-gray-600 hover:text-blue-600">Solutions</Link>
             <Link href="/" className="text-gray-600 hover:text-blue-600">Products</Link>
             <Link href="/pricing" className="text-gray-600 hover:text-blue-600">Pricing</Link>
+            <Link href="/contacts" className="text-gray-600 hover:text-blue-600">Contacts</Link>
             <Link href="/" className="text-gray-600 hover:text-blue-600">Resources</Link>
           </nav>
           <div className="flex space-x-4">
