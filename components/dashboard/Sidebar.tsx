@@ -173,7 +173,9 @@ export const DocumentsMenu = () => {
 
 export function ContactsSidebar() {
   const [open, setOpen] = useState(false);
-  const {setShowModal} = useContextStore()
+  const {setShowModal} = useContextStore();
+  const [showBulkImport, setShowBulkImport] = useState(false);
+
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Contacts</h2>
@@ -200,7 +202,13 @@ export function ContactsSidebar() {
         {/* Dropdown */}
         {open && (
           <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg">
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            <button 
+              onClick={() => {
+                setShowBulkImport(true);
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
               <UserPlus className="w-4 h-4" />
               Import in Bulk
             </button>
@@ -234,6 +242,19 @@ export function ContactsSidebar() {
         </div>
         */}
       </nav>
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <BulkImportModal
+          isOpen={showBulkImport}
+          onClose={() => setShowBulkImport(false)}
+          onImportComplete={() => {
+            setShowBulkImport(false);
+            // You might want to trigger a refresh of contacts here
+            // This would require passing a callback from the parent component
+          }}
+        />
+      )}
     </>
   );
 }

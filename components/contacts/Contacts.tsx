@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Contact } from '@/types/types';
 import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
+import BulkImportModal from '@/components/contacts/BulkImportModal';
 import { Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
@@ -15,6 +16,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const {showModal, setShowModal} = useContextStore()
   // Fetch contacts on component mount
   useEffect(() => {
@@ -79,6 +81,11 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
     setEditingContact(null);
   };
 
+  const handleImportComplete = () => {
+    fetchContacts(); // Refresh the contacts list
+    setShowBulkImport(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -118,6 +125,13 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
           editContact={editingContact}
         />
         )}
+
+        {/* Bulk Import Modal */}
+        <BulkImportModal
+          isOpen={showBulkImport}
+          onClose={() => setShowBulkImport(false)}
+          onImportComplete={handleImportComplete}
+        />
     </>
   );
 };
