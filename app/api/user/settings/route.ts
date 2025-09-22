@@ -1,39 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/utils/db';
+import connectDB, { getUserIdFromReq } from '@/utils/db';
 import Users from '@/models/Users';
-import jwt from 'jsonwebtoken';
 
-// Define the structure of the JWT payload
-interface JwtPayload {
-  id: string;
-}
 
 // Define a flexible type for user settings
 interface UserSettings {
   [key: string]: unknown; // Allows dynamic key-value pairs
 }
-
 // Define the structure of the user document
 interface User {
   settings?: UserSettings;
   [key: string]: unknown; // Allows other fields in the lean document
-}
-
-async function getUserIdFromReq(req: NextRequest) {
-  const auth = req.headers.get('authorization') || '';
-  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const cookie = req.headers.get('cookie') || '';
-  const match = cookie.match(/(?:^|; )token=([^;]+)/);
-  const token = bearer || (match ? decodeURIComponent(match[1]) : null);
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET as string;
-    if (!secret) return null;
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-    return decoded?.id || null;
-  } catch {
-    return null;
-  }
 }
 
 export async function GET(req: NextRequest) {

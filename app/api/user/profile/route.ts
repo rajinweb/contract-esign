@@ -1,40 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/utils/db';
+import connectDB, { getUserIdFromReq } from '@/utils/db';
 import Users from '@/models/Users';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-
-interface JwtPayload {
-  id: string;
-}
 
 // Define the structure of the update object
 interface UpdateUser {
   name?: string;
   picture?: string;
-}
-
-async function getUserIdFromReq(req: NextRequest) {
-  // 1) check Authorization header
-  const auth = req.headers.get('authorization') || '';
-  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const token = bearer || (() => {
-    // 2) check cookie 'token' if present
-    const cookie = req.headers.get('cookie') || '';
-    const match = cookie.match(/(?:^|; )token=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : null;
-  })();
-
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET as string;
-    if (!secret) return null;
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-    return decoded?.id || null;
-  } catch (err) {
-    console.error('Token verify error', err);
-    return null;
-  }
 }
 
 export async function PATCH(req: NextRequest) {

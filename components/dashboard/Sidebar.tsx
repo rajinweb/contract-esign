@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import useDropZone from '@/hooks/useDropZone'
 import useContextStore from '@/hooks/useContextStore';
+import BulkImportModal from '../contacts/BulkImportModal';
 
 type SidebarType = 'documents' | 'contacts' | 'reports';
 export const PrimarySidebar = ({
