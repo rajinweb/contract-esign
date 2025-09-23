@@ -4,7 +4,8 @@ import { Contact } from '@/types/types';
 import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
 import BulkImportModal from '@/components/contacts/BulkImportModal';
-import { Users } from 'lucide-react';
+import BulkDeleteModal from '@/components/contacts/BulkDeleteModal';
+import { Users, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
 
@@ -17,6 +18,9 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   const [loading, setLoading] = useState(true);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const {showModal, setShowModal} = useContextStore()
   // Fetch contacts on component mount
   useEffect(() => {
@@ -85,6 +89,44 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
     fetchContacts(); // Refresh the contacts list
   };
 
+  const handleSelectContact = (contact: Contact) => {
+    setSelectedContacts(prev => {
+      const isSelected = prev.some(c => c._id === contact._id);
+      if (isSelected) {
+        return prev.filter(c => c._id !== contact._id);
+      } else {
+        return [...prev, contact];
+      }
+    });
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedContacts(filteredContacts);
+    } else {
+      setSelectedContacts([]);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedContacts.length === 0) {
+      toast.error('Please select contacts to delete');
+      return;
+    }
+    setShowBulkDelete(true);
+  };
+
+  const handleDeleteComplete = (deletedIds: string[]) => {
+    setContacts(prev => prev.filter(c => !deletedIds.includes(c._id!)));
+    setSelectedContacts([]);
+    setBulkMode(false);
+  };
+
+  const toggleBulkMode = () => {
+    setBulkMode(!bulkMode);
+    setSelectedContacts([]);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -102,9 +144,38 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
                 Manage your contact information for document signing
               </p>
             </div>
-            <div className="ml-4 flex items-center text-sm text-gray-500">
+            <div className="ml-4 flex items-center gap-4">
+              {!bulkMode ? (
+                <button
+                  onClick={toggleBulkMode}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Bulk Delete
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={selectedContacts.length === 0}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Selected ({selectedContacts.length})
+                  </button>
+                  <button
+                    onClick={toggleBulkMode}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center text-sm text-gray-500">
               <Users className="h-4 w-4 mr-1" />
               {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}
+              </div>
             </div>
       </div>
       
@@ -113,6 +184,10 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
           contacts={filteredContacts}
           onEditContact={handleEditContact}
           onDeleteContact={handleDeleteContact}
+          selectedContacts={selectedContacts}
+          onSelectContact={handleSelectContact}
+          onSelectAll={handleSelectAll}
+          bulkMode={bulkMode}
         />
 
         {/* Add/Edit Contact Modal */}
@@ -133,6 +208,14 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
             handleImportComplete();
             setShowBulkImport(false);
           }}
+        />
+
+        {/* Bulk Delete Modal */}
+        <BulkDeleteModal
+          isOpen={showBulkDelete}
+          onClose={() => setShowBulkDelete(false)}
+          selectedContacts={selectedContacts}
+          onDeleteComplete={handleDeleteComplete}
         />
     </>
   );

@@ -1,19 +1,27 @@
 'use client';
 import React, { useState } from 'react';
 import { Contact } from '@/types/types';
-import { Edit, Trash2, User, Building2, Mail, Phone, MapPin } from 'lucide-react';
+import { Edit, Trash2, User, Building2, Mail, Phone, MapPin, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface ContactListProps {
   contacts: Contact[];
   onEditContact: (contact: Contact) => void;
   onDeleteContact: (contactId: string) => void;
+  selectedContacts: Contact[];
+  onSelectContact: (contact: Contact) => void;
+  onSelectAll: (selected: boolean) => void;
+  bulkMode: boolean;
 }
 
 const ContactList: React.FC<ContactListProps> = ({
   contacts,
   onEditContact,
   onDeleteContact,
+  selectedContacts,
+  onSelectContact,
+  onSelectAll,
+  bulkMode,
 }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -71,20 +79,65 @@ const ContactList: React.FC<ContactListProps> = ({
     );
   }
 
+  const isSelected = (contact: Contact) => 
+    selectedContacts.some(selected => selected._id === contact._id);
+
+  const allSelected = contacts.length > 0 && contacts.every(contact => isSelected(contact));
+  const someSelected = selectedContacts.length > 0 && !allSelected;
+
   return (
     <div className="bg-white shadow overflow-hidden sm:rounded-md mt-6">
+      {bulkMode && (
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(input) => {
+                if (input) input.indeterminate = someSelected;
+              }}
+              onChange={(e) => onSelectAll(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <span className="ml-2 text-sm text-gray-700">
+              {allSelected ? 'Deselect All' : someSelected ? 'Select All' : 'Select All'}
+            </span>
+            {selectedContacts.length > 0 && (
+              <span className="ml-2 text-sm text-blue-600">
+                ({selectedContacts.length} selected)
+              </span>
+            )}
+          </label>
+        </div>
+      )}
       <ul className="divide-y divide-gray-200">
         {contacts.map((contact) => (
-          <li key={contact._id} className="px-6 py-4 hover:bg-gray-50">
+          <li key={contact._id} className={`px-6 py-4 hover:bg-gray-50 ${isSelected(contact) ? 'bg-blue-50' : ''}`}>
             <div className="flex items-center justify-between">
+              {bulkMode && (
+                <div className="flex-shrink-0 mr-4">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(contact)}
+                    onChange={() => onSelectContact(contact)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                      isSelected(contact) ? 'bg-blue-200' : 'bg-blue-100'
+                    }`}>
+                      {isSelected(contact) ? (
+                        <Check className="w-5 h-5 text-blue-600" />
+                      ) : (
                       <span className="text-sm font-medium text-blue-600">
                         {contact.firstName.charAt(0)}
                         {contact.lastName.charAt(0)}
                       </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -119,7 +172,8 @@ const ContactList: React.FC<ContactListProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              {!bulkMode && (
+                <div className="flex items-center space-x-2">
                 <button
                   onClick={() => onEditContact(contact)}
                   className="text-blue-400 hover:text-blue-600 p-1"
@@ -135,7 +189,8 @@ const ContactList: React.FC<ContactListProps> = ({
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
-              </div>
+                </div>
+              )}
             </div>
           </li>
         ))}
