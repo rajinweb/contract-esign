@@ -11,7 +11,7 @@ interface ContactListProps {
   selectedContacts: Contact[];
   onSelectContact: (contact: Contact) => void;
   onSelectAll: (selected: boolean) => void;
-  bulkMode: boolean;
+  handleBulkDelete:()=> void;
 }
 
 const ContactList: React.FC<ContactListProps> = ({
@@ -21,7 +21,7 @@ const ContactList: React.FC<ContactListProps> = ({
   selectedContacts,
   onSelectContact,
   onSelectAll,
-  bulkMode,
+  handleBulkDelete,
 }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -87,8 +87,8 @@ const ContactList: React.FC<ContactListProps> = ({
 
   return (
     <div className="bg-white shadow overflow-hidden sm:rounded-md mt-6">
-      {bulkMode && (
-        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+   
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50 h-14 flex items-center">
           <label className="flex items-center">
             <input
               type="checkbox"
@@ -102,19 +102,27 @@ const ContactList: React.FC<ContactListProps> = ({
             <span className="ml-2 text-sm text-gray-700">
               {allSelected ? 'Deselect All' : someSelected ? 'Select All' : 'Select All'}
             </span>
+             </label>
             {selectedContacts.length > 0 && (
+              <>
               <span className="ml-2 text-sm text-blue-600">
                 ({selectedContacts.length} selected)
               </span>
+                <button
+                onClick={handleBulkDelete}               
+                className="flex items-center gap-2 px-3 py-2 ml-6 text-sm text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <Trash2 className="h-4 w-4" />
+                Delete   
+              </button>
+              </>
             )}
-          </label>
+         
         </div>
-      )}
+
       <ul className="divide-y divide-gray-200">
         {contacts.map((contact) => (
           <li key={contact._id} className={`px-6 py-4 hover:bg-gray-50 ${isSelected(contact) ? 'bg-blue-50' : ''}`}>
-            <div className="flex items-center justify-between">
-              {bulkMode && (
+            <div className="flex items-center justify-between">              
                 <div className="flex-shrink-0 mr-4">
                   <input
                     type="checkbox"
@@ -123,7 +131,6 @@ const ContactList: React.FC<ContactListProps> = ({
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                 </div>
-              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
@@ -172,7 +179,7 @@ const ContactList: React.FC<ContactListProps> = ({
                   </div>
                 </div>
               </div>
-              {!bulkMode && (
+            
                 <div className="flex items-center space-x-2">
                 <button
                   onClick={() => onEditContact(contact)}
@@ -190,7 +197,7 @@ const ContactList: React.FC<ContactListProps> = ({
                   <Trash2 className="h-4 w-4" />
                 </button>
                 </div>
-              )}
+          
             </div>
           </li>
         ))}
