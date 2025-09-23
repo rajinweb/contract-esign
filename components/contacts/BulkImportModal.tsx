@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef } from 'react';
 import { X, Upload, Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 
 interface BulkImportModalProps {
@@ -105,7 +106,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="relative max-w-2xl w-full max-h-[90vh] bg-white rounded-lg shadow-xl flex flex-col p-1">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">Import Contacts</h2>
@@ -114,14 +115,14 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Instructions */}
           <div className="bg-blue-50 p-4 rounded-md">
             <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-medium text-blue-800">Import Instructions</h3>
-                <div className="mt-2 text-sm text-blue-700">
+                <h3 className="text-xs font-medium text-blue-800">Import Instructions</h3>
+                <div className="mt-2 text-xs text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
                     <li>Upload a CSV file with contact information</li>
                     <li>Required columns: firstName, lastName, email</li>
@@ -131,6 +132,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
                 </div>
               </div>
             </div>
+             <Image src="/images/csv-sample.png" width={2240} height={432} className='shadow-lg mt-3' alt={'csv-sample'}/>
           </div>
 
           {/* Download Template */}
@@ -216,7 +218,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t bg-gray-50">
+        <div className="flex justify-end space-x-3 p-6 border-t">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
