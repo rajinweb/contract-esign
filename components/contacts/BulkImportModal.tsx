@@ -92,8 +92,10 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
 
       toast.success(result.message);
       onImportComplete();
-      onClose();
+      
+      // Reset form and close modal
       setFile(null);
+      onClose();
     } catch (error) {
       console.error('Import error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to import contacts');

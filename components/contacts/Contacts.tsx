@@ -83,7 +83,6 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
 
   const handleImportComplete = () => {
     fetchContacts(); // Refresh the contacts list
-    setShowBulkImport(false);
   };
 
   if (loading) {
@@ -130,7 +129,10 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
         <BulkImportModal
           isOpen={showBulkImport}
           onClose={() => setShowBulkImport(false)}
-          onImportComplete={handleImportComplete}
+          onImportComplete={() => {
+            handleImportComplete();
+            setShowBulkImport(false);
+          }}
         />
     </>
   );

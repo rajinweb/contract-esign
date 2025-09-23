@@ -251,8 +251,7 @@ export function ContactsSidebar() {
           onClose={() => setShowBulkImport(false)}
           onImportComplete={() => {
             setShowBulkImport(false);
-            // You might want to trigger a refresh of contacts here
-            // This would require passing a callback from the parent component
+            // The parent component will handle the refresh
           }}
         />
       )}
