@@ -19,6 +19,7 @@ import {
 import useDropZone from '@/hooks/useDropZone'
 import useContextStore from '@/hooks/useContextStore';
 import BulkImportModal from '../contacts/BulkImportModal';
+import { useRouter } from "next/navigation";
 
 type SidebarType = 'documents' | 'contacts' | 'reports';
 export const PrimarySidebar = ({
@@ -176,7 +177,7 @@ export function ContactsSidebar() {
   const [open, setOpen] = useState(false);
   const {setShowModal} = useContextStore();
   const [showBulkImport, setShowBulkImport] = useState(false);
-
+const router = useRouter();
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Contacts</h2>
@@ -252,6 +253,7 @@ export function ContactsSidebar() {
           onImportComplete={() => {
             setShowBulkImport(false);
             // The parent component will handle the refresh
+            router.refresh();
           }}
         />
       )}
