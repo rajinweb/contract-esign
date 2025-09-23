@@ -2,16 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
 import Contact from '@/models/Contact';
 
-function parseCSV(csvText: string): any[] {
+type Address = {
+  country?: string;
+  streetAddress?: string;
+  apartment?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+};
+
+type Contact = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  companyName?: string;
+  jobTitle?: string;
+  address?: Address;
+  description?: string;
+};
+
+function parseCSV(csvText: string): Contact[] {
   const lines = csvText.trim().split('\n');
   if (lines.length < 2) return [];
 
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  const contacts = [];
+  const contacts: Contact[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-    const contact: any = {};
+    const contact: Contact = { firstName: '', lastName: '', email: '' };
 
     headers.forEach((header, index) => {
       const value = values[index] || '';
