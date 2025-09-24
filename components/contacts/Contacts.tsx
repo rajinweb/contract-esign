@@ -77,6 +77,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
 
   const handleDeleteContact = (contactId: string) => {
     deleteContact(contactId);
+    setSelectedContacts(prev => prev.filter(c => c._id !== contactId));
   };
 
   const handleCloseModal = () => {
