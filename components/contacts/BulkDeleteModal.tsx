@@ -41,7 +41,7 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
       }
 
       toast.success(result.message);
-      onDeleteComplete(contactIds);
+      onDeleteComplete(contactIds as []);
       onClose();
     } catch (error) {
       console.error('Error deleting contacts:', error);

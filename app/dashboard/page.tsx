@@ -89,7 +89,7 @@ function Dashboard() {
         {documents.length === 0 && activeSidebar === 'documents' ? (
           <UploadZone />
         ) : (
-          <div className='p-4'>
+          <div className='p-4 overflow-auto h-[calc(100vh-65px)] bg-gray-100'>
           
             {activeSidebar === 'documents' && (
             <>              

@@ -54,7 +54,7 @@ export const PrimarySidebar = ({
         title="Contacts">
         <User className="w-5 h-5" />
       </button>
-      {/* Report  click */}
+      {/* Report  click 
       <div className="relative">
         <button
           onClick={() => setActive('reports')}
@@ -69,10 +69,10 @@ export const PrimarySidebar = ({
         <span className="absolute -right-1 -top-1 text-[10px] font-semibold bg-emerald-400 text-white px-1 rounded">
           NEW
         </span>
-      </div>
+      </div>*/}
     </div>
 
-    <div className="pb-4 flex flex-col items-center gap-3">
+    {/* <div className="pb-4 flex flex-col items-center gap-3">
       <button className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-700">
         <Code className="w-5 h-5" />
       </button>
@@ -85,7 +85,7 @@ export const PrimarySidebar = ({
       <button className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-700">
         <Grid className="w-5 h-5" />
       </button>
-    </div>
+    </div> */}
   </aside>
 );
 
@@ -154,7 +154,7 @@ export const DocumentsMenu = () => {
         </a>
       </nav>
 
-      <div className="mt-6 border-t border-gray-100 pt-4 text-sm">
+      {/* <div className="mt-6 border-t border-gray-100 pt-4 text-sm">
         <div className="uppercase text-xs text-slate-400 font-semibold tracking-wide">
           Shared Team Folders
         </div>
@@ -168,7 +168,7 @@ export const DocumentsMenu = () => {
           <FolderPlus className="w-4 h-4" />
           Create Team
         </button>
-      </div>
+      </div> */}
     </>
   );
 };
