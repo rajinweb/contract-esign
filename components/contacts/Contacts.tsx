@@ -87,6 +87,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
 
   const handleImportComplete = () => {
     fetchContacts(); // Refresh the contacts list
+    setShowBulkImport(false); // Close the modal
   };
 
   const handleSelectContact = (contact: Contact) => {

@@ -177,7 +177,12 @@ export function ContactsSidebar() {
   const [open, setOpen] = useState(false);
   const {setShowModal} = useContextStore();
   const [showBulkImport, setShowBulkImport] = useState(false);
-const router = useRouter();
+
+  const handleImportComplete = () => {
+    setShowBulkImport(false);
+    // Trigger a page refresh to update the contact list
+    window.location.reload();
+  };
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Contacts</h2>
@@ -250,11 +255,7 @@ const router = useRouter();
         <BulkImportModal
           isOpen={showBulkImport}
           onClose={() => setShowBulkImport(false)}
-          onImportComplete={() => {
-            setShowBulkImport(false);
-            // The parent component will handle the refresh
-            router.refresh();
-          }}
+          onImportComplete={handleImportComplete}
         />
       )}
     </>
