@@ -5,7 +5,7 @@ import { Document, Page } from "react-pdf";
 interface PDFViewerProps {
   selectedFile: File | string;
   pages: number[];
-
+  zoom: number;
   pageRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
   generateThumbnails: (numPages: number) => void;
   insertBlankPageAt: (index: number) => void;
@@ -15,6 +15,7 @@ interface PDFViewerProps {
 const PDFViewer: React.FC<PDFViewerProps> = ({
   selectedFile,
   pages,
+  zoom,
   pageRefs,
   generateThumbnails,
   insertBlankPageAt,
@@ -39,7 +40,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                 }}
             className="relative pdf-page"
           >
-            <Page pageNumber={pageNum} width={890} renderAnnotationLayer={false} renderTextLayer={false} />
+            <Page pageNumber={pageNum} width={890} scale={zoom} renderAnnotationLayer={false} renderTextLayer={false} />
           </div>
         </Fragment>
       ))}

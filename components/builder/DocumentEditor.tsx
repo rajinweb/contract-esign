@@ -24,6 +24,7 @@ import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
 import DroppedComponents from './DroppedComponents';
+import Footer from './Footer';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -36,6 +37,7 @@ const DocumentEditor: React.FC = () => {
   const [pdfDoc, setPdfDoc] = useState<PDFDocument | null>(null);
   const [pages, setPages] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [zoom, setZoom] = useState(1);
 
   // ========= Page Menu =========
   const [showMenu, setShowMenu] = useState(false);
@@ -631,7 +633,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     handleResizeStop={handleResizeStop}
                     textFieldRefs={textFieldRefs}
                   />
-              <PDFViewer selectedFile={selectedFile} pages={pages} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
+              <PDFViewer selectedFile={selectedFile} pages={pages} zoom={zoom} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             
             </div>
             </div>
@@ -668,6 +670,15 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
           />
         )}
       </div>
+      {selectedFile && (
+        <Footer
+          currentPage={currentPage}
+          totalPages={pages.length}
+          zoom={zoom}
+          setZoom={setZoom}
+          onPageChange={handleThumbnailClick}
+        />
+      )}
 
       {/* -- PageThumbnailMenu integration (uses pdfDoc, pageIndex and onPdfUpdated) */}
      {pdfDoc && showMenu && selectedPageIndex !== null && (
