@@ -8,13 +8,22 @@ import BulkDeleteModal from '@/components/contacts/BulkDeleteModal';
 import { Users, Trash2, X, LoaderPinwheel } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
+import { useContactsStore } from '@/hooks/useContactsStore';
 
 interface SearchQueryProps  {
   searchQuery: string;
 };
 const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
+  const {
+    contacts,
+    loading,
+    addContact,
+    updateContact,
+    deleteContact,
+    deleteContacts,
+    revalidateContacts
+  } = useContactsStore();
+  
   const [loading, setLoading] = useState(true);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -22,11 +31,18 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
 
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const {showModal, setShowModal} = useContextStore()
-  // Fetch contacts on component mount
-  useEffect(() => {
-    fetchContacts();
-  }, []);
 
+  // Listen for contact updates from other components
+  useEffect(() => {
+    const handleContactsUpdated = () => {
+      revalidateContacts();
+    };
+
+    window.addEventListener('contactsUpdated', handleContactsUpdated);
+    return () => {
+      window.removeEventListener('contactsUpdated', handleContactsUpdated);
+    };
+  }, [revalidateContacts]);
   // Filter contacts based on search query
   useEffect(() => {
     if (!searchQuery?.trim()) {
@@ -41,32 +57,15 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
     }
   }, [contacts, searchQuery]);
 
-  const fetchContacts = async () => {
-    try {
-      const response = await fetch('/api/contacts');
-      if (!response.ok) {
-        throw new Error('Failed to fetch contacts');
-      }
-      const data = await response.json();
-      setContacts(data.contacts || []);
-    } catch (error) {
-      console.error('Error fetching contacts:', error);
-      toast.error('Failed to load contacts');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleContactAdded = (contact: Contact) => {
     if (editingContact) {
       // Update existing contact
-      setContacts((prev) =>
-        prev.map((c) => (c._id === contact._id ? contact : c))
-      );
+      updateContact(contact);
       setEditingContact(null);
     } else {
       // Add new contact
-      setContacts((prev) => [contact, ...prev]);
+      addContact(contact);
     }
     setShowModal(false);
   };
@@ -77,7 +76,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   };
 
   const handleDeleteContact = (contactId: string) => {
-    setContacts((prev) => prev.filter((c) => c._id !== contactId));
+    deleteContact(contactId);
   };
 
   const handleCloseModal = () => {
@@ -86,8 +85,10 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   };
 
   const handleImportComplete = () => {
-    fetchContacts(); // Refresh the contacts list
-    setShowBulkImport(false); // Close the modal
+    revalidateContacts(); // Refresh the contacts list
+    setShowBulkImport(false); // Close the modal  
+    // Also trigger global contact update event for other components
+    window.dispatchEvent(new CustomEvent('contactsUpdated'));
   };
 
   const handleSelectContact = (contact: Contact) => {
@@ -118,7 +119,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   };
 
   const handleDeleteComplete = (deletedIds: string[]) => {
-    setContacts(prev => prev.filter(c => !deletedIds.includes(c._id!)));
+    deleteContacts(deletedIds);
     setSelectedContacts([]);
 
   };

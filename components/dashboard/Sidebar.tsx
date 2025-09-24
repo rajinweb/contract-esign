@@ -180,8 +180,8 @@ export function ContactsSidebar() {
 
   const handleImportComplete = () => {
     setShowBulkImport(false);
-    // Trigger a page refresh to update the contact list
-    window.location.reload();
+    // Trigger contact revalidation through custom event
+    window.dispatchEvent(new CustomEvent('contactsUpdated'));
   };
   return (
     <>
