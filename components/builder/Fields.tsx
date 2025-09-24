@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Stamp,
   FunctionSquare,
+  Camera
 } from 'lucide-react';
 
 import {FieldsProps} from '@/types/types';
@@ -31,6 +32,7 @@ const fieldTypes = [
   { id: 'ChevronDown', icon: <ChevronDown size={18} />, label: 'Dropdown' },
   { id: 'Stamp', icon: <Stamp size={18} />, label: 'Stamp' },
   { id: 'FunctionSquare', icon: <FunctionSquare size={18} />, label: 'Formula' },
+  { id: 'realtime-photo', icon: <Camera size={18} />, label: 'Realtime Photo' },
 ];
 
 export default function Fields({ activeComponent, mouseDown }: FieldsProps) {

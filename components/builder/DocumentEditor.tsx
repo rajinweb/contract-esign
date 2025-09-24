@@ -17,6 +17,7 @@ import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
 import { AddSigDialog } from "@/components/builder/AddSigDialog";
+import { RealtimePhotoDialog } from "@/components/builder/RealtimePhotoDialog";
 import Modal from '../Modal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
@@ -52,6 +53,7 @@ const DocumentEditor: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<boolean>(false);
+  const [photoDialog, setPhotoDialog] = useState<boolean>(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [fileName, setFileName] = useState<string>('');
@@ -367,7 +369,7 @@ const DocumentEditor: React.FC = () => {
           page.drawText(line, { x: adjustedX, y: cursorY, size: fontSize, font: helveticaFont });
           cursorY -= lineHeight;
         });
-      } else if (component === "Signature" || component === "Image") {
+      } else if (component === "Signature" || component === "Image" || component === "Realtime Photo") {
          try {
             const imgUrl = data as string;
             if (!imgUrl) continue;
@@ -474,6 +476,10 @@ const DocumentEditor: React.FC = () => {
       case "Text":
       case "Date":
         setSelectedFieldForDialog(item); 
+        break;
+      case "Realtime Photo":
+        setSelectedFieldForDialog(item);
+        setPhotoDialog(true);
         break;
       default:
         console.warn("Unknown component clicked:", item.component);
@@ -649,6 +655,15 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             onConfirm={(data: string | null) => {
              if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
              setDialog(false);
+            }}
+          />
+        )}
+        {photoDialog && (
+          <RealtimePhotoDialog
+            onClose={() => setPhotoDialog(false)}
+            onConfirm={(data: string) => {
+              if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
+              setPhotoDialog(false);
             }}
           />
         )}

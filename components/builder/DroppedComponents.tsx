@@ -68,9 +68,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               onClick={(e) => deleteField(e, item)}
             />
             {item.data &&
-              (item.component == "Signature" || item.component === 'Image') ? <ImageField image={item.data} /> :
+              (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime Photo') ? <ImageField image={item.data} /> :
               item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : item.component.toLowerCase()
+              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime Photo' ? "Click to capture " : '') + item.component.toLowerCase()
 
             }
           </Rnd>

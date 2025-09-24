@@ -49,7 +49,7 @@ export interface ContextProviderProps {
 }
 
 export interface ImageFieldProps {
-    image: string;  
+    image: string | null;  
   }
 export interface InputProps {
     textInput:(data:string)=>void;
