@@ -24,7 +24,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
     revalidateContacts
   } = useContactsStore();
   
-  const [loading, setLoading] = useState(true);
+  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showBulkDelete, setShowBulkDelete] = useState(false);
