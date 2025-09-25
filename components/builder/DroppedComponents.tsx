@@ -10,19 +10,21 @@ import { CircleX } from 'lucide-react';
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
   setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>;
-  clickField: (event: MouseEvent, item: DroppedComponent) => void;
   deleteField: (e: MouseEvent, item: DroppedComponent) => void;
   updateField: (data: string | null, id: number) => void;
-  handleDragStop: (item: DroppedComponent, data: DraggableData) => void;
-  handleResizeStop: (item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => void;
+  handleDragStop: (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => void;
+  handleResizeStop: (
+    e: MouseEvent | TouchEvent,
+    item: DroppedComponent, 
+    ref: { style: { width: string; height: string } }, 
+    pos: { x: number, y: number }, 
+    delta: { width: number, height: number }
+  ) => void;
   textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
 }
 
-const corners = { width: 10, height: 10 };
-
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
   droppedComponents,
-  clickField,
   deleteField, 
   updateField,
   handleDragStop,
@@ -39,29 +41,21 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
-            onDragStop={(e, data) => handleDragStop(item, data)}
-            onClick={(e: MouseEvent) => clickField(e, item)}
-            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
-            resizeHandleStyles={{
-              topLeft: { ...corners, left: 0, top: 0 },
-              topRight: { ...corners, right: 0, top: 0 },
-              bottomLeft: { ...corners, left: 0, bottom: 0 },
-              bottomRight: { ...corners, right: 0, bottom: 0 },
-            }}
+            onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
+            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
             resizeHandleClasses={{
-              bottomLeft: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
-              bottomRight: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
-              topLeft: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
-              topRight: 'bg-gray-200 rounded-full border border-blue-500 -m-1'
+              bottomLeft: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
+              bottomRight: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
+              topLeft: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
+              topRight: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white'
             }}
-            resizeHandleWrapperClass="group-hover:block"
           >
-            <div className='absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer p-1'>
-            <CircleX
-              size={18}
-              color="red"
-              onClick={(e) => deleteField(e, item)}
-            />
+            <div className="absolute left-1/2 -top-6  transform -translate-x-1/2 cursor-pointer p-1 z-10 delete-button-wrapper">
+              <CircleX
+                size={18}
+                color="red"
+                onClick={(e) => deleteField(e, item)}
+              />
             </div>
             <div className='flex items-center justify-center h-full  w-full border border-blue-500 p-1'>
             {item.data &&

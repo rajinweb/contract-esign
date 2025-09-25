@@ -112,10 +112,15 @@ const DocumentEditor: React.FC = () => {
   // ==========================================================
   // Drag & Drop
   // ==========================================================
+  const handleDragStart = () => {
+    document.body.classList.add('dragging-no-select');
+  };
+
   const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>) => {
     const xy = { x: e.clientX, y: e.clientY };
     setDraggingComponent({ ...draggingComponent, component, ...xy });
     setPosition(xy);
+    handleDragStart();
   };
 
   const mouseMoveOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
@@ -149,8 +154,19 @@ const DocumentEditor: React.FC = () => {
     setDroppedComponents((prev) => prev.filter((c) => c.id !== item.id));
   };
 
-  const handleDragStop = (item: DroppedComponent, data: DraggableData) => {
-  if (!documentRef.current) return;
+  const handleDragStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => {
+    document.body.classList.remove('dragging-no-select');
+    if ((e.target as HTMLElement).closest('.delete-button-wrapper')) {
+      return;
+    }
+
+    if (data.x === item.x && data.y === item.y) {
+      clickField(e as MouseEvent, item);
+      return;
+    }
+
+    e.stopPropagation();
+    if (!documentRef.current) return;
 
   const parentRect = documentRef.current.getBoundingClientRect();
   const scrollY = window.scrollY;
@@ -202,7 +218,9 @@ const DocumentEditor: React.FC = () => {
   );
 };
 
-  const handleResizeStop = (item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => {
+  const handleResizeStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }, delta: { width: number, height: number }) => {
+    document.body.classList.remove('dragging-no-select');
+    e.stopPropagation();
     setDroppedComponents((prev) =>
       prev.map((c) =>
         c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
@@ -218,7 +236,7 @@ const DocumentEditor: React.FC = () => {
     (async () => {
       const file = await getFileFromIndexedDB();
       if (file) {
-        setSelectedFile(file as File); 
+        setSelectedFile(file as File);
       }
     })();
   //@typescript-eslint/ban-ts-comment
@@ -267,7 +285,7 @@ const DocumentEditor: React.FC = () => {
       setShowModal(true);
       return;
     }
-  
+
     const canvas = documentRef.current;
     const canvasRect = canvas?.getBoundingClientRect(); // Get the canvas bounds
 
@@ -340,19 +358,19 @@ const DocumentEditor: React.FC = () => {
     if (data) {
       // Draw the component (Text, Date, or Image)
       if (component === "Text" || component === "Date") {
-        
+
         // PDFDocument load ke baad
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const fontSize = 12;
         const lineHeight = fontSize * 1.2;
         const maxWidth = width * scaleX; // textarea width scaled to PDF
         const textLines: string[] = []; // lines to draw
-        
+
 
         data.split('\n').forEach((paragraph) => {
           let line = '';
           paragraph.split(' ').forEach((word) => {
-            const testLine = line ? line + ' ' + word : word;            
+            const testLine = line ? line + ' ' + word : word;
             const lineWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
             if (lineWidth > maxWidth) {
               textLines.push(line);
@@ -432,7 +450,7 @@ const DocumentEditor: React.FC = () => {
       // Sanitize and apply file name
       const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
       const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
-    
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -449,6 +467,7 @@ const DocumentEditor: React.FC = () => {
   };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
+    document.body.classList.remove('dragging-no-select');
     if (draggingEle.current) {
       draggingEle.current.style.display = 'none';
     }
@@ -468,16 +487,16 @@ const DocumentEditor: React.FC = () => {
     // Handle component-specific actions
     switch (item.component) {
       case "Signature":
-         setSelectedFieldForDialog(item); 
+         setSelectedFieldForDialog(item);
         setDialog(true); // open signature modal
         break;
       case "Image":
-        setSelectedFieldForDialog(item); 
+        setSelectedFieldForDialog(item);
         imageRef.current?.click(); // trigger file input
         break;
       case "Text":
       case "Date":
-        setSelectedFieldForDialog(item); 
+        setSelectedFieldForDialog(item);
         break;
       case "Realtime Photo":
         setSelectedFieldForDialog(item);
@@ -623,10 +642,9 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
               onMouseLeave={mouseLeaveOnDropArea}
               ref={documentRef}
                >
-                 <DroppedComponents 
+                 <DroppedComponents
                     droppedComponents={droppedComponents}
                     setDroppedComponents={setDroppedComponents}
-                    clickField={clickField}
                     deleteField={deleteField}
                     updateField={updateField}
                     handleDragStop={handleDragStop}
@@ -634,7 +652,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     textFieldRefs={textFieldRefs}
                   />
               <PDFViewer selectedFile={selectedFile} pages={pages} zoom={zoom} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
-            
+
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
@@ -687,7 +705,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         triggerElement={menuTriggerElement}
         pdfDoc={pdfDoc}
         pageIndex={selectedPageIndex}
-        onPdfUpdated={handlePdfUpdated} 
+        onPdfUpdated={handlePdfUpdated}
       />
       )}
     </>

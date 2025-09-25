@@ -39,4 +39,9 @@
     @apply text-[#4B5563];
     font-family: var(--font-poppins), system-ui, sans-serif; 
   }
+  body.dragging-no-select {
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10 and IE 11 */
+    user-select: none; /* Standard syntax */
+  }
 }
