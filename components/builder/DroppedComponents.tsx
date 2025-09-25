@@ -19,7 +19,6 @@ interface DroppedComponentsProps {
 }
 
 const corners = { width: 10, height: 10 };
-const commonclass = 'after:m-auto flex after:bg-blue-500';
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
   droppedComponents,
@@ -37,42 +36,40 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
           <Rnd
             key={item.id}
             bounds="parent"
-            className="group absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
+            className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(item, data)}
             onClick={(e: MouseEvent) => clickField(e, item)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(item, ref, position)}
             resizeHandleStyles={{
-              topLeft: { ...corners, left: -5, top: -5 },
-              topRight: { ...corners, right: -5, top: -5 },
-              bottomLeft: { ...corners, left: -5, bottom: -5 },
-              bottomRight: { ...corners, right: -5, bottom: -5 },
+              topLeft: { ...corners, left: 0, top: 0 },
+              topRight: { ...corners, right: 0, top: 0 },
+              bottomLeft: { ...corners, left: 0, bottom: 0 },
+              bottomRight: { ...corners, right: 0, bottom: 0 },
             }}
             resizeHandleClasses={{
-              bottomLeft: 'border-b-2 border-l-2 border-gray-900',
-              bottomRight: 'border-b-2 border-r-2 border-gray-900',
-              topLeft: 'border-t-2 border-l-2 border-gray-900',
-              topRight: 'border-t-2 border-r-2 border-gray-900',
-              top: `${commonclass} after:h-[1px] after:w-1/2 after:mt-0`,
-              right: `${commonclass} after:h-1/2 after:w-[1px] after:mr-0`,
-              bottom: `${commonclass} after:h-[1px] after:w-1/2 after:mb-0`,
-              left: `${commonclass} after:h-1/2 after:w-[1/2] after:ml-0`,
+              bottomLeft: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
+              bottomRight: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
+              topLeft: 'bg-gray-200 rounded-full border border-blue-500 -m-1',
+              topRight: 'bg-gray-200 rounded-full border border-blue-500 -m-1'
             }}
-            resizeHandleWrapperClass="hidden group-hover:block"
+            resizeHandleWrapperClass="group-hover:block"
           >
+            <div className='absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer p-1'>
             <CircleX
-              className="absolute left-1/2 -top-6 transform -translate-x-1/2 cursor-pointer"
               size={18}
               color="red"
               onClick={(e) => deleteField(e, item)}
             />
+            </div>
+            <div className='flex items-center justify-center h-full  w-full border border-blue-500 p-1'>
             {item.data &&
               (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime Photo') ? <ImageField image={item.data} /> :
               item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
               item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime Photo' ? "Click to capture " : '') + item.component.toLowerCase()
-
             }
+            </div>
           </Rnd>
         ))}
     </>

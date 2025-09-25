@@ -13,7 +13,9 @@ import {
   ChevronDown,
   Stamp,
   FunctionSquare,
-  Camera
+  Camera,
+  Link,
+  Plus
 } from 'lucide-react';
 
 import {FieldsProps} from '@/types/types';
@@ -39,8 +41,25 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
  
   return (
     <div className="w-72 p-4 border-r border-gray-200 space-y-5 bg-white select-none">
-      
-        <small className="text-sm text-gray-800 uppercase">Add Fields for the recipient by placing them on the document: </small>
+          <p className="text-xs text-gray-800 uppercase">Select a recipient for whom you want to request for signature or review. </p>  
+               <div className='flex gap-2 justify-between'>
+          <div className="flex items-center bg-blue-50  rounded-md shadow-sm text-xs p-1 w-full">
+              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mx-2">
+                R
+              </div>
+              <div className="text-gray-800">
+                Add Recipient
+                  <div className="flex items-center gap-2">
+                <Link size={12}/> 0 fields
+                </div>
+              </div>
+          </div>
+            <button className="primary-button">
+              <Plus/> 
+          </button> 
+        </div>
+
+        <p className="text-xs text-gray-800 uppercase">Add Fields for the recipient by placing them on the document: </p>
         <div className="flex space-x-4 mt-2 text-sm font-semibold border-b border-gray-200 -mx-4 px-4">
           <div className="text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer">Default</div>
           <div className="text-gray-500 cursor-pointer">Custom</div>

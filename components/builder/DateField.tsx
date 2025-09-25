@@ -32,7 +32,7 @@ const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, 
           value={text}
           onChange={handleChange}
           type="date"
-          className="w-full bg-transparent text-[12px] text-center mt-3"           
+          className="text-xs text-center"           
         />
 
   );
