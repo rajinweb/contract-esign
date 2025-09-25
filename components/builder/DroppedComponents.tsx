@@ -41,7 +41,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             key={item.id}
             scale={zoom}
             bounds="parent"
-            className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
+            className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[150px] min-h-[50px] z-50 text-center text-sm"
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}

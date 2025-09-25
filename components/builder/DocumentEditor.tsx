@@ -637,7 +637,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
               )}
-            <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top left' }}  onClick={clickOnDropArea}
+            <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
               ref={documentRef}
