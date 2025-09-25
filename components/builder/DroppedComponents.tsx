@@ -21,6 +21,7 @@ interface DroppedComponentsProps {
     delta: { width: number, height: number }
   ) => void;
   textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
+  zoom: number;
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
@@ -30,6 +31,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   handleDragStop,
   handleResizeStop,
   textFieldRefs,
+  zoom,
 }) => {
 
   return (
@@ -37,6 +39,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
       {droppedComponents.map((item) => (
           <Rnd
             key={item.id}
+            scale={zoom}
             bounds="parent"
             className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[100px] min-h-[50px] z-50 text-center"
             position={{ x: item.x, y: item.y }}

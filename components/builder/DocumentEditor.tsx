@@ -139,8 +139,8 @@ const DocumentEditor: React.FC = () => {
     const newComponent: DroppedComponent = {
       id: elementId,
       component: draggingComponent.component,
-      x: e.clientX - rect.left - 50,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) / zoom,
+      y: (e.clientY - rect.top) / zoom,
       width: 100,
       height: 50,
     };
@@ -637,7 +637,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
               )}
-            <div style={{ minHeight: `${containerHeight}px` }}  onClick={clickOnDropArea}
+            <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top left' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
               ref={documentRef}
@@ -650,9 +650,9 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     handleDragStop={handleDragStop}
                     handleResizeStop={handleResizeStop}
                     textFieldRefs={textFieldRefs}
+                    zoom={zoom}
                   />
-              <PDFViewer selectedFile={selectedFile} pages={pages} zoom={zoom} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
-
+              <PDFViewer selectedFile={selectedFile} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
