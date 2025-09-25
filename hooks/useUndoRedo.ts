@@ -33,7 +33,7 @@ export const useUndoRedo = (initialState: DroppedComponent[]) => {
   const undo = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
-      return history[currentIndex - 1].droppedComponents;
+      return history[currentIndex - 1]?.droppedComponents;
     }
     return null;
   }, [currentIndex, history]);
