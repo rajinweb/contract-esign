@@ -11,6 +11,7 @@ import { LoaderPinwheel } from 'lucide-react';
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
 import { DroppingField, DroppedComponent } from '@/types/types';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
 import UploadZone from "@/components/UploadZone";
@@ -51,6 +52,9 @@ const DocumentEditor: React.FC = () => {
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [elementId, setElementId] = useState(0);
 
+  // ========= Undo/Redo =========
+  const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(droppedComponents);
+
   // ========= UI State =========
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +72,33 @@ const DocumentEditor: React.FC = () => {
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+
+  // ==========================================================
+  // Undo/Redo Functions
+  // ==========================================================
+  const handleUndo = useCallback(() => {
+    const previousState = undo();
+    if (previousState) {
+      setDroppedComponents(previousState);
+    }
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    const nextState = redo();
+    if (nextState) {
+      setDroppedComponents(nextState);
+    }
+  }, [redo]);
+
+  // Save state to history when components change (with debouncing)
+  const saveToHistory = useCallback((components: DroppedComponent[]) => {
+    // Debounce to avoid saving too frequently during drag operations
+    const timeoutId = setTimeout(() => {
+      saveState(components);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [saveState]);
 
   // ==========================================================
   // PDF & Page Handling
@@ -93,6 +124,7 @@ const DocumentEditor: React.FC = () => {
 
     await handlePdfUpdated(pdfDocLocal);
     setDroppedComponents([]);
+    resetHistory([]);
   };
 
   const handlePdfUpdated = async (updatedDoc: PDFDocument) => {
@@ -146,12 +178,19 @@ const DocumentEditor: React.FC = () => {
     };
 
     setDroppedComponents((prev) => [...prev, newComponent]);
+    // Save state after adding component
+    setTimeout(() => saveState([...droppedComponents, newComponent]), 100);
     setElementId((id) => id + 1);
   };
 
   const deleteField = (e: MouseEvent, item: DroppedComponent) => {
     e.stopPropagation();
-    setDroppedComponents((prev) => prev.filter((c) => c.id !== item.id));
+    setDroppedComponents((prev) => {
+      const newComponents = prev.filter((c) => c.id !== item.id);
+      // Save state after deleting component
+      setTimeout(() => saveState(newComponents), 100);
+      return newComponents;
+    });
   };
 
   const handleDragStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => {
@@ -210,23 +249,47 @@ const DocumentEditor: React.FC = () => {
 
   // Update state
   setDroppedComponents(prev =>
-    prev.map(c =>
+    {
+      const newComponents = prev.map(c =>
       c.id === item.id
         ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
         : c
-    )
+      );
+      // Save state after drag stop
+      setTimeout(() => saveState(newComponents), 100);
+      return newComponents;
+    }
   );
 };
 
   const handleResizeStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }, delta: { width: number, height: number }) => {
     document.body.classList.remove('dragging-no-select');
     e.stopPropagation();
-    setDroppedComponents((prev) =>
-      prev.map((c) =>
+    setDroppedComponents((prev) => {
+      const newComponents = prev.map((c) =>
         c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
-      )
-    );
+      );
+      // Save state after resize stop
+      setTimeout(() => saveState(newComponents), 100);
+      return newComponents;
+    });
   };
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // ==========================================================
   // Effects
@@ -464,6 +527,7 @@ const DocumentEditor: React.FC = () => {
       /* Clean up filed after merge into pdf*/
       setPosition({ x: 0, y: 0 });
       setDroppedComponents([]);
+      resetHistory([]);
   };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
@@ -508,8 +572,12 @@ const DocumentEditor: React.FC = () => {
   };
 
 const updateField = (data: string | null, id: number) => {
-  setDroppedComponents(prev =>
-    prev.map(c => (c.id === id ? { ...c, data } : c))
+  setDroppedComponents(prev => {
+    const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));
+    // Save state after field update
+    setTimeout(() => saveState(newComponents), 100);
+    return newComponents;
+  }
   );
 };
 
@@ -597,6 +665,10 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         isEditingFileName={isEditingFileName}
         setIsEditingFileName={setIsEditingFileName}
         handleSave={handleSave}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
       />
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
         <Fields

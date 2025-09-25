@@ -22,6 +22,10 @@ interface ActionToolBarProps {
   isEditingFileName: boolean;
   setIsEditingFileName: React.Dispatch<React.SetStateAction<boolean>>;
   handleSave: (isDownload?: boolean) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
   
@@ -31,7 +35,11 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   setFileName,
   isEditingFileName,
   setIsEditingFileName,
-  handleSave
+  handleSave,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo
 }) => {
   const { selectedFile } = useContextStore();
 
@@ -231,10 +239,22 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     <div className="flex items-center gap-4 px-4 py-2 bg-white border-b text-sm font-medium">
     {/* Undo / Redo */}
     <div className="flex items-center gap-2">
-      <button aria-label="Undo" className="iconButton">
+      <button 
+        aria-label="Undo (Ctrl+Z)" 
+        className={`iconButton ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={onUndo}
+        disabled={!canUndo}
+        title="Undo (Ctrl+Z)"
+      >
         <Undo size={20} />
       </button>
-      <button aria-label="Redo" className="iconButton opacity-50" disabled>
+      <button 
+        aria-label="Redo (Ctrl+Y)" 
+        className={`iconButton ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={onRedo}
+        disabled={!canRedo}
+        title="Redo (Ctrl+Y)"
+      >
         <Redo size={20} />
       </button>
     </div>
