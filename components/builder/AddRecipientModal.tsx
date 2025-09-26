@@ -1,5 +1,6 @@
+'use client';
 import React, { useState, useEffect } from 'react';
-import { X, UserPlus, Users, PenTool, CheckCircle, Eye, Trash2 } from 'lucide-react';
+import { X, UserPlus, Users, PenTool, CheckCircle, Eye, Trash2, Edit } from 'lucide-react';
 import { Contact, Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
 
@@ -55,6 +56,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState<string | null>(null);
+  const [showContactsDropdown, setShowContactsDropdown] = useState<string | null>(null);
   const [ccRecipients, setCcRecipients] = useState<Recipient[]>([]);
 
   // Load contacts on mount
@@ -89,12 +91,8 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
     return RECIPIENT_COLORS.find(color => !usedColors.includes(color)) || RECIPIENT_COLORS[0];
   };
 
-  const addRecipient = (email: string, name?: string, isCC = false) => {
-    if (!email) return;
-
-    // Check if recipient already exists
-    const existingRecipient = recipients.find(r => r.email === email);
-    if (existingRecipient) {
+  const addRecipient = (email: string = '', name?: string, isCC = false) => {
+    if (email && recipients.find(r => r.email === email)) {
       toast.error('Recipient already added');
       return;
     }
@@ -135,6 +133,17 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
     onRecipientsChange(
       recipients.map(r => r.id === id ? { ...r, email } : r)
     );
+  };
+
+  const selectContactForRecipient = (recipientId: string, contact: Contact) => {
+    onRecipientsChange(
+      recipients.map(r => 
+        r.id === recipientId 
+          ? { ...r, email: contact.email, name: `${contact.firstName} ${contact.lastName}` }
+          : r
+      )
+    );
+    setShowContactsDropdown(null);
   };
 
   const handleSaveAndContinue = () => {
@@ -183,7 +192,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
               <div className="flex items-center gap-4">
                 {/* Avatar */}
                 <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg"
                   style={{ backgroundColor: recipient.color }}
                 >
                   {recipient.name ? recipient.name.charAt(0).toUpperCase() : 'R'}
@@ -196,9 +205,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                       Recipient {index + 1}
                     </span>
                     <button className="text-gray-400 hover:text-gray-600">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                      </svg>
+                      <Edit className="w-4 h-4" />
                     </button>
                   </div>
 
@@ -210,11 +217,43 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                         value={recipient.email}
                         onChange={(e) => updateRecipientEmail(recipient.id, e.target.value)}
                         placeholder="Enter email or add from contacts"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                       />
-                      <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <button 
+                        onClick={() => setShowContactsDropdown(showContactsDropdown === recipient.id ? null : recipient.id)}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
                         <Users className="w-4 h-4" />
                       </button>
+
+                      {/* Contacts Dropdown */}
+                      {showContactsDropdown === recipient.id && (
+                        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                          {loadingContacts ? (
+                            <div className="p-3 text-center text-gray-500">Loading contacts...</div>
+                          ) : contacts.length > 0 ? (
+                            contacts.map((contact) => (
+                              <button
+                                key={contact._id}
+                                onClick={() => selectContactForRecipient(recipient.id, contact)}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
+                                  {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {contact.firstName} {contact.lastName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">{contact.email}</p>
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="p-3 text-center text-gray-500">No contacts found</div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Role Dropdown */}
@@ -257,9 +296,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                                 <p className="text-sm text-gray-500">{role.description}</p>
                               </div>
                               {recipient.role === role.value && (
-                                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
+                                <CheckCircle className="w-5 h-5 text-blue-600" />
                               )}
                             </button>
                           ))}
@@ -283,7 +320,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
           {/* Add New Recipient */}
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
+              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-lg">
                 R
               </div>
               <div className="flex-1">
@@ -314,7 +351,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
           {/* Action Buttons */}
           <div className="flex items-center gap-4 pt-4">
             <button
-              onClick={() => addRecipient('')}
+              onClick={() => addRecipient()}
               className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
             >
               <UserPlus className="w-4 h-4" />
@@ -328,37 +365,6 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
               Add CC Recipients
             </button>
           </div>
-
-          {/* Contacts Integration */}
-          {loadingContacts ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">Loading contacts...</p>
-            </div>
-          ) : contacts.length > 0 && (
-            <div className="border-t pt-4">
-              <h3 className="font-medium text-gray-900 mb-3">Quick Add from Contacts</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {contacts.slice(0, 10).map((contact) => (
-                  <button
-                    key={contact._id}
-                    onClick={() => addRecipient(contact.email, `${contact.firstName} ${contact.lastName}`)}
-                    className="flex items-center gap-2 p-2 text-left hover:bg-gray-50 rounded-md"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
-                      {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {contact.firstName} {contact.lastName}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">{contact.email}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

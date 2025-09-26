@@ -18,7 +18,7 @@ import {
   Plus
 } from 'lucide-react';
 
-import {FieldsProps} from '@/types/types';
+import {FieldsProps, Recipient} from '@/types/types';
 
 const fieldTypes = [
   { id: 'signature', icon: <Signature size={18} />, label: 'Signature' },
@@ -54,7 +54,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
                 </div>
               </div>
           </div>
-            <button className="primary-button">
+            <button className="primary-button" onClick={onAddRecipients}>
               <Plus/> 
           </button> 
         </div>

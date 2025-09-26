@@ -20,12 +20,14 @@ import useContextStore from '@/hooks/useContextStore';
 import { AddSigDialog } from "@/components/builder/AddSigDialog";
 import { RealtimePhotoDialog } from "@/components/builder/RealtimePhotoDialog";
 import Modal from '../Modal';
+import AddRecipientModal from './AddRecipientModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
 import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
+import { Recipient } from '@/types/types';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -64,6 +66,10 @@ const DocumentEditor: React.FC = () => {
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [fileName, setFileName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
+  
+  // ========= Recipients State =========
+  const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
 
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
@@ -674,6 +680,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
+          onAddRecipients={() => setShowAddRecipients(true)}
           selectedFile={selectedFile as File}
           handleReset={() => {
             setSelectedFile(null);
@@ -757,6 +764,16 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
               if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
               setPhotoDialog(false);
             }}
+          />
+        )}
+        
+        {/* Add Recipients Modal */}
+        {showAddRecipients && (
+          <AddRecipientModal
+            isOpen={showAddRecipients}
+            onClose={() => setShowAddRecipients(false)}
+            recipients={recipients}
+            onRecipientsChange={setRecipients}
           />
         )}
       </div>
