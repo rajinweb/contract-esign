@@ -90,6 +90,18 @@ export interface User {
   picture?: string;
   id?: string;
 }
+
+/* Recipients */
+export interface Recipient {
+  id: string;
+  email: string;
+  name?: string;
+  role: 'signer' | 'approver' | 'viewer';
+  color: string;
+  order: number;
+  isCC?: boolean;
+}
+
 /* contacts  */
 export interface Contact {
   _id?: string;
