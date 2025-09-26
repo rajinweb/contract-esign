@@ -4,14 +4,10 @@ import {
   FileText,
   User,
   BarChart3,
-  Code,
-  Table,
   Users,
   UserPlus,
-  Grid,
   Archive,
   Trash2,
-  FolderPlus,
   Layers,
   Plus,
   ChevronRight,
@@ -19,7 +15,6 @@ import {
 import useDropZone from '@/hooks/useDropZone'
 import useContextStore from '@/hooks/useContextStore';
 import BulkImportModal from '../contacts/BulkImportModal';
-import { useRouter } from "next/navigation";
 
 type SidebarType = 'documents' | 'contacts' | 'reports';
 export const PrimarySidebar = ({

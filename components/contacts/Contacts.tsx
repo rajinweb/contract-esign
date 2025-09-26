@@ -5,7 +5,7 @@ import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
 import BulkImportModal from '@/components/contacts/BulkImportModal';
 import BulkDeleteModal from '@/components/contacts/BulkDeleteModal';
-import { Users, Trash2, X, LoaderPinwheel } from 'lucide-react';
+import { Users, LoaderPinwheel } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
 import { useContactsStore } from '@/hooks/useContactsStore';

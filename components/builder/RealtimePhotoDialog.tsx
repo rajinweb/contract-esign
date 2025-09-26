@@ -1,6 +1,7 @@
+'use client';
 import React, { useState, useCallback, useRef } from 'react';
 import Webcam from 'react-webcam';
-
+import Image from 'next/image';
 interface RealtimePhotoDialogProps {
   onClose: () => void;
   onConfirm: (image: string) => void;
@@ -30,7 +31,7 @@ export const RealtimePhotoDialog: React.FC<RealtimePhotoDialogProps> = ({ onClos
         <h2 className="text-xl font-semibold mb-4">Capture Photo</h2>
         <div className="w-full h-64 bg-gray-200 mb-4">
           {image ? (
-            <img src={image} alt="Captured" className="w-full h-full object-cover" />
+            <Image src={image} alt="Captured" className="w-full h-full object-cover" width={100} height={100} />
           ) : (
             <Webcam
               audio={false}

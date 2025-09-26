@@ -90,7 +90,7 @@ const DocumentEditor: React.FC = () => {
     }
   }, [redo]);
 
-  // Save state to history when components change (with debouncing)
+  /* Save state to history when components change (with debouncing)
   const saveToHistory = useCallback((components: DroppedComponent[]) => {
     // Debounce to avoid saving too frequently during drag operations
     const timeoutId = setTimeout(() => {
@@ -99,7 +99,7 @@ const DocumentEditor: React.FC = () => {
     
     return () => clearTimeout(timeoutId);
   }, [saveState]);
-
+*/
   // ==========================================================
   // PDF & Page Handling
   // ==========================================================
@@ -262,7 +262,7 @@ const DocumentEditor: React.FC = () => {
   );
 };
 
-  const handleResizeStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }, delta: { width: number, height: number }) => {
+  const handleResizeStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, ref: { style: { width: string; height: string } }, pos: { x: number, y: number }) => {
     document.body.classList.remove('dragging-no-select');
     e.stopPropagation();
     setDroppedComponents((prev) => {
