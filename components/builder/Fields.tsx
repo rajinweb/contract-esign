@@ -18,7 +18,7 @@ import {
   Plus
 } from 'lucide-react';
 
-import {FieldsProps, Recipient} from '@/types/types';
+import {FieldsProps} from '@/types/types';
 
 const fieldTypes = [
   { id: 'signature', icon: <Signature size={18} />, label: 'Signature' },
@@ -37,7 +37,7 @@ const fieldTypes = [
   { id: 'realtime-photo', icon: <Camera size={18} />, label: 'Realtime Photo' },
 ];
 
-export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
+export default function Fields({ activeComponent, mouseDown, onAddRecipients }: FieldsProps) {
  
   return (
     <div className="w-72 p-4 border-r border-gray-200 space-y-5 bg-white select-none">
