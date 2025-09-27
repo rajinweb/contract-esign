@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
+import { Recipient } from "@/types/types";
 
 interface ActionToolBarProps {
   fileName: string;
@@ -41,7 +42,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   canUndo,
   canRedo,
   onUndo,
-  onRedo
+  onRedo,
   recipients,
   onSendDocument
 }) => {

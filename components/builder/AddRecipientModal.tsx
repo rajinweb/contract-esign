@@ -277,7 +277,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
               Add Recipients ({sortedRecipients.length})
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Set the signing order and roles for your recipients.
+            You can edit this list of recipients anytime and Send page.
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
