@@ -21,6 +21,7 @@ import { AddSigDialog } from "@/components/builder/AddSigDialog";
 import { RealtimePhotoDialog } from "@/components/builder/RealtimePhotoDialog";
 import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
+import SendDocumentModal from './SendDocumentModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
@@ -71,6 +72,7 @@ const DocumentEditor: React.FC = () => {
   // ========= Recipients State =========
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
 
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
@@ -676,6 +678,8 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         canRedo={canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        recipients={recipients}
+        onSendDocument={() => setShowSendDocument(true)}
       />
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
@@ -777,6 +781,20 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             onClose={() => setShowAddRecipients(false)}
             recipients={recipients}
             onRecipientsChange={setRecipients}
+          />
+        )}
+
+        {/* Send Document Modal */}
+        {showSendDocument && (
+          <SendDocumentModal
+            isOpen={showSendDocument}
+            onClose={() => setShowSendDocument(false)}
+            recipients={recipients}
+            documentName={fileName || 'Untitled Document'}
+            onSendComplete={() => {
+              // Optionally redirect to dashboard or show success message
+              console.log('Document sent successfully');
+            }}
           />
         )}
       </div>

@@ -26,6 +26,8 @@ interface ActionToolBarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  recipients: Recipient[];
+  onSendDocument: () => void;
 }
 
   
@@ -40,6 +42,8 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   canRedo,
   onUndo,
   onRedo
+  recipients,
+  onSendDocument
 }) => {
   const { selectedFile } = useContextStore();
 
@@ -228,9 +232,11 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
           <button
             type="button"
             className="bg-[#0777cf] text-white px-4 py-1 rounded hover:bg-[#025ea7]"
-           
+            onClick={onSendDocument}
+            disabled={recipients.length === 0}
+            title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
           >
-            Continue
+            Send ({recipients.length})
           </button>
         </div>
       </div>
