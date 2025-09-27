@@ -96,7 +96,7 @@ export interface User {
 export interface Recipient {
   id: string;
   email: string;
-  name?: string;
+  name: string;
   role: 'signer' | 'approver' | 'viewer';
   color: string;
   order: number;

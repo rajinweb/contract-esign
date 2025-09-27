@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { X, UserPlus, Users, PenTool, CheckCircle, Eye, Trash2, Edit } from 'lucide-react';
 import { Contact, Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
 import DropdownPortal from '../DropdownPortal';
+
 interface AddRecipientModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,7 +14,7 @@ interface AddRecipientModalProps {
 
 const RECIPIENT_COLORS = [
   '#3B82F6', // Blue
-  '#F59E0B', // Orange  
+  '#F59E0B', // Orange
   '#10B981', // Green
   '#EF4444', // Red
   '#8B5CF6', // Purple
@@ -23,30 +24,9 @@ const RECIPIENT_COLORS = [
 ];
 
 const ROLES = [
-  { 
-    value: 'signer', 
-    label: 'Signer', 
-    icon: PenTool, 
-    description: 'Can sign and fill out the document',
-    color: '#3B82F6',
-    isNew: false
-  },
-  { 
-    value: 'approver', 
-    label: 'Approver', 
-    icon: CheckCircle, 
-    description: 'Can approve or reject the document',
-    color: '#10B981',
-    isNew: true
-  },
-  { 
-    value: 'viewer', 
-    label: 'Viewer', 
-    icon: Eye, 
-    description: 'Can only view the document',
-    color: '#6B7280',
-    isNew: false
-  },
+  { value: 'signer', label: 'Signer', icon: PenTool, description: 'Can sign and fill out the document', color: '#3B82F6', isNew: false },
+  { value: 'approver', label: 'Approver', icon: CheckCircle, description: 'Can approve or reject the document', color: '#10B981', isNew: true },
+  { value: 'viewer', label: 'Viewer', icon: Eye, description: 'Can only view the document', color: '#6B7280', isNew: false },
 ] as const;
 
 const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
@@ -59,24 +39,97 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState<string | null>(null);
   const [showContactsDropdown, setShowContactsDropdown] = useState<string | null>(null);
-  const [ccRecipients, setCcRecipients] = useState<Recipient[]>([]);
-  const [newEmail, setNewEmail] = useState<string>('');
   const [editingAlias, setEditingAlias] = useState<string | null>(null);
-  const [aliasErrors, setAliasErrors] = useState<{[key: string]: string}>({});
-  const inputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const [draftRecipients, setDraftRecipients] = useState<Recipient[]>([]);
 
-  // Load contacts on mount
+  const generateRecipientId = () => `recipient_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const getNextColor = (currentRecipients: Recipient[]) => {
+    const usedColors = currentRecipients.map(r => r.color);
+    return RECIPIENT_COLORS.find(color => !usedColors.includes(color)) || RECIPIENT_COLORS[0];
+  };
+  
+  const generateUniqueName = (baseName: string, existingNames: string[]): string => {
+    let finalName = baseName.trim();
+    if (existingNames.includes(finalName)) {
+        let counter = 2;
+        while (existingNames.includes(`${finalName} ${counter}`)) {
+            counter++;
+        }
+        finalName = `${finalName} ${counter}`;
+    }
+    return finalName;
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadContacts();
-      // initialize draft from saved recipients
-      setDraftRecipients(recipients);
-      setShowContactsDropdown(null);
-      setShowRoleDropdown(null);
-      setNewEmail('');
+      const initialRecipients = recipients.length === 0
+        ? [{
+            id: generateRecipientId(),
+            email: '',
+            name: 'Recipient 1',
+            role: 'signer' as Recipient['role'],
+            color: getNextColor([]),
+            order: 1,
+            isCC: false,
+          }]
+        : recipients;
+      setDraftRecipients(initialRecipients);
+      setFormErrors({}); // Clear previous errors when modal opens
     }
-  }, [isOpen]);
+  }, [isOpen, recipients]);
+
+
+  const validateForm = () => {
+    const errors: { [key: string]: string } = {};
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    const processedRecipients = draftRecipients.map(r => ({
+      ...r,
+      email: r.email.trim(),
+      name: r.name?.trim(),
+    }));
+
+    const emailCounts: { [key: string]: number } = {};
+    processedRecipients.forEach(r => {
+      if (r.email) {
+        const lowerEmail = r.email.toLowerCase();
+        emailCounts[lowerEmail] = (emailCounts[lowerEmail] || 0) + 1;
+      }
+    });
+
+    const nameCounts: { [key: string]: number } = {};
+    processedRecipients.forEach(r => {
+      if (r.name) {
+        const lowerName = r.name.toLowerCase();
+        nameCounts[lowerName] = (nameCounts[lowerName] || 0) + 1;
+      }
+    });
+
+    processedRecipients.forEach(r => {
+      // Validate Email
+      if (!r.email) {
+        errors[`${r.id}_email`] = 'Email is required';
+      } else if (!emailRegex.test(r.email)) {
+        errors[`${r.id}_email`] = 'Invalid email format';
+      } else if (emailCounts[r.email.toLowerCase()] > 1) {
+        errors[`${r.id}_email`] = 'Duplicate email';
+      }
+
+      // Validate Name (Alias)
+      if (!r.name) {
+        errors[`${r.id}_name`] = 'Alias is required';
+      } else if (nameCounts[r.name.toLowerCase()] > 1) {
+        errors[`${r.id}_name`] = 'Duplicate alias';
+      }
+    });
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const loadContacts = async () => {
     setLoadingContacts(true);
@@ -88,162 +141,116 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
       }
     } catch (error) {
       console.error('Failed to load contacts:', error);
-      toast.error('Failed to load contacts');
     } finally {
       setLoadingContacts(false);
     }
   };
 
-  const generateRecipientId = () => {
-    return `recipient_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const addRecipient = () => {
+    setDraftRecipients(prev => {
+      const existingNames = prev.map(r => r.name);
+      const defaultName = `Recipient ${prev.length + 1}`;
+      const finalName = generateUniqueName(defaultName, existingNames);
+
+      const newRecipient: Recipient = {
+        id: generateRecipientId(),
+        email: '',
+        name: finalName,
+        role: 'signer',
+        color: getNextColor(prev),
+        order: prev.length + 1,
+        isCC: false,
+      };
+      return [...prev, newRecipient];
+    });
   };
 
-  const getNextColor = () => {
-    const usedColors = draftRecipients.map(r => r.color);
-    return RECIPIENT_COLORS.find(color => !usedColors.includes(color)) || RECIPIENT_COLORS[0];
+  const removeRecipient = (id: string) => {
+    setDraftRecipients(prev => prev.filter(r => r.id !== id).map((r, idx) => ({ ...r, order: idx + 1 })));
+    setTimeout(validateForm, 0); // Re-validate after state update
   };
 
-  const addRecipient = (email: string = '', name?: string, isCC = false) => {
-    if (email && draftRecipients.find(r => r.email === email)) {
-      toast.error('Recipient already added');
-      return;
-    }
-
-    // Generate unique name if not provided
-    const generateUniqueName = (baseName: string, existingNames: string[]): string => {
-      if (!existingNames.includes(baseName)) {
-        return baseName;
-      }
-      let counter = 2;
-      let newName = `${baseName} ${counter}`;
-      while (existingNames.includes(newName)) {
-        counter++;
-        newName = `${baseName} ${counter}`;
-      }
-      return newName;
-    };
-
-    const existingNames = draftRecipients.map(r => r.name).filter(Boolean) as string[];
-    const defaultName = `Recipient ${draftRecipients.length + 1}`;
-    const finalName = name ? generateUniqueName(name, existingNames) : generateUniqueName(defaultName, existingNames);
-
-    const newRecipient: Recipient = {
-      id: generateRecipientId(),
-      email,
-      name: finalName,
-      role: 'signer',
-      color: getNextColor(),
-      order: draftRecipients.length + 1,
-      isCC,
-    };
-
-    if (isCC) {
-      setCcRecipients(prev => [...prev, newRecipient]);
-    } else {
-      setDraftRecipients(prev => [...prev, newRecipient]);
-    }
-  };
-
-  const removeRecipient = (id: string, isCC = false) => {
-    if (isCC) {
-      setCcRecipients(prev => prev.filter(r => r.id !== id));
-    } else {
-      setDraftRecipients(prev => prev.filter(r => r.id !== id).map((r, idx) => ({ ...r, order: idx + 1 })));
-    }
-  };
-
-  const updateRecipientRole = (id: string, role: Recipient['role']) => {
-    setDraftRecipients(prev => prev.map(r => r.id === id ? { ...r, role } : r));
-    setShowRoleDropdown(null);
-  };
-
-  const updateRecipientEmail = (id: string, email: string) => {
-    setDraftRecipients(prev => prev.map(r => r.id === id ? { ...r, email } : r));
-  };
-
-  const updateRecipientName = (id: string, name: string) => {
-    // Validate alias
-    const trimmedName = name.trim();
-    const errors: {[key: string]: string} = {};
-    
-    if (!trimmedName) {
-      errors[id] = 'Alias cannot be blank';
-    } else {
-      // Check for duplicates
-      const duplicateCount = draftRecipients.filter(r => r.id !== id && r.name === trimmedName).length;
-      if (duplicateCount > 0) {
-        errors[id] = 'Alias already exists';
-      }
-    }
-    
-    setAliasErrors(prev => ({ ...prev, [id]: errors[id] || '' }));
-    
-    if (!errors[id]) {
-      setDraftRecipients(prev => prev.map(r => r.id === id ? { ...r, name: trimmedName } : r));
-    }
+  const updateRecipient = (id: string, updates: Partial<Recipient>) => {
+    setDraftRecipients(prev => prev.map(r => (r.id === id ? { ...r, ...updates } : r)));
   };
 
   const handleAliasBlur = (id: string) => {
-    console.log('handleAliasBlur', id);
     setEditingAlias(null);
-    const currentName = draftRecipients.find(r => r.id === id)?.name;
-    if (!currentName || !currentName.trim()) {
-      // Generate unique default name if blank
-      const generateUniqueName = (baseName: string, existingNames: string[]): string => {
-        if (!existingNames.includes(baseName)) {
-          return baseName;
+    const recipient = draftRecipients.find(r => r.id === id);
+    if (recipient) {
+        const trimmedName = recipient?.name.trim();
+        if (!trimmedName) {
+            const existingNames = draftRecipients.filter(r => r.id !== id).map(r => r.name);
+            const defaultName = `Recipient ${recipient.order}`;
+            updateRecipient(id, { name: generateUniqueName(defaultName, existingNames) });
+        } else {
+            updateRecipient(id, { name: trimmedName });
         }
-        let counter = 2;
-        let newName = `${baseName} ${counter}`;
-        while (existingNames.includes(newName)) {
-          counter++;
-          newName = `${baseName} ${counter}`;
-        }
-        return newName;
-      };
-
-      const index = draftRecipients.findIndex(r => r.id === id);
-      const existingNames = draftRecipients.filter(r => r.id !== id).map(r => r.name).filter(Boolean) as string[];
-      const defaultName = `Recipient ${index + 1}`;
-      const uniqueName = generateUniqueName(defaultName, existingNames);
-      
-      setDraftRecipients(prev => prev.map(r => r.id === id ? { ...r, name: uniqueName } : r));
     }
+    setTimeout(validateForm, 0);
+  };
+
+  const handleEmailBlur = (id: string) => {
+    const recipient = draftRecipients.find(r => r.id === id);
+    if (recipient) {
+      updateRecipient(id, { email: recipient.email.trim() });
+    }
+    setTimeout(validateForm, 0);
   };
 
   const toggleAliasEdit = (id: string) => {
     setEditingAlias(editingAlias === id ? null : id);
-    // Focus the input after state update
-    setTimeout(() => {
-      inputRefs.current[id]?.focus();
-    }, 0);
+    setTimeout(() => inputRefs.current[id]?.focus(), 0);
   };
 
   const selectContactForRecipient = (recipientId: string, contact: Contact) => {
-    setDraftRecipients(prev => prev.map(r => 
-      r.id === recipientId 
-        ? { ...r, email: contact.email, name: `${contact.firstName} ${contact.lastName}` }
-        : r
-    ));
+    const recipient = draftRecipients.find(r => r.id === recipientId);
+    if (!recipient) return;
+  
+    // Clear validation error for email + name
+    setFormErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[`${recipientId}_email`];
+      delete newErrors[`${recipientId}_name`];
+      return newErrors;
+    });
+  
+    let nameToUpdate = recipient.name;
+    const isDefaultOrEmptyName = /^Recipient\s\d+$/.test(recipient.name.trim()) || recipient.name.trim() === '';
+  
+    if (isDefaultOrEmptyName) {
+      const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+      const existingNames = draftRecipients.filter(r => r.id !== recipientId).map(r => r.name);
+      nameToUpdate = generateUniqueName(contactName, existingNames);
+    }
+  
+    updateRecipient(recipientId, { email: contact.email, name: nameToUpdate });
     setShowContactsDropdown(null);
+  
+    // 🔑 Do NOT re-run validateForm here
+    // User will only be validated on blur or on Save
   };
+  
 
   const handleSaveAndContinue = () => {
-    // if (draftRecipients.length === 0) {
-    //   toast.error('Please add at least one recipient');
-    //   return;
-    // }
+    // Trim all fields before final validation
+    const trimmedRecipients = draftRecipients.map(r => ({
+      ...r,
+      email: r.email.trim(),
+      name: r.name.trim(),
+    }));
+    setDraftRecipients(trimmedRecipients);
 
-    // Validate all recipients have valid emails
-    const invalidRecipients = draftRecipients.filter(r => !r.email || !r.email.includes('@'));
-    if (invalidRecipients.length > 0) {
-      toast.error('Please enter valid email addresses for all recipients');
-      return;
-    }
-
-    onRecipientsChange(draftRecipients);
-    onClose();
-    toast.success(`${draftRecipients.length} recipient${draftRecipients.length > 1 ? 's' : ''} added successfully`);
+    setTimeout(() => {
+      if (!validateForm()) {
+        toast.error('Please fix the errors before continuing');
+        return;
+      }
+  
+      onRecipientsChange(trimmedRecipients);
+      onClose();
+      toast.success(`${trimmedRecipients.length} recipient${trimmedRecipients.length > 1 ? 's' : ''} added successfully`);
+    }, 100); // Small delay to allow state to update
   };
 
   if (!isOpen) return null;
@@ -251,316 +258,178 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
-              Add recipients that need to fill out and sign this document
+              Add Recipients ({draftRecipients.length})
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              You can edit this list of recipients anytime and set the order in which they complete
-              the document on the <strong>Set up and Send</strong> page.
+              Set the signing order and roles for your recipients.
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Recipients List */}
-          {draftRecipients.map((recipient, index) => (
-            <div key={recipient.id} className="border rounded-lg p-4">
-              <div className="flex items-center gap-4">
-                {/* Avatar */}
-                <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg"
-                  style={{ backgroundColor: recipient.color }}
-                >
-                  {recipient.name ? recipient.name.charAt(0).toUpperCase() : 'R'}
-                </div>
+        <div className="flex-1 overflow-y-auto p-6 devide-y-1">
+          {draftRecipients.map((recipient) => {
+            const hasNameError = !!formErrors[`${recipient.id}_name`];
+            const hasEmailError = !!formErrors[`${recipient.id}_email`];
 
-                {/* Recipient Info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {editingAlias === recipient.id ? (
-                      <input
-                        ref={(el) => { inputRefs.current[recipient.id] = el; }}
-                        type="text"
-                        value={recipient.name ?? `Recipient ${index + 1}`}
-                        onChange={(e) => updateRecipientName(recipient.id, e.target.value)}
-                        onBlur={() => handleAliasBlur(recipient.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAliasBlur(recipient.id);
-                          }
-                        }}
-                        className="font-medium text-gray-900 bg-white border border-gray-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : (
-                      <span className="font-medium text-gray-900">
-                        {recipient.name ?? `Recipient ${index + 1}`}
-                      </span>
-                    )}
-                    <button 
-                      onClick={() => toggleAliasEdit(recipient.id)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    {aliasErrors[recipient.id] && (
-                      <span className="text-red-500 text-xs">{aliasErrors[recipient.id]}</span>
-                    )}
+            return (
+                <div className="flex gap-4 p-4 border-b border-gray-100" key={recipient.id}>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white mt-8"
+                    style={{ backgroundColor: recipient.color }}
+                  >
+                    {recipient.name ? recipient.name.charAt(0).toUpperCase() : 'R'}
                   </div>
 
-                  {/* Email Input */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 relative">
-                      <input
-                        id={`email-input-${recipient.id}`}
-                        type="email"
-                        value={recipient.email}
-                        onChange={(e) => {
-                          updateRecipientEmail(recipient.id, e.target.value);
-                          if (e.target.value.length > 0) {
-                            setShowContactsDropdown(recipient.id);
-                          }
-                        }}
-                        placeholder="Enter email or add from contacts"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-                      />
-                      <button 
-                        onClick={() => setShowContactsDropdown(showContactsDropdown === recipient.id ? null : recipient.id)}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <Users className="w-4 h-4" />
-                      </button>
-
-                      {/* Contacts Dropdown */}
-                      {showContactsDropdown === recipient.id && (
-                      <DropdownPortal targetId={`email-input-${recipient.id}`} dropdown={showContactsDropdown}>
-                        <div className="bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {loadingContacts ? (
-                            <div className="p-3 text-center text-gray-500">Loading contacts...</div>
-                          ) : contacts.length > 0 ? (
-                            contacts
-                              .filter((contact) => {
-                                const q = (recipient.email || '').toLowerCase();
-                                if (!q) return true;
-                                const name = `${contact.firstName} ${contact.lastName}`.toLowerCase();
-                                return contact.email.toLowerCase().includes(q) || name.includes(q);
-                              })
-                              .map((contact) => (
-                              <button
-                                key={contact._id}
-                                onClick={() => selectContactForRecipient(recipient.id, contact)}
-                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
-                              >
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
-                                  {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {contact.firstName} {contact.lastName}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">{contact.email}</p>
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="p-3 text-center text-gray-500">No contacts found</div>
-                          )}
-                        </div>
-                      </DropdownPortal>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {editingAlias === recipient.id ? (
+                        <input
+                          ref={el => { inputRefs.current[recipient.id] = el; }}
+                          type="text"
+                          value={recipient.name}
+                          onChange={e => updateRecipient(recipient.id, { name: e.target.value })}
+                          onBlur={() => handleAliasBlur(recipient.id)}
+                          onKeyDown={e => e.key === 'Enter' && handleAliasBlur(recipient.id)}
+                          className={`font-medium text-gray-900 bg-white border px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasNameError ? 'border-red-500' : 'border-gray-300'}`}
+                        />
+                      ) : (
+                        <span className="font-medium text-gray-900">{recipient.name}</span>
                       )}
+                      <button onClick={() => toggleAliasEdit(recipient.id)} className="text-gray-400 hover:text-gray-600">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      {hasNameError && <span className="text-red-500 text-xs">{formErrors[`${recipient.id}_name`]}</span>}
                     </div>
 
-                    {/* Role Dropdown */}
-                    <div className="relative">
-                      <button
-                        id={`role-button-${recipient.id}`}
-                        onClick={() => setShowRoleDropdown(showRoleDropdown === recipient.id ? null : recipient.id)}
-                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 min-w-[120px]"
-                      >
-                        {(() => {
-                          const roleDef = ROLES.find(r => r.value === recipient.role);
-                          const Icon = roleDef?.icon;
-                          return (
-                            <>
-                              {Icon && <Icon className="w-4 h-4" />}
-                              <span>{roleDef?.label}</span>
-                            </>
-                          );
-                        })()}
-                        <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 relative">
+                        <input
+                          id={`email-input-${recipient.id}`}
+                          type="email"
+                          autoComplete="off"
+                          value={recipient.email}
+                          onFocus={() => setShowContactsDropdown(recipient.id)}
+                          onBlur={() => { handleEmailBlur(recipient.id); setTimeout(() => setShowContactsDropdown(null), 150); }}
+                          onChange={e => updateRecipient(recipient.id, { email: e.target.value })}
+                          placeholder="Enter email or add from contacts"
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 ${hasEmailError ? 'border-red-500' : 'border-gray-300'}`}
+                        />
+                        <button
+                          onMouseDown={(e) => e.preventDefault()} // Prevents onBlur from firing on the input
+                          onClick={() => setShowContactsDropdown(showContactsDropdown === recipient.id ? null : recipient.id)}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <Users className="w-4 h-4" />
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {showRoleDropdown === recipient.id && (
-                      <DropdownPortal targetId={`role-button-${recipient.id}`} dropdown={showRoleDropdown}>
-                        <div className="bg-white border border-gray-200 rounded-md shadow-lg w-64">
-                          {ROLES.map((role) => (
-                            <button
-                              key={role.value}
-                              onClick={() => updateRecipientRole(recipient.id, role.value)}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left"
-                            >
-                              <role.icon 
-                                className="w-5 h-5" 
-                                style={{ color: role.color }}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className='text-sm'>{role.label}</span>
-                                  {role?.isNew && (
-                                    <span className="px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 rounded">
-                                      NEW
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-gray-500">{role.description}</p>
-                              </div>
-                              {recipient.role === role.value && (
-                                <CheckCircle className="w-5 h-5 text-blue-600" />
+                        {showContactsDropdown === recipient.id && (
+                          <DropdownPortal targetId={`email-input-${recipient.id}`} dropdown={showContactsDropdown}>
+                            <div onMouseDown={(e) => e.preventDefault()} className="bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                              {loadingContacts ? (
+                                <div className="p-3 text-center text-gray-500">Loading...</div>
+                              ) : contacts.length > 0 ? (
+                                contacts
+                                  .filter(c => {
+                                    const query = (recipient.email || '').toLowerCase();
+                                    const name = `${c.firstName} ${c.lastName}`.toLowerCase();
+                                    return !query || c.email.toLowerCase().includes(query) || name.includes(query);
+                                  })
+                                  .map(contact => (
+                                    <button key={contact._id} onClick={() => selectContactForRecipient(recipient.id, contact)} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left">
+                                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
+                                        {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-900">{contact.firstName} {contact.lastName}</p>
+                                        <p className="text-xs text-gray-500">{contact.email}</p>
+                                      </div>
+                                    </button>
+                                  ))
+                              ) : (
+                                <div className="p-3 text-center text-gray-500">No contacts found</div>
                               )}
-                            </button>
-                          ))}
-                        </div>
-                      </DropdownPortal>
-                      )}
+                            </div>
+                          </DropdownPortal>
+                        )}
+                         
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          id={`role-button-${recipient.id}`}
+                          onClick={() => setShowRoleDropdown(showRoleDropdown === recipient.id ? null : recipient.id)}
+                          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 min-w-[150px]"
+                        >
+                          {(() => {
+                            const roleDef = ROLES.find(r => r.value === recipient.role);
+                            if (!roleDef) return null;
+                            const Icon = roleDef.icon;
+                            return <><Icon className="w-4 h-4" /><span>{roleDef.label}</span></>;
+                          })()}
+                           <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                        </button>
+
+                        {showRoleDropdown === recipient.id && (
+                          <DropdownPortal targetId={`role-button-${recipient.id}`} dropdown={showRoleDropdown}>
+                            <div className="bg-white border border-gray-200 rounded-md shadow-lg w-64">
+                              {ROLES.map(role => (
+                                <button key={role.value} onClick={() => { updateRecipient(recipient.id, { role: role.value }); setShowRoleDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left">
+                                  <role.icon className="w-5 h-5" style={{ color: role.color }} />
+                                  <div>
+                                    <span className='text-sm'>{role.label}</span>
+                                    <p className="text-xs text-gray-500">{role.description}</p>
+                                  </div>
+                                  {recipient.role === role.value && <CheckCircle className="w-5 h-5 text-blue-600 ml-auto" />}
+                                </button>
+                              ))}
+                            </div>
+                          </DropdownPortal>
+                        )}
+                        
+                      </div>          
+                      <button onClick={() => removeRecipient(recipient.id)} disabled={draftRecipients.length==1} className={`p-2 text-gray-400 hover:text-red-600 ${!draftRecipients.length ? 'pointer-events-none' : ''}`}>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => removeRecipient(recipient.id)}
-                      className="p-2 text-gray-400 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {hasEmailError && <span className="text-red-500 text-xs pb-1">{formErrors[`${recipient.id}_email`]}</span>}
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
-          {/* Add New Recipient - Only show if no recipients exist */}
-          {draftRecipients.length === 0 && (
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-lg">
-                R
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-gray-900 mb-2">
-                    Add your first recipient
-                </div>
-                  <div className="relative">
-                <input
-                  id="email-input-new"
-                  type="email"
-                  placeholder="Enter email or add from contacts"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-                  value={newEmail}
-                  onChange={(e) => {
-                    setNewEmail(e.target.value);
-                    if (e.target.value.length > 0) {
-                      setShowContactsDropdown('new');
-                    }
-                  }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                          const email = (e.target as HTMLInputElement).value;
-                          if (email) {
-                            addRecipient(email);
-                            (e.target as HTMLInputElement).value = '';
-                            setNewEmail('');
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => setShowContactsDropdown(showContactsDropdown === 'new' ? null : 'new')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <Users className="w-4 h-4" />
-                    </button>
-
-                    {showContactsDropdown === 'new' && (
-                      <DropdownPortal targetId="email-input-new" dropdown={showContactsDropdown}>
-                        <div className="bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {loadingContacts ? (
-                            <div className="p-3 text-center text-gray-500">Loading contacts...</div>
-                          ) : contacts.length > 0 ? (
-                            contacts
-                              .filter((contact) => {
-                                const q = newEmail.toLowerCase();
-                                if (!q) return true;
-                                const name = `${contact.firstName} ${contact.lastName}`.toLowerCase();
-                                return contact.email.toLowerCase().includes(q) || name.includes(q);
-                              })
-                              .map((contact) => (
-                              <button
-                                key={contact._id}
-                                onClick={() => {
-                                  addRecipient(contact.email, `${contact.firstName} ${contact.lastName}`);
-                                  setShowContactsDropdown(null);
-                                  setNewEmail('');
-                                }}
-                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
-                              >
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
-                                  {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {contact.firstName} {contact.lastName}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">{contact.email}</p>
-                                </div>
-                              </button>
-                              ))
-                          ) : (
-                            <div className="p-3 text-center text-gray-500">No contacts found</div>
-                          )}
-                        </div>
-                      </DropdownPortal>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}       
-          </div>
+        </div>
 
         {/* Footer */}
         <div className="flex justify-between items-center p-6 border-t">
           {/* Action Buttons */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => addRecipient()}
-              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Recipient
+              <button
+                onClick={addRecipient}
+                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Recipient
+              </button>
+             <button
+                // onClick={() => addRecipient()}
+                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
+              >
+                <Users className="w-4 h-4" />
+                Add CC Recipients
             </button>
-            <button
-              onClick={() => addRecipient('', undefined, true)}
-              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
-            >
-              <Users className="w-4 h-4" />
-              Add CC Recipients
+           </div>
+           <div className='flex gap-2'>
+            <button onClick={onClose} className="bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 hover:text-gray-600 hover:border-gray-400 p-2">
+              Cancel
             </button>
+            <button onClick={handleSaveAndContinue} className="primary-button" > Save and Continue </button>
           </div>
-          <button
-            onClick={handleSaveAndContinue}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-          >
-            Save and Continue
-          </button>
         </div>
+
       </div>
     </div>
   );
