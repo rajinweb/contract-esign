@@ -327,7 +327,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                         </button>
 
                         {showContactsDropdown === recipient.id && (
-                          <DropdownPortal targetId={`email-input-${recipient.id}`} dropdown={showContactsDropdown}>
+                          <DropdownPortal targetId={`email-input-${recipient.id}`} dropdown={showContactsDropdown} onClose={() => setShowContactsDropdown(null)}>
                             <div onMouseDown={(e) => e.preventDefault()} className="bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
                               {loadingContacts ? (
                                 <div className="p-3 text-center text-gray-500">Loading...</div>
@@ -374,7 +374,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                         </button>
 
                         {showRoleDropdown === recipient.id && (
-                          <DropdownPortal targetId={`role-button-${recipient.id}`} dropdown={showRoleDropdown}>
+                          <DropdownPortal targetId={`role-button-${recipient.id}`} dropdown={showRoleDropdown}  onClose={() => setShowRoleDropdown(null)}>
                             <div className="bg-white border border-gray-200 rounded-md shadow-lg w-64">
                               {ROLES.map(role => (
                                 <button key={role.value} onClick={() => { updateRecipient(recipient.id, { role: role.value }); setShowRoleDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left">
