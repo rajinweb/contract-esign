@@ -6,15 +6,15 @@ export interface Doc {
   name: string;
   createdAt: Date;
   status:
-    | 'unfinished'
-    | 'waiting_for_me'
-    | 'waiting_for_others'
-    | 'signed'
-    | 'pending'
-    | 'draft'
-    | 'declined'
-    | 'expired'
-    | 'delivery_failed';
+  | 'unfinished'
+  | 'waiting_for_me'
+  | 'waiting_for_others'
+  | 'signed'
+  | 'pending'
+  | 'draft'
+  | 'declined'
+  | 'expired'
+  | 'delivery_failed';
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
@@ -49,40 +49,40 @@ export interface ContextProviderProps {
 }
 
 export interface ImageFieldProps {
-    image: string | null;  
-  }
+  image: string | null;
+}
 export interface InputProps {
-    textInput:(data:string)=>void;
-    defaultDate?: string | null;
-  }
+  textInput: (data: string) => void;
+  defaultDate?: string | null;
+}
 
-  
+
 export interface FieldsProps {
   mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>) => void;
   activeComponent: string | null;
-  onAddRecipients?: () => void;
-  handleSave?:()=> void;
-  handleSend?:()=>void;
+  handleSave?: () => void;
+  handleSend?: () => void;
   selectedFile: File | null;
-  handleReset?:()=> void;
+  handleReset?: () => void;
+
 }
 
 // Define types for the dropped components
 export interface DroppingField {
-    component: string;
-    x: number;
-    y: number;
+  component: string;
+  x: number;
+  y: number;
 }
-export interface  DroppedComponent extends DroppingField {
-     id: number;
-    component: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    data?: string | null;
-    pageNumber?: number;
-    mimeType?: string;
+export interface DroppedComponent extends DroppingField {
+  id: number;
+  component: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data?: string | null;
+  pageNumber?: number;
+  mimeType?: string;
 }
 export interface User {
   email: string;

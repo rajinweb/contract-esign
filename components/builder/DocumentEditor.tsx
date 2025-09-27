@@ -28,6 +28,7 @@ import PDFViewer from './PDFViewer';
 import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
 import { Recipient } from '@/types/types';
+import RecipientsList from './RecipientsList';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -677,10 +678,11 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         onRedo={handleRedo}
       />
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
+        <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
+        <RecipientsList recipients={recipients} onAddRecipients={() => setShowAddRecipients(true)} />
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
-          onAddRecipients={() => setShowAddRecipients(true)}
           selectedFile={selectedFile as File}
           handleReset={() => {
             setSelectedFile(null);
@@ -688,6 +690,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             clearFileFromIndexedDB();
           }}
         />
+        </div>
         {!selectedFile && (<UploadZone />)}
         {selectedFile && (
           <>
