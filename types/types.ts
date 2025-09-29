@@ -66,7 +66,6 @@ export interface FieldsProps {
   handleSave?: () => void;
   handleSend?: () => void;
   selectedFile: File | null;
-  handleReset?: () => void;
 
 }
 

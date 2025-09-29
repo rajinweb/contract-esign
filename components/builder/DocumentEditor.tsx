@@ -706,6 +706,12 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         onRedo={handleRedo}
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
+        handleReset={() => {
+          debugger
+          setSelectedFile(null);
+          setDroppedComponents([]);
+          clearFileFromIndexedDB();
+        }}
       />
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
@@ -714,11 +720,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
           selectedFile={selectedFile as File}
-          handleReset={() => {
-            setSelectedFile(null);
-            setDroppedComponents([]);
-            clearFileFromIndexedDB();
-          }}
+        
         />
         </div>
         {!selectedFile && (<UploadZone />)}
