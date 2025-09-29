@@ -35,8 +35,8 @@ export const statuses = [
   { value: "saved", label: "Saved", color: "text-purple-600", dot: "bg-purple-600" },
 ];
 export interface ContextValue {
-  selectedFile: Doc | File | string | null ;
-  setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null >>;
+  selectedFile: Doc | File | string | null;
+  setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null>>;
   documents: Doc[];
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
   isLoggedIn: boolean;
@@ -124,6 +124,15 @@ export interface Contact {
   };
   description?: string;
   userId: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+// types/document.ts
+export interface IDocument {
+  token: string;
+  name: string;
+  pdfData: Buffer;
+  signingToken: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

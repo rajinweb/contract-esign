@@ -1,6 +1,8 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import mongoose, { Schema, model, models, Document } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
+import DocumentModel from '@/models/Document';
+import { IDocument } from '@/types/types';
 
 const uri = process.env.MONGODB_URI;
 const connectDB = async () => {
@@ -22,11 +24,11 @@ const connectDB = async () => {
 export default connectDB;
 
 // ---------------- JWT Helper ----------------
-export async function getUserIdFromReq(req: NextRequest): Promise<string | null>  {
+export async function getUserIdFromReq(req: NextRequest): Promise<string | null> {
   // Try Authorization header first
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  
+
   // Then check cookies
   const cookie = req.headers.get('cookie') || '';
   const match = cookie.match(/(?:^|; )token=([^;]+)/);
@@ -39,32 +41,29 @@ export async function getUserIdFromReq(req: NextRequest): Promise<string | null>
     if (!secret) return null;
     const decoded = jwt.verify(token, secret) as JwtPayload & { id?: string };
     return decoded?.id || null;
-  } catch (err){
+  } catch (err) {
     console.warn("Invalid JWT:", err);
     return null;
   }
 }
 
-// ---------------- MongoDB Document Schema ----------------
-interface IDocument extends Document {
-  token: string;
-  pdfData: Buffer;
-  createdAt: Date;
-}
+// // ---------------- MongoDB Document Schema ----------------
+// interface IDocument extends Document {
+//   token: string;
+//   pdfData: Buffer;
+//   createdAt: Date;
+// }
 
-const DocumentSchema = new Schema<IDocument>({
-  token: { type: String, required: true, unique: true },
-  pdfData: { type: Buffer, required: true },
-  createdAt: { type: Date, default: Date.now },
-});
+// const DocumentSchema = new Schema<IDocument>({
+//   token: { type: String, required: true, unique: true },
+//   pdfData: { type: Buffer, required: true },
+//   createdAt: { type: Date, default: Date.now },
+// });
 
-// Use existing model if available (Next.js hot reload fix)
-const DocumentModel = models.Document || model<IDocument>('Document', DocumentSchema);
 
 // ---------------- Fetch document by token ----------------
-export async function getDocumentByToken(token: string) {
+export async function getDocumentByToken(token: string): Promise<IDocument | null> {
   await connectDB();
-  const doc = await DocumentModel.findOne({ token }).lean();
-  if (!doc) return null;
+  const doc = await DocumentModel.findOne({ token }).lean<IDocument>();
   return doc;
 }
