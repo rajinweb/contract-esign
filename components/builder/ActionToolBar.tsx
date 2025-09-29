@@ -232,7 +232,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
           {/* Continue Button */}
           <button
             type="button"
-            className="bg-[#0777cf] text-white px-4 py-1 rounded hover:bg-[#025ea7]"
+            className={`primary-button ${recipients.length === 0 ? 'opacity-50 cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-700' : ''}`}
             onClick={onSendDocument}
             disabled={recipients.length === 0}
             title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
