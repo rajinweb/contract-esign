@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import {PrimarySidebar, SecondarySidebar} from '@/components/dashboard/Sidebar';
@@ -51,6 +51,46 @@ function Dashboard() {
     return matchesStatus && matchesSearch;
   });
   const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
+  
+  const handleDeleteDoc = async (doc: Doc) => {
+    try {
+      // 🔑 Call API if you also want to delete from backend
+      const res = await fetch(`/api/documents/delete?name=${encodeURIComponent(doc.name)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+  
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to delete document');
+        return;
+      }
+  
+      // 🔑 Remove locally
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      toast.success('Document deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error deleting document');
+    }
+  }
+
+  useEffect(() => {
+    async function fetchDocs() {
+      const res = await fetch('/api/documents/list');
+      const data = await res.json();
+      // Map files to your Doc type as needed
+      setDocuments(data.files.map((name: string) => ({
+        id: name,
+        name,
+        status: 'saved',
+        createdAt: new Date(), // or get from backend
+        signers: [],
+        file: null,
+        url: `/api/documents/get?name=${encodeURIComponent(name)}`, // <-- Add this line
+      })));
+    }
+    fetchDocs();
+  }, []);
 
   return (
     <div className="flex h-screen">
@@ -113,10 +153,15 @@ function Dashboard() {
                   if (doc.file && doc.file instanceof File) {
                     handleFileSelect(doc.file);
                     router.push('/builder');
+                  } else if (doc.url) {
+                    // Remote (fetched) doc case
+                    setSelectedFile(doc.url);   // store URL in your global store
+                    router.push('/builder');    // navigate to builder
                   } else {
                     toast('No file found for this document.');
                   }
                 }}
+                onDelete={handleDeleteDoc}
               />
             </>
             )

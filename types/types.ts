@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 
 export interface Doc {
+  [x: string]: any;
   id: string;
   name: string;
   createdAt: Date;

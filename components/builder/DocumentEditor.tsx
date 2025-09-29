@@ -351,6 +351,22 @@ const DocumentEditor: React.FC = () => {
     return () => { mounted = false; };
   }, [selectedFile]);
 
+  const uploadToServer = async (blob: Blob, fileName: string) => {
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    formData.append('documentName', fileName);
+  
+    const response = await fetch('/api/documents/save', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include', // if you use cookies/session
+    });
+  
+    if (!response.ok) {
+      throw new Error('Failed to save PDF to server');
+    }
+    return response.json();
+  };
   //File Handling
  const handleSave = async (isDownload: boolean = false) => {
     if (!isLoggedIn) {
@@ -518,11 +534,12 @@ const DocumentEditor: React.FC = () => {
     // Convert the Blob into a URL for downloading / preview
     const pdfUrl = await blobToURL(blob);
 
-    if (isDownload) {
-      // Sanitize and apply file name
-      const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
-      const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+     // Sanitize and apply file name
+     const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
+     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
 
+
+    if (isDownload) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -532,6 +549,17 @@ const DocumentEditor: React.FC = () => {
       a.remove();
       URL.revokeObjectURL(url);
       }
+
+    // Upload to backend
+    try {
+      await uploadToServer(blob, finalFileName);
+      // Optionally show a success message or update UI
+    } catch (err) {
+      // Handle error (show error message to user)
+      setError('Failed to save PDF to your account.');
+      return;
+    }
+
       setSelectedFile(pdfUrl);
       /* Clean up filed after merge into pdf*/
       setPosition({ x: 0, y: 0 });

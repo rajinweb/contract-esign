@@ -8,12 +8,14 @@ import {
   AlertCircle,
   SearchX,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { Doc, statuses} from '@/types/types';
 
 interface DocumentListProps {
   documents: Doc[];
   onDocumentSelect: (doc: Doc) => void;
+  onDelete?: (doc: Doc) => void;
 }
 
 const statusIcons: Record<Doc['status'], React.ElementType> = {
@@ -31,6 +33,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
 export default function DocumentList({
   documents,
   onDocumentSelect,
+  onDelete
 }: DocumentListProps) {
    if (documents.length === 0) {
     return (
@@ -60,8 +63,33 @@ export default function DocumentList({
                 Created {doc.createdAt.toLocaleDateString()}
               </p>
             </div>
+            
             <div className="flex items-center">
-              <StatusIcon className={`w-5 h-5 ${statusColor}`} />
+            {onDelete && (
+              <button
+                className="text-red-500 hover:text-red-700"
+                onClick={(e) => {
+                  e.stopPropagation(); // avoid opening builder
+                  onDelete(doc);
+                }}
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+
+                {/* Add this below */}
+                {doc.url && (
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline text-sm mt-1 inline-block"
+                    onClick={e => e.stopPropagation()} // Prevents triggering onDocumentSelect
+                  >
+                    View / Download
+                  </a>
+                )}
+              {StatusIcon &&  <StatusIcon className={`w-5 h-5 ${statusColor}`} /> }             
               <span className={`ml-2 text-sm capitalize ${statusColor}`}>
                 {doc.status.replace('_', ' ')}
               </span>

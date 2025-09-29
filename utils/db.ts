@@ -1,6 +1,6 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import mongoose from 'mongoose';
+import mongoose, { Schema, model, models, Document } from 'mongoose';
 
 const uri = process.env.MONGODB_URI;
 const connectDB = async () => {
@@ -21,6 +21,7 @@ const connectDB = async () => {
 
 export default connectDB;
 
+// ---------------- JWT Helper ----------------
 export async function getUserIdFromReq(req: NextRequest) {
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -36,4 +37,28 @@ export async function getUserIdFromReq(req: NextRequest) {
   } catch {
     return null;
   }
+}
+
+// ---------------- MongoDB Document Schema ----------------
+interface IDocument extends Document {
+  token: string;
+  pdfData: Buffer;
+  createdAt: Date;
+}
+
+const DocumentSchema = new Schema<IDocument>({
+  token: { type: String, required: true, unique: true },
+  pdfData: { type: Buffer, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Use existing model if available (Next.js hot reload fix)
+const DocumentModel = models.Document || model<IDocument>('Document', DocumentSchema);
+
+// ---------------- Fetch document by token ----------------
+export async function getDocumentByToken(token: string) {
+  await connectDB();
+  const doc = await DocumentModel.findOne({ token }).lean();
+  if (!doc) return null;
+  return doc;
 }
