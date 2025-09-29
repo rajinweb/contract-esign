@@ -15,7 +15,8 @@ export interface Doc {
   | 'draft'
   | 'declined'
   | 'expired'
-  | 'delivery_failed';
+  | 'delivery_failed'
+  | 'saved';
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
@@ -31,10 +32,11 @@ export const statuses = [
   { value: "declined", label: "Declined", color: "text-red-500", dot: "bg-red-500" },
   { value: "expired", label: "Expired", color: "text-red-400", dot: "bg-red-400" },
   { value: "delivery_failed", label: "Delivery Failed", color: "text-red-600", dot: "bg-red-600" },
+  { value: "saved", label: "Saved", color: "text-purple-600", dot: "bg-purple-600" },
 ];
 export interface ContextValue {
-  selectedFile: File | string | null;
-  setSelectedFile: React.Dispatch<React.SetStateAction<File | string | null>>;
+  selectedFile: Doc | File | string | null ;
+  setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null >>;
   documents: Doc[];
   setDocuments: React.Dispatch<React.SetStateAction<Doc[]>>;
   isLoggedIn: boolean;
@@ -42,7 +44,7 @@ export interface ContextValue {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<any>>;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
 export interface ContextProviderProps {

@@ -20,7 +20,7 @@ export default function RecipientsList({ recipients = [], onAddRecipients }: { r
                 </div>
               </div>
             ) : (
-              recipients.map((recipient, index) => (
+              recipients.map((recipient) => (
                 <div key={recipient.id} className="flex items-center bg-blue-50 rounded-md shadow-sm text-xs p-1 w-full">
                   <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mx-2">
                     {recipient.name ? recipient.name.charAt(0).toUpperCase() : 'R'}

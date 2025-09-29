@@ -9,6 +9,7 @@ import {
   SearchX,
   AlertTriangle,
   Trash2,
+  Save,
 } from 'lucide-react';
 import { Doc, statuses} from '@/types/types';
 
@@ -28,6 +29,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   declined: XCircle,
   expired: Clock,
   delivery_failed: AlertTriangle,
+  saved:Save
 }
 
 export default function DocumentList({

@@ -27,70 +27,77 @@ function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
-  const handleFileSelect = (file: File) => {
-    const exists = documents.some((doc) => doc.name === file.name);
-    if (exists) {
-      setSelectedFile(file);
-      return;
-    }
-    const newDoc = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      status: 'draft',
-      createdAt: new Date(),
-      signers: [],
-      file,
-    } as Doc;
-    setDocuments([newDoc, ...documents]);
-    setSelectedFile(file);
-  };
-
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesStatus = selectedStatus === "all" || !selectedStatus || doc.status === selectedStatus;
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-  const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
-  
-  const handleDeleteDoc = async (doc: Doc) => {
+  async function handleDeleteDoc(doc: Doc) {
     try {
-      // 🔑 Call API if you also want to delete from backend
-      const res = await fetch(`/api/documents/delete?name=${encodeURIComponent(doc.name)}`, {
+      const res = await fetch(`/api/documents/delete?name=${encodeURIComponent(doc.name)}&folder=${encodeURIComponent(doc.folder)}`, {
         method: 'DELETE',
       });
-      const data = await res.json();
+      
+      if (!res.ok) throw new Error('Failed to delete document');
   
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to delete document');
-        return;
-      }
-  
-      // 🔑 Remove locally
-      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      // Remove locally
+      setDocuments(prev => prev.filter(d => d.id !== doc.id));
       toast.success('Document deleted');
     } catch (err) {
-      console.error(err);
-      toast.error('Error deleting document');
+      if (err instanceof Error) {
+        toast.error(`Cannot delete: ${err.message}`);
+      } else {
+        toast.error("Cannot delete: Unknown error");
+      }
     }
   }
+  
 
   useEffect(() => {
     async function fetchDocs() {
-      const res = await fetch('/api/documents/list');
-      const data = await res.json();
-      // Map files to your Doc type as needed
-      setDocuments(data.files.map((name: string) => ({
-        id: name,
-        name,
-        status: 'saved',
-        createdAt: new Date(), // or get from backend
-        signers: [],
-        file: null,
-        url: `/api/documents/get?name=${encodeURIComponent(name)}`, // <-- Add this line
-      })));
+      try {
+        const res = await fetch('/api/documents/list', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`, // 🔑 send JWT
+          },
+        });
+
+        if (!res.ok) {
+          console.error('Failed to fetch documents:', res.status);
+          setDocuments([]);
+          return;
+        }
+  
+        let data: { files: { name: string; folder: string }[] } = { files: [] };
+        try {
+          data = await res.json();
+        } catch (err) {
+          console.error('Failed to parse JSON:', err);
+          setDocuments([]);
+          return;
+        }
+  
+        const mappedDocs: Doc[] = data.files.map((file) => ({
+          id: file.name + '-' + file.folder,
+          name: file.name,
+          folder: file.folder,
+          status: 'saved',
+          createdAt: new Date(),
+          file: undefined,
+          url: `/api/documents/get?folder=${file.folder}&name=${file.name}`,
+        }));
+  
+        setDocuments(mappedDocs);
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setDocuments([]);
+      }
     }
     fetchDocs();
-  }, []);
+  }, [setDocuments]);
+  
+
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesStatus = selectedStatus === "all" || !selectedStatus || doc.status === selectedStatus;
+    const matchesSearch = doc.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+  const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
 
   return (
     <div className="flex h-screen">
@@ -150,13 +157,9 @@ function Dashboard() {
               <DocumentList
                 documents={filteredDocuments}
                 onDocumentSelect={(doc) => {
-                  if (doc.file && doc.file instanceof File) {
-                    handleFileSelect(doc.file);
+                  if (doc.url) {
+                    setSelectedFile(doc.url);
                     router.push('/builder');
-                  } else if (doc.url) {
-                    // Remote (fetched) doc case
-                    setSelectedFile(doc.url);   // store URL in your global store
-                    router.push('/builder');    // navigate to builder
                   } else {
                     toast('No file found for this document.');
                   }

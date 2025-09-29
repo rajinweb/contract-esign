@@ -316,7 +316,7 @@ const DocumentEditor: React.FC = () => {
 
   useEffect(() => {
     if (!selectedFile) return;
-    saveFileToIndexedDB(selectedFile);
+    saveFileToIndexedDB(selectedFile as File);
     setLoading(false);
     setError(null);
     setCurrentPage(1);
@@ -549,13 +549,11 @@ const DocumentEditor: React.FC = () => {
       a.remove();
       URL.revokeObjectURL(url);
       }
-
+            
     // Upload to backend
     try {
       await uploadToServer(blob, finalFileName);
-      // Optionally show a success message or update UI
-    } catch (err) {
-      // Handle error (show error message to user)
+    } catch {
       setError('Failed to save PDF to your account.');
       return;
     }
@@ -766,12 +764,12 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     textFieldRefs={textFieldRefs}
                     zoom={zoom}
                   />
-              <PDFViewer selectedFile={selectedFile} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
+              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
             <PageThumbnails
-              selectedFile={selectedFile}
+              selectedFile={selectedFile as File}
               pages={pages}
               currentPage={currentPage}
               thumbRefs={thumbRefs}
