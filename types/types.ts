@@ -85,6 +85,9 @@ export interface DroppedComponent extends DroppingField {
   data?: string | null;
   pageNumber?: number;
   mimeType?: string;
+  assignedRecipientId?: string;
+  required?: boolean;
+  placeholder?: string;
 }
 export interface User {
   email: string;
@@ -127,6 +130,46 @@ export interface Contact {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+/* Document Management */
+export interface DocumentField {
+  id: string;
+  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pageNumber: number;
+  recipientId?: string;
+  required: boolean;
+  value?: string;
+  placeholder?: string;
+}
+
+export interface DocumentVersion {
+  version: number;
+  pdfData: Buffer;
+  fields: DocumentField[];
+  sentAt?: Date;
+  signingToken?: string;
+  expiresAt?: Date;
+  status: 'draft' | 'sent' | 'completed' | 'expired';
+  changeLog: string;
+}
+
+export interface SavedDocument {
+  id: string;
+  userId: string;
+  documentName: string;
+  originalFileName: string;
+  currentVersion: number;
+  versions: DocumentVersion[];
+  recipients: Recipient[];
+  status: 'draft' | 'sent' | 'completed' | 'expired' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // types/document.ts
 export interface IDocument {
   token: string;

@@ -9,6 +9,7 @@ interface SendDocumentModalProps {
   onClose: () => void;
   recipients: Recipient[];
   documentName: string;
+  documentId?: string | null;
   onSendComplete: () => void;
 }
 
@@ -17,6 +18,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   onClose,
   recipients,
   documentName,
+  documentId,
   onSendComplete,
 }) => {
   const [isSending, setIsSending] = useState(false);
@@ -24,6 +26,8 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   const [message, setMessage] = useState(`Hi,\n\nPlease review and sign the attached document: ${documentName}\n\nThank you!`);
   const [sendReminders, setSendReminders] = useState(true);
   const [reminderDays, setReminderDays] = useState(3);
+  const [expiryDays, setExpiryDays] = useState(30);
+  const [hasExpiry, setHasExpiry] = useState(true);
 
   const handleSend = async () => {
     if (recipients.length === 0) {
@@ -31,18 +35,24 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
       return;
     }
 
+    if (!documentId) {
+      toast.error('Document must be saved before sending');
+      return;
+    }
+
     setIsSending(true);
     try {
-      const response = await fetch('/api/documents/send', {
+      const response = await fetch('/api/documents/send-for-signing', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          recipients,
+          documentId,
           documentName,
           subject,
           message,
+          expiryDays: hasExpiry ? expiryDays : null,
           sendReminders,
           reminderDays,
         }),
@@ -192,6 +202,43 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
                   <option value={7}>1 week</option>
                 </select>
                 <span className="text-sm text-gray-600">until signed</span>
+              </div>
+            )}
+          </div>
+
+          {/* Expiry Settings */}
+          <div className="bg-gray-50 p-4 rounded-md">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Document Expiry</h3>
+                <p className="text-xs text-gray-500">Set when the signing link expires</p>
+              </div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={hasExpiry}
+                  onChange={(e) => setHasExpiry(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+              </label>
+            </div>
+
+            {hasExpiry && (
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Expires in</span>
+                <select
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(Number(e.target.value))}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={60}>60 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+                <span className="text-sm text-gray-600">from now</span>
               </div>
             )}
           </div>

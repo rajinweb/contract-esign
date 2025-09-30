@@ -23,6 +23,7 @@ import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
+import FieldAssignmentModal from './FieldAssignmentModal';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
@@ -73,6 +74,9 @@ const DocumentEditor: React.FC = () => {
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
+  const [showFieldAssignment, setShowFieldAssignment] = useState<boolean>(false);
+  const [selectedFieldForAssignment, setSelectedFieldForAssignment] = useState<DroppedComponent | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
 
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
@@ -355,8 +359,26 @@ const DocumentEditor: React.FC = () => {
     const formData = new FormData();
     formData.append('file', blob, fileName);
     formData.append('documentName', fileName);
+    formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
+      id: comp.id.toString(),
+      type: comp.component.toLowerCase(),
+      x: comp.x,
+      y: comp.y,
+      width: comp.width,
+      height: comp.height,
+      pageNumber: comp.pageNumber || currentPage,
+      recipientId: comp.assignedRecipientId,
+      required: comp.required !== false,
+      value: comp.data,
+      placeholder: comp.placeholder,
+    }))));
+    formData.append('recipients', JSON.stringify(recipients));
+    if (documentId) {
+      formData.append('documentId', documentId);
+    }
+    formData.append('changeLog', 'Document updated with fields and recipients');
   
-    const response = await fetch('/api/documents/save', {
+    const response = await fetch('/api/documents/save-with-fields', {
       method: 'POST',
       body: formData,
       credentials: 'include', // if you use cookies/session
@@ -365,7 +387,11 @@ const DocumentEditor: React.FC = () => {
     if (!response.ok) {
       throw new Error('Failed to save PDF to server');
     }
-    return response.json();
+    const result = await response.json();
+    if (result.documentId) {
+      setDocumentId(result.documentId);
+    }
+    return result;
   };
   //File Handling
  const handleSave = async (isDownload: boolean = false) => {
@@ -563,6 +589,23 @@ const DocumentEditor: React.FC = () => {
       setPosition({ x: 0, y: 0 });
       setDroppedComponents([]);
       resetHistory([]);
+  };
+
+  const handleAssignField = (fieldId: number, recipientId: string | null) => {
+    setDroppedComponents(prev => 
+      prev.map(comp => 
+        comp.id === fieldId 
+          ? { ...comp, assignedRecipientId: recipientId }
+          : comp
+      )
+    );
+  };
+
+  const handleRightClickField = (e: React.MouseEvent, field: DroppedComponent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedFieldForAssignment(field);
+    setShowFieldAssignment(true);
   };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
@@ -819,10 +862,22 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             onClose={() => setShowSendDocument(false)}
             recipients={recipients}
             documentName={fileName || 'Untitled Document'}
+            documentId={documentId}
             onSendComplete={() => {
               // Optionally redirect to dashboard or show success message
               console.log('Document sent successfully');
             }}
+          />
+        )}
+
+        {/* Field Assignment Modal */}
+        {showFieldAssignment && selectedFieldForAssignment && (
+          <FieldAssignmentModal
+            isOpen={showFieldAssignment}
+            onClose={() => setShowFieldAssignment(false)}
+            field={selectedFieldForAssignment}
+            recipients={recipients}
+            onAssignField={handleAssignField}
           />
         )}
       </div>

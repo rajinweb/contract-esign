@@ -22,6 +22,8 @@ interface DroppedComponentsProps {
   ) => void;
   textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
   zoom: number;
+  recipients: any[];
+  onRightClickField?: (e: React.MouseEvent, field: DroppedComponent) => void;
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
@@ -32,27 +34,54 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   handleResizeStop,
   textFieldRefs,
   zoom,
+  recipients,
+  onRightClickField,
 }) => {
+  const getAssignedRecipient = (recipientId?: string) => {
+    return recipients.find(r => r.id === recipientId);
+  };
 
   return (
     <>
       {droppedComponents.map((item) => (
+        {(() => {
+          const assignedRecipient = getAssignedRecipient(item.assignedRecipientId);
+          return (
           <Rnd
             key={item.id}
             scale={zoom}
             bounds="parent"
-            className="absolute cursor-pointer bg-[#1ca4ff33] min-w-[150px] min-h-[50px] z-50 text-center text-sm"
+            className={`absolute cursor-pointer min-w-[150px] min-h-[50px] z-50 text-center text-sm ${
+              assignedRecipient 
+                ? 'border-2' 
+                : 'bg-[#1ca4ff33]'
+            }`}
+            style={assignedRecipient ? { 
+              backgroundColor: `${assignedRecipient.color}33`,
+              borderColor: assignedRecipient.color 
+            } : {}}
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
+            onContextMenu={(e) => onRightClickField?.(e as any, item)}
             resizeHandleClasses={{
-              bottomLeft: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
-              bottomRight: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
-              topLeft: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white',
-              topRight: 'bg-blue-500 !w-4 !h-4 rounded-full border-2 border-white'
+              bottomLeft: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
+              bottomRight: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
+              topLeft: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
+              topRight: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`
             }}
           >
+            {/* Assignment indicator */}
+            {assignedRecipient && (
+              <div 
+                className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white"
+                style={{ backgroundColor: assignedRecipient.color }}
+              >
+                {assignedRecipient.name}
+              </div>
+            )}
+            
             <div className="absolute left-1/2 -top-6  transform -translate-x-1/2 cursor-pointer p-1 z-10 delete-button-wrapper">
               <CircleX
                 size={18}
@@ -60,7 +89,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 onClick={(e) => deleteField(e, item)}
               />
             </div>
-            <div className='flex items-center justify-center h-full  w-full border border-blue-500 p-1'>
+            <div className={`flex items-center justify-center h-full w-full p-1 ${
+              assignedRecipient ? '' : 'border border-blue-500'
+            }`}>
             {item.data &&
               (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime Photo') ? <ImageField image={item.data} /> :
               item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
@@ -68,6 +99,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             }
             </div>
           </Rnd>
+          );
+        })()}
         ))}
     </>
   );
