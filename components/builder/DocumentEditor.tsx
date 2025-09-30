@@ -808,6 +808,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     handleResizeStop={handleResizeStop}
                     textFieldRefs={textFieldRefs}
                     zoom={zoom}
+                  recipients={recipients}
                   />
               <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             </div>
