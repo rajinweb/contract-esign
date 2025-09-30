@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { LoaderPinwheel } from "lucide-react";
+import { Document, Page, pdfjs } from "react-pdf";
 
 interface SignPageClientProps {
   token: string;
@@ -15,18 +16,15 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   useEffect(() => {
     const fetchPdf = async () => {
       try {
-        setLoading(true);
-
-        
+        setLoading(true);        
         const res = await fetch(`/api/getDocument?token=${token}`);
-        
         if (!res.ok) throw new Error("Invalid or expired signing link");
-
         const blob = await res.blob();
         setPdfFile(blob);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message || "Failed to fetch document");
+        const msg = err instanceof Error ? err.message : 'Failed to fetch document';
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -37,14 +35,15 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
   const handleSign = async () => {
     try {
-      // TODO: Call API to save signature
+      // include recipient id from the signing link if present
+      const recipientId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('recipient') : null;
+
       await fetch("/api/signDocument", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, recipientId }),
       });
       setSigned(true);
-      alert("Document signed successfully!");
     } catch (err) {
       console.error(err);
       alert("Failed to sign document");
@@ -66,11 +65,10 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     );
 
   return (
-    <div className="flex flex-col items-center p-4">
+    <div className="flex flex-col items-center pt-4 mt-20">
       <div className="w-full max-w-3xl h-[80vh] border border-gray-300 shadow-md mb-4">
         {pdfFile && <SimplePDFViewer selectedFile={pdfFile as File} zoom={1} />}
       </div>
-
       {!signed ? (
         <button
           onClick={handleSign}
@@ -87,10 +85,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
 export default SignPageClient;
 
-
-
-import { Document, Page, pdfjs } from "react-pdf"
-
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
 interface SimplePDFViewerProps {
@@ -106,12 +100,12 @@ export const SimplePDFViewer: React.FC<SimplePDFViewerProps> = ({ selectedFile, 
   };
 
   return (
-    <div className="w-full h-full overflow-auto flex justify-center items-start bg-gray-100">
       <Document
         file={selectedFile}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={<p>Loading PDF...</p>}
         error={<p>Failed to load PDF</p>}
+        className="overflow-auto w-full h-full flex justify-center items-start bg-gray-100 "
       >
         {Array.from(new Array(numPages), (el, index) => (
           <Page
@@ -122,7 +116,6 @@ export const SimplePDFViewer: React.FC<SimplePDFViewerProps> = ({ selectedFile, 
           />
         ))}
       </Document>
-    </div>
   );
 };
 

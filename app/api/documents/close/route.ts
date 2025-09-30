@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
-import DocumentModel from '@/models/Document';
+import connectDB, { getUserIdFromReq } from '../../../../utils/db';
+import DocumentModel from '../../../../models/Document';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         if (!existingDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
 
         // Find the index of the current working version
-        const currentVersionIndex = existingDoc.versions.findIndex(v => v.version === existingDoc.currentVersion);
+        const currentVersionIndex = existingDoc.versions.findIndex((v: { version: number }) => v.version === existingDoc.currentVersion);
         const latestVersion = existingDoc.versions[currentVersionIndex];
 
         if (!latestVersion) {

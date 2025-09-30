@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IDocumentVersion } from '@/models/Document';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
 
-    const query: any = { userId };
+    const query: Record<string, unknown> = { userId };
     if (status && status !== 'all') {
       query.status = status;
     }
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
       recipients: doc.recipients,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
-      lastSentAt: doc.versions.find(v => v.sentAt)?.sentAt,
-      expiresAt: doc.versions.find(v => v.version === doc.currentVersion)?.expiresAt,
+      lastSentAt: doc.versions.find((v: IDocumentVersion) => !!v.sentAt)?.sentAt,
+      expiresAt: doc.versions.find((v: IDocumentVersion) => v.version === doc.currentVersion)?.expiresAt,
     }));
 
     return NextResponse.json({

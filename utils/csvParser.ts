@@ -25,11 +25,11 @@ export function parseCSVToContacts(csvText: string): CSVContact[] {
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-    const contact: any = {};
+    const contact: Partial<CSVContact & { address?: any }> = {};
 
     headers.forEach((header, index) => {
       const value = values[index] || '';
-      
+
       // Map CSV headers to contact fields
       switch (header) {
         case 'firstname':
@@ -108,9 +108,9 @@ export function parseCSVToContacts(csvText: string): CSVContact[] {
       }
     });
 
-    // Validate required fields
+    // Validate required fields and cast
     if (contact.firstName && contact.lastName && contact.email) {
-      contacts.push(contact);
+      contacts.push(contact as CSVContact);
     }
   }
 

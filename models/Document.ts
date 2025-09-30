@@ -5,6 +5,8 @@ export interface IDocumentVersion {
   version: number;
   pdfData: Buffer;
   fields: IDocumentField[];
+  fileName: string;       // ✅ Add this
+  filePath: string;       // ✅ Add this
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
@@ -66,10 +68,12 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   ipAddress: { type: String },
 });
 
-const DocumentVersionSchema = new Schema<IDocumentVersion>({
+export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   version: { type: Number, required: true },
   pdfData: { type: Buffer, required: true },
   fields: [DocumentFieldSchema],
+  fileName: { type: String, required: true },     // ✅ Add this
+  filePath: { type: String, required: true },     // ✅ Add this
   sentAt: { type: Date },
   signingToken: { type: String, index: { unique: true, sparse: true } },
   expiresAt: { type: Date },
@@ -82,15 +86,9 @@ const DocumentSchema = new Schema<IDocument>({
   documentName: { type: String, required: true },
   originalFileName: { type: String, required: true },
   currentVersion: { type: Number, default: 1 },
-  versions: [
-    {
-      version: { type: Number, required: true },
-      pdfData: { type: Buffer, required: true },
-      fields: { type: Array, default: [] },
-      status: { type: String, default: 'draft' },
-      changeLog: { type: String },
-    },
-  ],
+  // Use the detailed DocumentVersionSchema so filePath/fileName and other
+  // metadata are persisted correctly and not stripped by a simpler inline schema.
+  versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: Array, default: [] },
   status: { type: String, default: 'draft' },
   token: { type: String, unique: true },

@@ -1,11 +1,13 @@
 import SignPageClient from "./SignPageClient";
 
 interface PageProps {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }
 
-export default async function SignPage({ params }: PageProps) {
-  const token = params?.token;
+export default async function SignPage(props: PageProps) {
+  // Await the incoming params per Next.js App Router guidance
+  const awaitedParams = await props.params;
+  const token = awaitedParams?.token;
   if (!token) {
     return <div>Invalid link</div>;
   }

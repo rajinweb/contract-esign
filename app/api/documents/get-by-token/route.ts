@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/utils/db';
-import DocumentModel from '@/models/Document';
+import connectDB from '../../../../utils/db';
+import DocumentModel from '../../../../models/Document';
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid or expired signing link' }, { status: 404 });
     }
 
-    const version = document.versions.find(v => v.signingToken === token);
+    const version = document.versions.find((v: { signingToken?: string }) => v.signingToken === token);
     if (!version) {
       return NextResponse.json({ message: 'Version not found' }, { status: 404 });
     }
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     // Find recipient if specified
     let recipient = null;
     if (recipientId) {
-      recipient = document.recipients.find(r => r.id === recipientId);
+      recipient = (document.recipients as Array<{ id: string }>).find((r) => r.id === recipientId);
       if (!recipient) {
         return NextResponse.json({ message: 'Recipient not found' }, { status: 404 });
       }
@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
       }
     });
 
-  } catch (error) {
-    console.error('Error fetching document:', error);
+  } catch (_err) {
+    console.error('Error fetching document:', _err);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

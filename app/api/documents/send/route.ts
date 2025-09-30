@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import connectDB, { getUserIdFromReq } from '../../../../utils/db';
 import nodemailer from 'nodemailer';
-import { Recipient } from '@/types/types';
+// Local Recipient type (keep in sync with models/Document IDocumentRecipient)
+interface Recipient {
+  id: string;
+  email: string;
+  name: string;
+  role: 'signer' | 'approver' | 'viewer';
+  order?: number;
+  isCC?: boolean;
+  color?: string;
+}
 
 interface SendDocumentRequest {
   recipients: Recipient[];
@@ -101,8 +110,8 @@ export async function POST(req: NextRequest) {
                 <a href="${signingUrl}" 
                    style="background-color: #2563eb; color: white; padding: 12px 24px; 
                           text-decoration: none; border-radius: 6px; display: inline-block;">
-                  ${recipient.role === 'signer' ? 'Sign Document' : 
-                    recipient.role === 'approver' ? 'Review & Approve' : 'View Document'}
+                  ${recipient.role === 'signer' ? 'Sign Document' :
+              recipient.role === 'approver' ? 'Review & Approve' : 'View Document'}
                 </a>
               </div>
             ` : ''}
@@ -140,8 +149,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // TODO: Save document sending record to database
-    // This would include document ID, recipients, sent timestamp, etc.
+    // Persist a lightweight send history on the document (if a document exists)
+    try {
+      const DocumentModel = (await import('../../../../models/Document')).default;
+      // Attempt to find a document with this name for the current user and append history
+      const doc = await DocumentModel.findOne({ userId, documentName });
+      if (doc) {
+        doc.sentHistory = doc.sentHistory || [];
+        doc.sentHistory.push({
+          sentAt: new Date(),
+          recipients: recipients.map(r => ({ id: r.id, email: r.email, name: r.name })),
+          subject,
+        });
+        await doc.save();
+      }
+    } catch (_saveErr) {
+      // Non-fatal: log and continue
+      console.warn('Could not persist send history:', _saveErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -150,8 +175,8 @@ export async function POST(req: NextRequest) {
       totalRecipients: recipients.length,
     });
 
-  } catch (error) {
-    console.error('Error sending document:', error);
+  } catch (_err) {
+    console.error('Error sending document:', _err);
     return NextResponse.json(
       { message: 'Failed to send document' },
       { status: 500 }

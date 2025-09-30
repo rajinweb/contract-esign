@@ -80,7 +80,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         let lastModified: string | undefined;
   
         if (typeof selectedFile === "string") {
-          const res = await fetch(selectedFile);
+          const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+          const opts: RequestInit = {};
+          if (selectedFile.startsWith('/api/documents/file') && token) opts.headers = { 'Authorization': `Bearer ${token}` };
+          const res = await fetch(selectedFile, opts);
           if (!res.ok) {
             throw new Error(`Failed to fetch file: ${res.status} ${res.statusText}`);
           }
@@ -147,7 +150,11 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                       value={fileName}
                       onChange={(e) => setFileName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') setIsEditingFileName(false);
+                        if (e.key === 'Enter') {
+                          setIsEditingFileName(false);
+                          // Persist the rename after allowing React to flush state
+                          setTimeout(() => { try { handleSave(); } catch (_) { /* ignore */ } }, 0);
+                        }
                       }}
                       data-testid="pdf-name"
                       className="truncate text-xs focus:outline-0 w-[80%] p-1 flex-shrink-0"
@@ -155,7 +162,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     <CheckLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => setIsEditingFileName(false)} />
+                        onClick={() => { setIsEditingFileName(false); setTimeout(() => { try { handleSave(); } catch (_) { /* ignore */ } }, 0); }} />
                     </>
                   ) : (
                     <>

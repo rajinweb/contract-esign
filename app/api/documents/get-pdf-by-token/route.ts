@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/utils/db';
-import DocumentModel from '@/models/Document';
+import connectDB from '../../../../utils/db';
+import DocumentModel from '../../../../models/Document';
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       return new Response('Invalid or expired signing link', { status: 404 });
     }
 
-    const version = document.versions.find(v => v.signingToken === token);
+    const version = document.versions.find((v: { signingToken?: string }) => v.signingToken === token);
     if (!version || !version.pdfData) {
       return new Response('PDF not found', { status: 404 });
     }
@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-  } catch (error) {
-    console.error('Error fetching PDF:', error);
+  } catch (_err) {
+    console.error('Error fetching PDF:', _err);
     return new Response('Internal server error', { status: 500 });
   }
 }

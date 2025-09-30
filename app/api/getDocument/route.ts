@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import connectDB, { getDocumentByToken } from '@/utils/db';
+import connectDB from '@/utils/db';
+import DocumentModel from '@/models/Document';
 import { IDocument } from '@/types/types';
 
 export const runtime = 'nodejs';
@@ -14,30 +15,33 @@ export async function GET(req: NextRequest) {
             return new Response('No token provided', { status: 400 });
         }
 
-        const doc: IDocument | null = await getDocumentByToken(token);
-        if (!doc) {
+        // Find the document/version that has this signing token on a version
+        const document = await DocumentModel.findOne({ 'versions.signingToken': token });
+        if (!document) {
             console.log('Document not found for token:', token);
             return new Response('Invalid or expired signing link', { status: 404 });
         }
 
-        const currentVersionIndex = doc.currentVersion - 1;
-        const versionData = doc.versions[currentVersionIndex];
-        if (!versionData || !versionData.pdfData) {
+        const version = document.versions.find((v: { signingToken?: string; pdfData?: Uint8Array; expiresAt?: Date }) => v.signingToken === token);
+        if (!version || !version.pdfData) {
             return new Response('PDF not found', { status: 404 });
         }
 
-        // Convert Node.js Buffer to Uint8Array for Response
-        const pdfArray = new Uint8Array(versionData.pdfData);
+        // Check expiry
+        if (version.expiresAt && new Date() > version.expiresAt) {
+            return new Response('Document has expired', { status: 410 });
+        }
 
+        const pdfArray = new Uint8Array(version.pdfData);
         return new Response(pdfArray, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `inline; filename="${doc.originalFileName || 'document.pdf'}"`,
+                'Content-Disposition': `inline; filename="${document.originalFileName || document.documentName || 'document'}.pdf"`,
             },
         });
-    } catch (err) {
-        console.error('Error fetching document:', err);
+    } catch (error) {
+        console.error('Error fetching document:', error);
         return new Response('Internal Server Error', { status: 500 });
     }
 }

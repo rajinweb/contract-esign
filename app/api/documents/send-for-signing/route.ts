@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Generate signing token for current version
     const signingToken = crypto.randomUUID();
-    const currentVersion = document.versions.find((v: any) => v.version === document.currentVersion);
+    const currentVersion = document.versions.find((v: { version: number }) => v.version === document.currentVersion);
 
     if (!currentVersion) {
       return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const sentEmails = [];
+    const sentEmails: Array<{ recipientId: string; email: string; name?: string; sentAt: Date }> = [];
 
     // Send emails to all recipients
     for (const recipient of document.recipients) {

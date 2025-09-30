@@ -313,6 +313,20 @@ const DocumentEditor: React.FC = () => {
       const file = await getFileFromIndexedDB();
       if (file) {
         setSelectedFile(file as File);
+        // If the stored file is a server URL, try to extract and set the filename immediately
+        if (typeof file === 'string') {
+          try {
+            const u = new URL(file, window.location.origin);
+            if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
+              const name = u.searchParams.get('name') || u.searchParams.get('path');
+              if (name) {
+                const decoded = decodeURIComponent(name);
+                const parts = decoded.split('/');
+                setFileName(parts[parts.length - 1]);
+              }
+            }
+          } catch (_) { /* ignore */ }
+        }
       }
     })();
   //@typescript-eslint/ban-ts-comment
@@ -325,8 +339,35 @@ const DocumentEditor: React.FC = () => {
     setError(null);
     setCurrentPage(1);
 
-    if (selectedFile instanceof File) setFileName(selectedFile.name);
-    else setFileName(decodeURIComponent((selectedFile as string).split('/').pop()?.split('?')[0] || ''));
+    if (selectedFile instanceof File) {
+      setFileName(selectedFile.name);
+    } else {
+      const s = selectedFile as string;
+      // If it's a data: or blob: URL (created by blobToURL), don't derive the filename from it
+      if (!s.startsWith('data:') && !s.startsWith('blob:')) {
+        try {
+          const u = new URL(s, window.location.origin);
+          // Handle our API endpoints explicitly
+          if (u.pathname.includes('/api/documents/get')) {
+            const name = u.searchParams.get('name');
+            if (name) {
+              setFileName(decodeURIComponent(name));
+            }
+          } else if (u.pathname.includes('/api/documents/file')) {
+            const p = u.searchParams.get('path');
+            if (p) {
+              const parts = decodeURIComponent(p).split('/');
+              setFileName(parts[parts.length - 1]);
+            }
+          } else {
+            setFileName(decodeURIComponent(u.pathname.split('/').pop() || ''));
+          }
+        } catch (err) {
+          // fallback
+          setFileName(decodeURIComponent(s.split('/').pop()?.split('?')[0] || ''));
+        }
+      }
+    }
 
   }, [selectedFile]);
 
@@ -338,7 +379,16 @@ const DocumentEditor: React.FC = () => {
       try {
         setLoading(true);
         const buffer = typeof selectedFile === 'string'
-          ? await fetch(selectedFile).then(res => res.arrayBuffer())
+          ? (async () => {
+              const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+              const opts: RequestInit = {};
+              if (selectedFile.startsWith('/api/documents/file') && token) {
+                opts.headers = { 'Authorization': `Bearer ${token}` };
+              }
+              const res = await fetch(selectedFile, opts);
+              if (!res.ok) throw new Error('Failed to load file');
+              return await res.arrayBuffer();
+            })()
           : await selectedFile.arrayBuffer();
 
         const loadedDoc = await PDFDocument.load(buffer);
@@ -357,8 +407,13 @@ const DocumentEditor: React.FC = () => {
 
   const uploadToServer = async (blob: Blob, fileName: string) => {
     const formData = new FormData();
-    formData.append('file', blob, fileName);
+  // sanitize filename to avoid embedding data urls or raw base64
+  const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
+  const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+  formData.append('file', blob, finalFileName);
+    // documentName is the display name/title; fileName is the actual filename to write
     formData.append('documentName', fileName);
+    formData.append('fileName', finalFileName);
     formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
       id: comp.id.toString(),
       type: comp.component.toLowerCase(),
@@ -378,8 +433,13 @@ const DocumentEditor: React.FC = () => {
     }
     formData.append('changeLog', 'Document updated with fields and recipients');
   
+    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const response = await fetch('/api/documents/save-with-fields', {
       method: 'POST',
+      headers: Object.keys(headers).length ? headers : undefined,
       body: formData,
       credentials: 'include', // if you use cookies/session
     });
@@ -388,9 +448,24 @@ const DocumentEditor: React.FC = () => {
       throw new Error('Failed to save PDF to server');
     }
     const result = await response.json();
-    if (result.documentId) {
-      setDocumentId(result.documentId);
+    if (result.documentId) setDocumentId(result.documentId);
+    // Prefer explicit fileName and folder returned by server
+    if (result.fileName) {
+      setFileName(result.fileName);
+    } else if (result.fileUrl) {
+      // Parse filename from fileUrl query param (if present)
+      try {
+        const u = new URL(result.fileUrl, window.location.origin);
+        const p = u.searchParams.get('path');
+        if (p) {
+          const decoded = decodeURIComponent(p);
+          const parts = decoded.split('/');
+          setFileName(parts[parts.length - 1]);
+        }
+      } catch (_) { /* ignore */ }
     }
+    // If server returned a fileUrl, set it as selectedFile so the editor can reload it
+    if (result.fileUrl) setSelectedFile(result.fileUrl);
     return result;
   };
   //File Handling
@@ -576,15 +651,30 @@ const DocumentEditor: React.FC = () => {
       URL.revokeObjectURL(url);
       }
             
-    // Upload to backend
+    // Upload to backend and prefer server-returned fileUrl when present
+    interface UploadResult {
+      fileUrl?: string;
+      fileName?: string;
+      documentId?: string;
+      version?: number;
+      message?: string;
+      [key: string]: unknown;
+    }
+
+    let uploadResult: UploadResult | null = null;
     try {
-      await uploadToServer(blob, finalFileName);
+      uploadResult = await uploadToServer(blob, finalFileName);
     } catch {
       setError('Failed to save PDF to your account.');
       return;
     }
 
+    if (uploadResult && uploadResult.fileUrl) {
+      setSelectedFile(uploadResult.fileUrl);
+    } else {
+      // fallback to local blob URL
       setSelectedFile(pdfUrl);
+    }
       /* Clean up filed after merge into pdf*/
       setPosition({ x: 0, y: 0 });
       setDroppedComponents([]);
