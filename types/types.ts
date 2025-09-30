@@ -85,7 +85,7 @@ export interface DroppedComponent extends DroppingField {
   data?: string | null;
   pageNumber?: number;
   mimeType?: string;
-  assignedRecipientId?: string;
+  assignedRecipientId?: string | null;
   required?: boolean;
   placeholder?: string;
 }
@@ -171,11 +171,22 @@ export interface SavedDocument {
 }
 
 // types/document.ts
-export interface IDocument {
-  token: string;
-  name: string;
-  pdfData: Buffer;
-  signingToken: string;
+export interface IDocument extends Document {
+  _id: string; // explicitly tell TypeScript _id is a string
+  userId: string;
+  documentName: string;
+  originalFileName: string;
+  currentVersion: number;
+  versions: {
+    version: number;
+    pdfData: Buffer;
+    fields?: any[];
+    status?: string;
+    changeLog?: string;
+  }[];
+  recipients?: any[];
+  status?: string;
+  token?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -4,6 +4,10 @@ interface PageProps {
   params: { token: string };
 }
 
-export default function SignPage({ params }: PageProps) {
-  return <SignPageClient token={params.token} />;
+export default async function SignPage({ params }: PageProps) {
+  const token = params?.token;
+  if (!token) {
+    return <div>Invalid link</div>;
+  }
+  return <SignPageClient token={token} />;
 }

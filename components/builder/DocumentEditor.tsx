@@ -750,7 +750,6 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
         handleReset={() => {
-          debugger
           setSelectedFile(null);
           setDroppedComponents([]);
           clearFileFromIndexedDB();

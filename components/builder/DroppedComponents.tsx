@@ -43,7 +43,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   return (
     <>
       {droppedComponents.map((item) => {
-        const assignedRecipient = getAssignedRecipient(item.assignedRecipientId);
+        const assignedRecipient = getAssignedRecipient(item.assignedRecipientId || undefined);
         
         return (
           <Rnd
@@ -63,7 +63,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position)}
-            onContextMenu={(e) => onRightClickField?.(e as any, item)}
+            onContextMenu={(e:any) => onRightClickField?.(e, item)}
             resizeHandleClasses={{
               bottomLeft: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
               bottomRight: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,

@@ -1,17 +1,5 @@
-import mongoose, { Schema, model } from 'mongoose';
-
-export interface IDocument extends mongoose.Document {
-  _id: string;
-  userId: string;
-  documentName: string;
-  originalFileName: string;
-  currentVersion: number;
-  versions: IDocumentVersion[];
-  recipients: IDocumentRecipient[];
-  status: 'draft' | 'sent' | 'completed' | 'expired' | 'cancelled';
-  createdAt: Date;
-  updatedAt: Date;
-}
+import mongoose, { Schema, Document } from 'mongoose';
+import { IDocument } from '@/types/types';
 
 export interface IDocumentVersion {
   version: number;
@@ -83,7 +71,7 @@ const DocumentVersionSchema = new Schema<IDocumentVersion>({
   pdfData: { type: Buffer, required: true },
   fields: [DocumentFieldSchema],
   sentAt: { type: Date },
-  signingToken: { type: String },
+  signingToken: { type: String, index: { unique: true, sparse: true } },
   expiresAt: { type: Date },
   status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired'] },
   changeLog: { type: String, required: true },
@@ -94,15 +82,21 @@ const DocumentSchema = new Schema<IDocument>({
   documentName: { type: String, required: true },
   originalFileName: { type: String, required: true },
   currentVersion: { type: Number, default: 1 },
-  versions: [DocumentVersionSchema],
-  recipients: [DocumentRecipientSchema],
-  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired', 'cancelled'] },
+  versions: [
+    {
+      version: { type: Number, required: true },
+      pdfData: { type: Buffer, required: true },
+      fields: { type: Array, default: [] },
+      status: { type: String, default: 'draft' },
+      changeLog: { type: String },
+    },
+  ],
+  recipients: { type: Array, default: [] },
+  status: { type: String, default: 'draft' },
+  token: { type: String, unique: true },
 }, { timestamps: true });
 
 // Indexes for performance
 DocumentSchema.index({ userId: 1, createdAt: -1 });
-DocumentSchema.index({ 'versions.signingToken': 1 });
 
-const DocumentModel = mongoose.models.Document || model<IDocument>('Document', DocumentSchema);
-
-export default DocumentModel;
+export default mongoose.models.Document || mongoose.model<IDocument>('Document', DocumentSchema);

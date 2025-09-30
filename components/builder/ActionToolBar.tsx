@@ -81,13 +81,19 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   
         if (typeof selectedFile === "string") {
           const res = await fetch(selectedFile);
+          if (!res.ok) {
+            throw new Error(`Failed to fetch file: ${res.status} ${res.statusText}`);
+          }
+          
           arrayBuffer = await res.arrayBuffer();
         } else {
           arrayBuffer = await selectedFile.arrayBuffer();
           fileSize = selectedFile.size;
           lastModified = new Date(selectedFile.lastModified).toLocaleString();
         }
-  
+        if (arrayBuffer.byteLength === 0) {
+             throw new Error("File content is empty.");
+        }
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         const createdAt = pdfDoc.getCreationDate();
         const author = pdfDoc.getAuthor();
@@ -99,7 +105,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
           lastModified,
         });
       } catch (err) {
-        console.error("Failed to fetch metadata", err);
+        console.error("Failed to fetch metadata. Check file URL or integrity.", err);
         setDocumentMetadata(null);
       }
     };

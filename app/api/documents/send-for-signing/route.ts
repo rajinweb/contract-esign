@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
 
     // Generate signing token for current version
     const signingToken = crypto.randomUUID();
-    const currentVersion = document.versions.find(v => v.version === document.currentVersion);
-    
+    const currentVersion = document.versions.find((v: any) => v.version === document.currentVersion);
+
     if (!currentVersion) {
       return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
     }
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     await document.save();
 
     // Create email transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === 'true',
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         let roleMessage = '';
         let actionButton = '';
-        
+
         if (recipient.role === 'signer') {
           roleMessage = 'Please review and sign the document.';
           actionButton = 'Sign Document';

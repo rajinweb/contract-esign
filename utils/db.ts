@@ -46,24 +46,7 @@ export async function getUserIdFromReq(req: NextRequest): Promise<string | null>
     return null;
   }
 }
-
-// // ---------------- MongoDB Document Schema ----------------
-// interface IDocument extends Document {
-//   token: string;
-//   pdfData: Buffer;
-//   createdAt: Date;
-// }
-
-// const DocumentSchema = new Schema<IDocument>({
-//   token: { type: String, required: true, unique: true },
-//   pdfData: { type: Buffer, required: true },
-//   createdAt: { type: Date, default: Date.now },
-// });
-
-
 // ---------------- Fetch document by token ----------------
 export async function getDocumentByToken(token: string): Promise<IDocument | null> {
-  await connectDB();
-  const doc = await DocumentModel.findOne({ token }).lean<IDocument>();
-  return doc;
+  return DocumentModel.findOne({ token }).exec();
 }
