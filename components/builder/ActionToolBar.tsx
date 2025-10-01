@@ -234,11 +234,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         {/* Right actions */}
         <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
           {/* Settings Button */}
-            <MoreActions  />
-          {/* Save and Close Button */}
+            <MoreActions  />    
           <button
             type="button"
-            className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200"
+            className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200 text-sm"
             onClick={() => handleSave()}
           >
             Save and Close

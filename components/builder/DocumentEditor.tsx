@@ -6,7 +6,6 @@ import { pdfjs } from "react-pdf";
 import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
 import dayjs from "dayjs";
-import { LoaderPinwheel } from 'lucide-react';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
