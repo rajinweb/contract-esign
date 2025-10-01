@@ -6,11 +6,10 @@ import { pdfjs } from "react-pdf";
 import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
 import dayjs from "dayjs";
-import { LoaderPinwheel } from 'lucide-react';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
-import { DroppingField, DroppedComponent } from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, UploadResult} from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
@@ -23,13 +22,14 @@ import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
+import FieldAssignmentModal from './FieldAssignmentModal';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
 import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
-import { Recipient } from '@/types/types';
 import RecipientsList from './RecipientsList';
+import toast from 'react-hot-toast';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -60,12 +60,10 @@ const DocumentEditor: React.FC = () => {
   const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(droppedComponents);
 
   // ========= UI State =========
-  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<boolean>(false);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
-  const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [fileName, setFileName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
@@ -74,6 +72,9 @@ const DocumentEditor: React.FC = () => {
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
+  const [showFieldAssignment, setShowFieldAssignment] = useState<boolean>(false);
+  const [selectedFieldForAssignment, setSelectedFieldForAssignment] = useState<DroppedComponent | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
 
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
@@ -100,7 +101,7 @@ const DocumentEditor: React.FC = () => {
     }
   }, [redo]);
 
-  /* Save state to history when components change (with debouncing)
+  /* Save state to history when components change (with debouncing)*/
   const saveToHistory = useCallback((components: DroppedComponent[]) => {
     // Debounce to avoid saving too frequently during drag operations
     const timeoutId = setTimeout(() => {
@@ -109,7 +110,7 @@ const DocumentEditor: React.FC = () => {
     
     return () => clearTimeout(timeoutId);
   }, [saveState]);
-*/
+
   // ==========================================================
   // PDF & Page Handling
   // ==========================================================
@@ -175,9 +176,6 @@ const DocumentEditor: React.FC = () => {
   const clickOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
     if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable') || e.target instanceof HTMLElement && e.target?.closest('.page-brake')) return;
 
-    // Clear field selection when clicking on empty area
-    setSelectedFieldId(null);
-
     const rect = documentRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -192,41 +190,15 @@ const DocumentEditor: React.FC = () => {
 
     setDroppedComponents((prev) => [...prev, newComponent]);
     // Save state after adding component
-    setTimeout(() => saveState([...droppedComponents, newComponent]), 100);
+    saveToHistory([...droppedComponents, newComponent]);
     setElementId((id) => id + 1);
   };
 
-  const handleDeleteField = (item: DroppedComponent) => {
+  const deleteField = (e: MouseEvent, item: DroppedComponent) => {
+    e.stopPropagation();
     setDroppedComponents((prev) => {
-      const newComponents = prev.filter((c) => c.id !== item.id);
-      // Save state after deleting component
-      setTimeout(() => saveState(newComponents), 100);
-      return newComponents;
-    });
-    setSelectedFieldId(null);
-  };
-
-  const handleDuplicateField = (item: DroppedComponent) => {
-    const newComponent: DroppedComponent = {
-      ...item,
-      id: elementId,
-      x: item.x + 20,
-      y: item.y + 20,
-      assignedRecipientId: undefined, // Reset assignment for duplicate
-    };
-
-    setDroppedComponents((prev) => [...prev, newComponent]);
-    setTimeout(() => saveState([...droppedComponents, newComponent]), 100);
-    setElementId((id) => id + 1);
-    setSelectedFieldId(newComponent.id);
-  };
-
-  const handleAssignRecipient = (fieldId: number, recipientId: string | null) => {
-    setDroppedComponents((prev) => {
-      const newComponents = prev.map((c) =>
-        c.id === fieldId ? { ...c, assignedRecipientId: recipientId } : c
-      );
-      setTimeout(() => saveState(newComponents), 100);
+      const newComponents = prev.filter((c) => c.id !== item.id);      
+      saveToHistory(newComponents);
       return newComponents;
     });
   };
@@ -286,15 +258,14 @@ const DocumentEditor: React.FC = () => {
   }
 
   // Update state
-  setDroppedComponents(prev =>
-    {
+  setDroppedComponents(prev =>{
       const newComponents = prev.map(c =>
       c.id === item.id
         ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
         : c
       );
       // Save state after drag stop
-      setTimeout(() => saveState(newComponents), 100);
+     saveToHistory(newComponents);
       return newComponents;
     }
   );
@@ -308,10 +279,14 @@ const DocumentEditor: React.FC = () => {
         c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
       );
       // Save state after resize stop
-      setTimeout(() => saveState(newComponents), 100);
+     saveToHistory(newComponents);
       return newComponents;
     });
   };
+
+  // ==========================================================
+  // Effects
+  // ==========================================================
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -329,41 +304,86 @@ const DocumentEditor: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  // ==========================================================
-  // Effects
-  // ==========================================================
   useEffect(() => {
     // Restore file on reload
     (async () => {
-      const file = await getFileFromIndexedDB();
+      const file = await getFileFromIndexedDB()
+      console.log("Restored file from IndexedDB:", file);
       if (file) {
         setSelectedFile(file as File);
+        // If the stored file is a server URL, try to extract and set the filename immediately
+        if (typeof file === 'string') {
+        
+            const u = new URL(file, window.location.origin);
+            if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
+              const name = u.searchParams.get('name') || u.searchParams.get('path');
+              if (name) {
+                const decoded = decodeURIComponent(name);
+                const parts = decoded.split('/');
+                setFileName(parts[parts.length - 1]);
+              }
+            }
+        
+        }
       }
     })();
-  //@typescript-eslint/ban-ts-comment
-  }, []);
+  }, [setSelectedFile, setFileName]);
 
   useEffect(() => {
     if (!selectedFile) return;
     saveFileToIndexedDB(selectedFile as File);
-    setLoading(false);
     setError(null);
     setCurrentPage(1);
 
-    if (selectedFile instanceof File) setFileName(selectedFile.name);
-    else setFileName(decodeURIComponent((selectedFile as string).split('/').pop()?.split('?')[0] || ''));
+    if (selectedFile instanceof File) {
+      setFileName(selectedFile.name);
+    } else {
+      const s = selectedFile as string;
+      // If it's a data: or blob: URL (created by blobToURL), don't derive the filename from it
+      if (!s.startsWith('data:') && !s.startsWith('blob:')) {
+        try {
+          const u = new URL(s, window.location.origin);
+          // Handle our API endpoints explicitly
+          if (u.pathname.includes('/api/documents/get')) {
+            const name = u.searchParams.get('name');
+            if (name) {
+              setFileName(decodeURIComponent(name));
+            }
+          } else if (u.pathname.includes('/api/documents/file')) {
+            const p = u.searchParams.get('path');
+            if (p) {
+              const parts = decodeURIComponent(p).split('/');
+              setFileName(parts[parts.length - 1]);
+            }
+          } else {
+            setFileName(decodeURIComponent(u.pathname.split('/').pop() || ''));
+          }
+        } catch {         
+          setFileName(decodeURIComponent(s.split('/').pop()?.split('?')[0] || ''));
+        }
+      }
+    }
 
   }, [selectedFile]);
-
+/*
   useEffect(() => {
     let mounted = true;
     (async () => {
       if (!selectedFile) return setPdfDoc(null);
 
       try {
-        setLoading(true);
+
         const buffer = typeof selectedFile === 'string'
-          ? await fetch(selectedFile).then(res => res.arrayBuffer())
+          ? (async () => {
+              const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+              const opts: RequestInit = {};
+              if (selectedFile.startsWith('/api/documents/file') && token) {
+                opts.headers = { 'Authorization': `Bearer ${token}` };
+              }
+              const res = await fetch(selectedFile, opts);
+              if (!res.ok) throw new Error('Failed to load file');
+              return await res.arrayBuffer();
+            })()
           : await selectedFile.arrayBuffer();
 
         const loadedDoc = await PDFDocument.load(buffer);
@@ -372,21 +392,48 @@ const DocumentEditor: React.FC = () => {
         generateThumbnails(loadedDoc.getPageCount());
       } catch {
         setError("Failed to load PDF");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      } 
     })();
 
     return () => { mounted = false; };
   }, [selectedFile]);
+  */
 
   const uploadToServer = async (blob: Blob, fileName: string) => {
     const formData = new FormData();
-    formData.append('file', blob, fileName);
+  // sanitize filename to avoid embedding data urls or raw base64
+  const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
+  const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+  formData.append('file', blob, finalFileName);
+    // documentName is the display name/title; fileName is the actual filename to write
     formData.append('documentName', fileName);
+    formData.append('fileName', finalFileName);
+    formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
+      id: comp.id.toString(),
+      type: comp.component.toLowerCase(),
+      x: comp.x,
+      y: comp.y,
+      width: comp.width,
+      height: comp.height,
+      pageNumber: comp.pageNumber || currentPage,
+      recipientId: comp.assignedRecipientId,
+      required: comp.required !== false,
+      value: comp.data,
+      placeholder: comp.placeholder,
+    }))));
+    formData.append('recipients', JSON.stringify(recipients));
+    if (documentId) {
+      formData.append('documentId', documentId);
+    }
+    formData.append('changeLog', 'Document updated with fields and recipients');
   
-    const response = await fetch('/api/documents/save', {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch('/api/documents/save-with-fields', {
       method: 'POST',
+      headers: Object.keys(headers).length ? headers : undefined,
       body: formData,
       credentials: 'include', // if you use cookies/session
     });
@@ -394,76 +441,246 @@ const DocumentEditor: React.FC = () => {
     if (!response.ok) {
       throw new Error('Failed to save PDF to server');
     }
-    return response.json();
+    const result = await response.json();
+    if (result.documentId) setDocumentId(result.documentId);
+    // Prefer explicit fileName and folder returned by server
+    if (result.fileName) {
+      setFileName(result.fileName);
+    } else if (result.fileUrl) {
+      // Parse filename from fileUrl query param (if present)    
+        const u = new URL(result.fileUrl, window.location.origin);
+        const p = u.searchParams.get('path');
+        if (p) {
+          const decoded = decodeURIComponent(p);
+          const parts = decoded.split('/');
+          setFileName(parts[parts.length - 1]);
+        }
+    
+    }
+    // If server returned a fileUrl, set it as selectedFile so the editor can reload it
+    if (result.fileUrl) setSelectedFile(result.fileUrl);
+    return result;
   };
   //File Handling
-  const handleSave = async (isDownload: boolean = false) => {
+ const handleSave = async (isDownload: boolean = false) => {
     if (!isLoggedIn) {
       setShowModal(true);
       return;
     }
 
+    const canvas = documentRef.current;
+    const canvasRect = canvas?.getBoundingClientRect(); // Get the canvas bounds
+
+    if (!canvasRect) {
+      console.error("Canvas not found!");
+      return; // Exit if there's no valid canvas
+    }
+
+    // Fetch and load the selected PDF
     if (!selectedFile) {
       console.error("No file selected!");
       return;
     }
 
-    // Sanitize and apply file name
-    const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
-    const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+    const arrayBuffer = typeof selectedFile === 'string'
+      ? await fetch(selectedFile).then(res => res.arrayBuffer())
+      : await selectedFile.arrayBuffer();
 
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+    // Get the specified page (pageNum)
+    const pages = pdfDoc.getPages();
+    const page = pages[currentPage - 1];
+
+    // Check if the page is rotated
+    const isPageRotated = page.getRotation().angle;
+
+    const pageWidth = page.getSize().width;
+    const pageHeight = page.getSize().height;
+
+    for (const item of droppedComponents) {
+      const { x, y, component, width, height, data, pageNumber } = item;
+
+      // Find the corresponding page element in DOM (must exist)
+      const pageIndex = (pageNumber ?? currentPage) - 1;
+      const pageEl = pageRefs.current[pageIndex];
+      if (!pageEl) {
+        console.warn('Page element not found for item, skipping', item);
+        continue;
+      }
+
+      const pageRect = pageEl.getBoundingClientRect();
+
+      // Calculate scale using the actual page element dimensions (DOM -> PDF)
+      const scaleX = pageWidth / pageRect.width;
+      const scaleY = pageHeight / pageRect.height;
+
+      // Compute coordinates of the item RELATIVE TO the page element.
+      // droppedComponents.x/y are relative to documentRef (canvas). Convert to page-local.
+      const relativeX = x - (pageRect.left - canvasRect.left);
+      const relativeY = y - (pageRect.top - canvasRect.top);
+
+      // Convert to PDF coordinates (PDF origin bottom-left)
+      const adjustedX = relativeX * scaleX;
+      const adjustedY = pageHeight - (relativeY + height) * scaleY;
+
+      // Boundary checks (use scaled sizes for comparisons)
+      const scaledW = width * scaleX;
+      const scaledH = height * scaleY;
+
+      let finalX = adjustedX;
+      let finalY = adjustedY;
+
+      if (finalX < 0) finalX = 0;
+      if (finalX + scaledW > pageWidth) finalX = pageWidth - scaledW;
+
+      if (finalY < 0) finalY = 0;
+      if (finalY + scaledH > pageHeight) finalY = pageHeight - scaledH;
+
+    if (data) {
+      // Draw the component (Text, Date, or Image)
+      if (component === "Text" || component === "Date") {
+
+        // PDFDocument load ke baad
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontSize = 12;
+        const lineHeight = fontSize * 1.2;
+        const maxWidth = width * scaleX; // textarea width scaled to PDF
+        const textLines: string[] = []; // lines to draw
+
+
+        data.split('\n').forEach((paragraph) => {
+          let line = '';
+          paragraph.split(' ').forEach((word) => {
+            const testLine = line ? line + ' ' + word : word;
+            const lineWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+            if (lineWidth > maxWidth) {
+              textLines.push(line);
+              line = word;
+            } else {
+              line = testLine;
+            }
+          });
+          if (line) textLines.push(line);
+        });
+
+        // Draw lines within rectangle
+        let cursorY = adjustedY + height * scaleY - lineHeight;
+        textLines.forEach((line) => {
+          if (cursorY < adjustedY) return; // clip if overflows
+          page.drawText(line, { x: adjustedX, y: cursorY, size: fontSize, font: helveticaFont });
+          cursorY -= lineHeight;
+        });
+      } else if (component === "Signature" || component === "Image" || component === "Realtime Photo") {
+         try {
+            const imgUrl = data as string;
+            if (!imgUrl) continue;
+
+            const res = await fetch(imgUrl);
+            const imgBytes = await res.arrayBuffer();
+
+            // Check actual file signature (magic numbers)
+            const bytes = new Uint8Array(imgBytes);
+            let embeddedImage;
+
+            if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+              // PNG
+              embeddedImage = await pdfDoc.embedPng(imgBytes);
+            } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+              // JPEG
+              embeddedImage = await pdfDoc.embedJpg(imgBytes);
+            } else {
+              console.warn("Unsupported image format (not PNG/JPEG). Skipped.");
+              continue;
+            }
+
+            page.drawImage(embeddedImage, {
+              x: finalX,
+              y: finalY,
+              width: scaledW,
+              height: scaledH,
+              ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {}),
+            });
+          } catch (err) {
+            console.error("Failed to embed image:", err);
+            continue;
+          }
+      }
+    }
+      // Add a timestamp if autoDate is true
+      if (autoDate) {
+        page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
+          {
+            x: finalX,
+            y: finalY - 20 * Math.min(scaleX, scaleY),
+            size: 10,
+            color: rgb(0.074, 0.545, 0.262),
+            ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+          }
+        );
+      }
+    }
+
+    // Save the modified PDF to bytes and convert to a Blob
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+
+    // Convert the Blob into a URL for downloading / preview
+    const pdfUrl = await blobToURL(blob);
+
+     // Sanitize and apply file name
+     const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
+     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
+
+
+    if (isDownload) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = finalFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      }
+            
+    // Upload to backend and prefer server-returned fileUrl when present
+    let uploadResult: UploadResult | null = null;
     try {
-      // Get the original PDF data
-      const arrayBuffer = typeof selectedFile === 'string'
-        ? await fetch(selectedFile).then(res => res.arrayBuffer())
-        : await selectedFile.arrayBuffer();
-
-      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-
-      if (isDownload) {
-        // Download the original PDF without merging fields
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = finalFileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      // Save to server with fields data
-      const formData = new FormData();
-      formData.append('file', blob, finalFileName);
-      formData.append('documentName', finalFileName);
-      formData.append('fields', JSON.stringify(droppedComponents));
-      formData.append('recipients', JSON.stringify(recipients));
-
-      const response = await fetch('/api/documents/save-with-fields', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save document');
-      }
-
-      const result = await response.json();
-      console.log('Document saved:', result);
-
-      // Clean up after successful save
-      setDroppedComponents([]);
-      resetHistory([]);
-      
-    } catch (error) {
-      console.error('Save error:', error);
-      setError('Failed to save document to your account.');
+      uploadResult = await uploadToServer(blob, finalFileName);
+    } catch {
+      setError('Failed to save PDF to your account.');
       return;
     }
+
+    if (uploadResult && uploadResult.fileUrl) {
+      setSelectedFile(uploadResult.fileUrl);
+    } else {
+      // fallback to local blob URL
+      setSelectedFile(pdfUrl);
+    }
+      /* Clean up filed after merge into pdf*/
+      setPosition({ x: 0, y: 0 });
+      setDroppedComponents([]);
+      resetHistory([]);
   };
 
+  const handleAssignField = (fieldId: number, recipientId: string | null) => {
+    setDroppedComponents(prev => 
+      prev.map(comp => 
+        comp.id === fieldId 
+          ? { ...comp, assignedRecipientId: recipientId }
+          : comp
+      )
+    );
+  };
+  // Right-click to assign field
+  const handleRightClickField = (e: React.MouseEvent, field: DroppedComponent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedFieldForAssignment(field);
+    setShowFieldAssignment(true);
+  };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
     document.body.classList.remove('dragging-no-select');
@@ -510,13 +727,15 @@ const updateField = (data: string | null, id: number) => {
   setDroppedComponents(prev => {
     const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));
     // Save state after field update
-    setTimeout(() => saveState(newComponents), 100);
+   saveToHistory(newComponents);
     return newComponents;
   }
   );
 };
 
-const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
+const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  //clean local file cache first 
+  clearFileFromIndexedDB();
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -573,7 +792,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
     return () => observer.disconnect();
   }, [pages]);
 
-  // 🔥 Auto-scroll active thumbnail into view
+  // Auto-scroll active thumbnail into view
   useEffect(() => {
     const activeThumb = thumbRefs.current[currentPage - 1];
     if (activeThumb) {
@@ -607,7 +826,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
         handleReset={() => {
-          debugger
+          resetHistory([]);
           setSelectedFile(null);
           setDroppedComponents([]);
           clearFileFromIndexedDB();
@@ -637,20 +856,10 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onUploadImage}  />
-            {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onFileUpload}  />
+           
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
 
-              {error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white">
-                  <div className="text-red-500 text-center p-4">
-                    <p className="font-medium">{error}</p>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Try uploading another PDF file
-                    </p>
-                  </div>
-                </div>
-              )}
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
@@ -659,19 +868,16 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                  <DroppedComponents
                     droppedComponents={droppedComponents}
                     setDroppedComponents={setDroppedComponents}
-                    selectedFieldId={selectedFieldId}
-                    setSelectedFieldId={setSelectedFieldId}
-                    recipients={recipients}
-                    onAssignRecipient={handleAssignRecipient}
-                    onDuplicateField={handleDuplicateField}
-                    onDeleteField={handleDeleteField}
+                    deleteField={deleteField}
                     updateField={updateField}
                     handleDragStop={handleDragStop}
                     handleResizeStop={handleResizeStop}
                     textFieldRefs={textFieldRefs}
                     zoom={zoom}
+                  recipients={recipients}
+                  onRightClickField={handleRightClickField}
                   />
-              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
+              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''}/>
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
@@ -724,10 +930,22 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             onClose={() => setShowSendDocument(false)}
             recipients={recipients}
             documentName={fileName || 'Untitled Document'}
+            documentId={documentId}
             onSendComplete={() => {
               // Optionally redirect to dashboard or show success message
-              console.log('Document sent successfully');
+              toast.success('Document sent successfully');
             }}
+          />
+        )}
+
+        {/* Field Assignment Modal */}
+        {showFieldAssignment && selectedFieldForAssignment && (
+          <FieldAssignmentModal
+            isOpen={showFieldAssignment}
+            onClose={() => setShowFieldAssignment(false)}
+            field={selectedFieldForAssignment}
+            recipients={recipients}
+            onAssignField={handleAssignField}
           />
         )}
       </div>
