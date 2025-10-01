@@ -6,7 +6,6 @@ import path from 'path';
 
 export const runtime = 'nodejs';
 
-// Reusing helper functions for consistency (you would need to import these from a utils file)
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]+/g, '').trim();
 }
@@ -41,46 +40,6 @@ function writeFileStable(dir: string, baseFileName: string, pdfBuffer: Buffer, p
   fs.writeFileSync(finalPath, pdfBuffer);
   return { filePath: finalPath, finalFileName: tsName };
 }
-// End of helper functions (should be imported in a real app)
-
-// Keep the active working filename as provided by the user (file.name)
-function writeActiveFile(dir: string, desiredName: string, pdfBuffer: Buffer): { filePath: string; finalFileName: string } {
-  const safe = sanitizeFileName(desiredName || 'document.pdf');
-  const ext = path.extname(safe) || '.pdf';
-  const base = path.basename(safe, ext);
-  let candidate = path.join(dir, `${base}${ext}`);
-
-  try {
-    if (!fs.existsSync(candidate)) {
-      fs.writeFileSync(candidate, pdfBuffer);
-      return { filePath: candidate, finalFileName: path.basename(candidate) };
-    }
-    const existing = fs.readFileSync(candidate);
-    if (Buffer.isBuffer(existing) && existing.equals(pdfBuffer)) {
-      return { filePath: candidate, finalFileName: path.basename(candidate) };
-    }
-    for (let i = 1; i <= 100; i++) {
-      const nextName = `${base}_copy_${i}${ext}`;
-      const p = path.join(dir, nextName);
-      if (!fs.existsSync(p)) {
-        fs.writeFileSync(p, pdfBuffer);
-        return { filePath: p, finalFileName: nextName };
-      }
-      const ex = fs.readFileSync(p);
-      if (Buffer.isBuffer(ex) && ex.equals(pdfBuffer)) {
-        return { filePath: p, finalFileName: nextName };
-      }
-    }
-  } catch (err) {
-    // fall through
-  }
-  const tsName = `${base}_${Date.now()}${ext}`;
-  const finalPath = path.join(dir, tsName);
-  fs.writeFileSync(finalPath, pdfBuffer);
-  return { filePath: finalPath, finalFileName: tsName };
-}
-
-// No active-file helpers: we will not write any <docId>_active.pdf files.
 
 
 export async function POST(req: NextRequest) {
@@ -129,10 +88,10 @@ export async function POST(req: NextRequest) {
       let detPath = path.join(userDir, detName);
       try {
         fs.writeFileSync(detPath, pdfBuffer);
-      } catch (e) {
+      } catch {
         // fallback
         const res = writeFileStable(userDir, existingDoc.originalFileName || file.name, pdfBuffer, newVersion);
-        detPath = res.filePath; // eslint-disable-line no-param-reassign
+        detPath = res.filePath;
       }
 
       existingDoc.versions.push({
@@ -141,7 +100,7 @@ export async function POST(req: NextRequest) {
         filePath: detPath,
         fileName: path.basename(detPath),
         fields,
-        status: 'final' as const, // Set status to 'final' or another non-draft status
+        status: 'final' as const,
         changeLog,
         createdAt: new Date(),
         updatedAt: new Date(),

@@ -103,7 +103,7 @@ const DocumentEditor: React.FC = () => {
     }
   }, [redo]);
 
-  /* Save state to history when components change (with debouncing)
+  /* Save state to history when components change (with debouncing)*/
   const saveToHistory = useCallback((components: DroppedComponent[]) => {
     // Debounce to avoid saving too frequently during drag operations
     const timeoutId = setTimeout(() => {
@@ -112,7 +112,7 @@ const DocumentEditor: React.FC = () => {
     
     return () => clearTimeout(timeoutId);
   }, [saveState]);
-*/
+
   // ==========================================================
   // PDF & Page Handling
   // ==========================================================
@@ -315,7 +315,7 @@ const DocumentEditor: React.FC = () => {
         setSelectedFile(file as File);
         // If the stored file is a server URL, try to extract and set the filename immediately
         if (typeof file === 'string') {
-          try {
+        
             const u = new URL(file, window.location.origin);
             if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
               const name = u.searchParams.get('name') || u.searchParams.get('path');
@@ -325,12 +325,11 @@ const DocumentEditor: React.FC = () => {
                 setFileName(parts[parts.length - 1]);
               }
             }
-          } catch (_) { /* ignore */ }
+        
         }
       }
     })();
-  //@typescript-eslint/ban-ts-comment
-  }, []);
+  }, [setSelectedFile, setFileName]);
 
   useEffect(() => {
     if (!selectedFile) return;
@@ -362,8 +361,7 @@ const DocumentEditor: React.FC = () => {
           } else {
             setFileName(decodeURIComponent(u.pathname.split('/').pop() || ''));
           }
-        } catch (err) {
-          // fallback
+        } catch {         
           setFileName(decodeURIComponent(s.split('/').pop()?.split('?')[0] || ''));
         }
       }
@@ -453,8 +451,7 @@ const DocumentEditor: React.FC = () => {
     if (result.fileName) {
       setFileName(result.fileName);
     } else if (result.fileUrl) {
-      // Parse filename from fileUrl query param (if present)
-      try {
+      // Parse filename from fileUrl query param (if present)    
         const u = new URL(result.fileUrl, window.location.origin);
         const p = u.searchParams.get('path');
         if (p) {
@@ -462,7 +459,7 @@ const DocumentEditor: React.FC = () => {
           const parts = decoded.split('/');
           setFileName(parts[parts.length - 1]);
         }
-      } catch (_) { /* ignore */ }
+    
     }
     // If server returned a fileUrl, set it as selectedFile so the editor can reload it
     if (result.fileUrl) setSelectedFile(result.fileUrl);
@@ -690,7 +687,7 @@ const DocumentEditor: React.FC = () => {
       )
     );
   };
-
+  // Right-click to assign field
   const handleRightClickField = (e: React.MouseEvent, field: DroppedComponent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -806,7 +803,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
     return () => observer.disconnect();
   }, [pages]);
 
-  // 🔥 Auto-scroll active thumbnail into view
+  // Auto-scroll active thumbnail into view
   useEffect(() => {
     const activeThumb = thumbRefs.current[currentPage - 1];
     if (activeThumb) {
@@ -840,6 +837,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
         handleReset={() => {
+          resetHistory([]);
           setSelectedFile(null);
           setDroppedComponents([]);
           clearFileFromIndexedDB();
@@ -898,6 +896,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                     textFieldRefs={textFieldRefs}
                     zoom={zoom}
                   recipients={recipients}
+                  onRightClickField={handleRightClickField}
                   />
               <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
             </div>

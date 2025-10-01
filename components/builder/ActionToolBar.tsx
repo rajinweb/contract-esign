@@ -153,7 +153,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                         if (e.key === 'Enter') {
                           setIsEditingFileName(false);
                           // Persist the rename after allowing React to flush state
-                          setTimeout(() => { try { handleSave(); } catch (_) { /* ignore */ } }, 0);
+                          setTimeout(() =>  handleSave() , 0);
                         }
                       }}
                       data-testid="pdf-name"
@@ -162,7 +162,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     <CheckLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => { setIsEditingFileName(false); setTimeout(() => { try { handleSave(); } catch (_) { /* ignore */ } }, 0); }} />
+                        onClick={() => { setIsEditingFileName(false); setTimeout(() => handleSave(), 0); }} />
                     </>
                   ) : (
                     <>

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, FileText, Send, CheckCircle, X } from 'lucide-react';
 
 interface DocumentVersion {
@@ -24,11 +24,7 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchVersions();
-  }, [documentId]);
-
-  const fetchVersions = async () => {
+  const fetchVersions = useCallback(async () => {
     try {
       const response = await fetch(`/api/documents/${documentId}/versions`);
       if (response.ok) {
@@ -40,7 +36,11 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [documentId]);
+
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

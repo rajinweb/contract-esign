@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel from '@/models/Document';
-import { IDocument } from '@/types/types';
 
 export const runtime = 'nodejs';
 

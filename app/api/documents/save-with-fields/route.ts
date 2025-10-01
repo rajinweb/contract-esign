@@ -77,9 +77,7 @@ function writeFileStable(dir: string, baseFileName: string, pdfBuffer: Buffer, p
       if (Buffer.isBuffer(existing) && existing.equals(pdfBuffer)) {
         return { filePath: p, finalFileName: path.basename(p) };
       }
-      // otherwise try next candidate
-    } catch (_err) {
-      // try next
+    } catch {
       continue;
     }
   }
@@ -105,8 +103,7 @@ function writeFileForDocument(dir: string, documentId: string, version: number, 
     }
     fs.writeFileSync(filePath, pdfBuffer);
     return { filePath, finalFileName: fileName };
-  } catch (_err) {
-    // fallback to writeFileStable
+  } catch {
     return writeFileStable(dir, `${documentId}_v${version}.pdf`, pdfBuffer, version);
   }
 }
@@ -194,7 +191,7 @@ export async function POST(req: NextRequest) {
             wroteDuringHealing = true;
             changesDetected = true;
             console.info(`Self-healed by writing original filename: ${candidate}`);
-          } catch (_err) {
+          } catch {
             console.warn('Writing original filename failed, falling back to deterministic writer');
             const { filePath: newOverwritePath, finalFileName: newFileName } = writeFileForDocument(userDir, String(existingDoc._id), latestVersion.version, pdfBuffer);
             overwritePath = newOverwritePath;
@@ -259,7 +256,7 @@ export async function POST(req: NextRequest) {
             latestVersion.filePath = candidate;
             latestVersion.fileName = desiredName;
             console.debug(`Overwrote original filename for doc ${documentId}: ${candidate}`);
-          } catch (_err) {
+          } catch {
             // fallback to existing overwritePath behavior
             if (!wroteDuringHealing) {
               console.debug(`Overwriting file on disk for doc ${documentId} v${latestVersion.version} -> ${overwritePath}`);
@@ -274,7 +271,7 @@ export async function POST(req: NextRequest) {
         const now = new Date();
 
         // 2. Prepare atomic update data for Mongoose $set operator
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           documentName: documentName,
           recipients: recipients,
           updatedAt: now,
@@ -327,7 +324,7 @@ export async function POST(req: NextRequest) {
       else {
         // Create a new version file deterministically (document-based naming)
         const newVersion = existingDoc.currentVersion + 1;
-        const baseFileName = existingDoc.originalFileName || file.name;
+        // const baseFileName = existingDoc.originalFileName || file.name;
         // Prefer copying from the latest stored filePath (the working copy)
         // or from the user's originalFileName. No _active files are used.
         const candidateSourcePaths: string[] = [];
@@ -349,12 +346,11 @@ export async function POST(req: NextRequest) {
                 vFileName = versionedName;
                 copied = true;
                 break;
-              } catch (_err) {
-                // continue to next source
+              } catch {
                 continue;
               }
             }
-          } catch (_err) {
+          } catch {
             continue;
           }
         }
@@ -422,7 +418,7 @@ export async function POST(req: NextRequest) {
       let filePath = candidatePath;
       try {
         fs.writeFileSync(candidatePath, pdfBuffer);
-      } catch (_err) {
+      } catch {
         const res = writeFileStable(userDir, finalFileName, pdfBuffer);
         filePath = res.filePath;
         newDocument.originalFileName = res.finalFileName;
