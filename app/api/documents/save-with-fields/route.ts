@@ -108,16 +108,6 @@ function writeFileForDocument(dir: string, documentId: string, version: number, 
   }
 }
 
-// Write the active working file using the user's original filename or a
-// user-chosen name. Avoid appending _v1 on first save. If a file collision
-// occurs we append a numeric _copy_N suffix (not _v1) so original name is preserved.
-// NOTE: removed active-file helpers — we no longer write any _active files.
-// Working copies are written directly to the user's original filename under
-// uploads/<userId>/. Deterministic version files use <docId>_v<N>.pdf.
-
-
-// --- Main POST Handler ---
-
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -138,9 +128,7 @@ export async function POST(req: NextRequest) {
     const pdfBuffer = Buffer.from(await file.arrayBuffer());
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
-    // Optional explicit rename: the client can send `fileName` when the user
-    // specifically changed the filename in the UI. If not provided, we do not
-    // rename the underlying file automatically.
+
     const requestedFileName = formData.get('fileName') as string | null;
     const normalizedRequestedFileName = requestedFileName ? ensurePdfExtension(requestedFileName) : null;
 
@@ -177,8 +165,7 @@ export async function POST(req: NextRequest) {
         if (!overwritePath || !fs.existsSync(overwritePath)) {
           console.warn(`Document ID ${documentId}, Version ${latestVersion.version} is missing or invalid filePath. Triggering self-healing...`);
 
-          // Recreate the user's original filename path (do NOT create an
-          // _active file). Prefer the stored fileName or originalFileName.
+          // Recreate the user's original filename path. Prefer the stored fileName or originalFileName.
           try {
             const desiredName = ensurePdfExtension(latestVersion.fileName || existingDoc.originalFileName || file.name || 'document');
             const candidate = path.join(userDir, desiredName);
@@ -233,8 +220,7 @@ export async function POST(req: NextRequest) {
         }
 
         // --- CONTINUOUS SAVE EXECUTION ---
-        // 1. If the user requested a rename, write the new active filename; if not,
-        // overwrite the existing filePath.
+        // 1. If the user requested a rename, write the new active filename; if not, overwrite the existing filePath.
         if (renameRequested) {
           console.debug(`User requested rename for doc ${documentId}: ${normalizedRequestedFileName}`);
           // If user explicitly renamed, write to the new filename (overwrite if exists)
@@ -326,7 +312,7 @@ export async function POST(req: NextRequest) {
         const newVersion = existingDoc.currentVersion + 1;
         // const baseFileName = existingDoc.originalFileName || file.name;
         // Prefer copying from the latest stored filePath (the working copy)
-        // or from the user's originalFileName. No _active files are used.
+        // or from the user's originalFileName.
         const candidateSourcePaths: string[] = [];
         if (latestVersion && latestVersion.filePath) candidateSourcePaths.push(latestVersion.filePath);
         if (existingDoc.originalFileName) candidateSourcePaths.push(path.join(userDir, existingDoc.originalFileName));

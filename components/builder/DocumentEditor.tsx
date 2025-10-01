@@ -192,16 +192,15 @@ const DocumentEditor: React.FC = () => {
 
     setDroppedComponents((prev) => [...prev, newComponent]);
     // Save state after adding component
-    setTimeout(() => saveState([...droppedComponents, newComponent]), 100);
+    saveToHistory([...droppedComponents, newComponent]);
     setElementId((id) => id + 1);
   };
 
   const deleteField = (e: MouseEvent, item: DroppedComponent) => {
     e.stopPropagation();
     setDroppedComponents((prev) => {
-      const newComponents = prev.filter((c) => c.id !== item.id);
-      // Save state after deleting component
-      setTimeout(() => saveState(newComponents), 100);
+      const newComponents = prev.filter((c) => c.id !== item.id);      
+      saveToHistory(newComponents);
       return newComponents;
     });
   };
@@ -261,15 +260,14 @@ const DocumentEditor: React.FC = () => {
   }
 
   // Update state
-  setDroppedComponents(prev =>
-    {
+  setDroppedComponents(prev =>{
       const newComponents = prev.map(c =>
       c.id === item.id
         ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
         : c
       );
       // Save state after drag stop
-      setTimeout(() => saveState(newComponents), 100);
+     saveToHistory(newComponents);
       return newComponents;
     }
   );
@@ -283,7 +281,7 @@ const DocumentEditor: React.FC = () => {
         c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
       );
       // Save state after resize stop
-      setTimeout(() => saveState(newComponents), 100);
+     saveToHistory(newComponents);
       return newComponents;
     });
   };
@@ -740,7 +738,7 @@ const updateField = (data: string | null, id: number) => {
   setDroppedComponents(prev => {
     const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));
     // Save state after field update
-    setTimeout(() => saveState(newComponents), 100);
+   saveToHistory(newComponents);
     return newComponents;
   }
   );
