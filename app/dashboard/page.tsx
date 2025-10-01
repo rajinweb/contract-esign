@@ -12,7 +12,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
-
+import { clearFileFromIndexedDB} from '@/utils/indexDB';
 function Dashboard() {
   const { setSelectedFile, documents, setDocuments } = useContextStore();
 
@@ -157,6 +157,7 @@ function Dashboard() {
               <DocumentList
                 documents={filteredDocuments}
                 onDocumentSelect={(doc) => {
+                  clearFileFromIndexedDB()
                   if (doc.url) {
                     setSelectedFile(doc.url);
                     router.push('/builder');

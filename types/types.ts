@@ -190,3 +190,12 @@ export interface IDocument extends Document {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface UploadResult {
+  fileUrl?: string;
+  fileName?: string;
+  documentId?: string;
+  version?: number;
+  message?: string;
+  [key: string]: unknown;
+}

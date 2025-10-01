@@ -10,7 +10,7 @@ import { LoaderPinwheel } from 'lucide-react';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
-import { DroppingField, DroppedComponent } from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, UploadResult} from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
@@ -29,8 +29,8 @@ import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
 import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
-import { Recipient } from '@/types/types';
 import RecipientsList from './RecipientsList';
+import toast from 'react-hot-toast';
 
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -61,7 +61,6 @@ const DocumentEditor: React.FC = () => {
   const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(droppedComponents);
 
   // ========= UI State =========
-  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<boolean>(false);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
@@ -286,6 +285,10 @@ const DocumentEditor: React.FC = () => {
     });
   };
 
+  // ==========================================================
+  // Effects
+  // ==========================================================
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -302,13 +305,11 @@ const DocumentEditor: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  // ==========================================================
-  // Effects
-  // ==========================================================
   useEffect(() => {
     // Restore file on reload
     (async () => {
-      const file = await getFileFromIndexedDB();
+      const file = await getFileFromIndexedDB()
+      console.log("Restored file from IndexedDB:", file);
       if (file) {
         setSelectedFile(file as File);
         // If the stored file is a server URL, try to extract and set the filename immediately
@@ -332,7 +333,6 @@ const DocumentEditor: React.FC = () => {
   useEffect(() => {
     if (!selectedFile) return;
     saveFileToIndexedDB(selectedFile as File);
-    setLoading(false);
     setError(null);
     setCurrentPage(1);
 
@@ -366,14 +366,14 @@ const DocumentEditor: React.FC = () => {
     }
 
   }, [selectedFile]);
-
+/*
   useEffect(() => {
     let mounted = true;
     (async () => {
       if (!selectedFile) return setPdfDoc(null);
 
       try {
-        setLoading(true);
+
         const buffer = typeof selectedFile === 'string'
           ? (async () => {
               const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
@@ -393,13 +393,12 @@ const DocumentEditor: React.FC = () => {
         generateThumbnails(loadedDoc.getPageCount());
       } catch {
         setError("Failed to load PDF");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      } 
     })();
 
     return () => { mounted = false; };
   }, [selectedFile]);
+  */
 
   const uploadToServer = async (blob: Blob, fileName: string) => {
     const formData = new FormData();
@@ -647,15 +646,6 @@ const DocumentEditor: React.FC = () => {
       }
             
     // Upload to backend and prefer server-returned fileUrl when present
-    interface UploadResult {
-      fileUrl?: string;
-      fileName?: string;
-      documentId?: string;
-      version?: number;
-      message?: string;
-      [key: string]: unknown;
-    }
-
     let uploadResult: UploadResult | null = null;
     try {
       uploadResult = await uploadToServer(blob, finalFileName);
@@ -744,7 +734,9 @@ const updateField = (data: string | null, id: number) => {
   );
 };
 
-const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
+const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  //clean local file cache first 
+  clearFileFromIndexedDB();
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -865,20 +857,10 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onUploadImage}  />
-            {loading && (<LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />)}
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onFileUpload}  />
+           
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
 
-              {error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white">
-                  <div className="text-red-500 text-center p-4">
-                    <p className="font-medium">{error}</p>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Try uploading another PDF file
-                    </p>
-                  </div>
-                </div>
-              )}
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}
@@ -896,7 +878,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
                   recipients={recipients}
                   onRightClickField={handleRightClickField}
                   />
-              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu}/>
+              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''}/>
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}
@@ -952,7 +934,7 @@ const onUploadImage = async (e: ChangeEvent<HTMLInputElement>) => {
             documentId={documentId}
             onSendComplete={() => {
               // Optionally redirect to dashboard or show success message
-              console.log('Document sent successfully');
+              toast.success('Document sent successfully');
             }}
           />
         )}
