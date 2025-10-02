@@ -20,6 +20,7 @@ export interface Doc {
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
+  documentId?: string;
 }
 export const statuses = [
   { value: "all", label: "All Statuses", color: "text-blue-600", dot: "bg-white" },

@@ -51,9 +51,9 @@ function Dashboard() {
   useEffect(() => {
     async function fetchDocs() {
       try {
-        const res = await fetch('/api/documents/list', {
+        const res = await fetch('/api/documents/my-documents', {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`, // 🔑 send JWT
+            Authorization: `Bearer ${localStorage.getItem('AccessToken') || ''}`,
           },
         });
 
@@ -62,8 +62,8 @@ function Dashboard() {
           setDocuments([]);
           return;
         }
-  
-        let data: { files: { name: string; folder: string }[] } = { files: [] };
+
+        let data: { success: boolean; documents: unknown[] } = { success: false, documents: [] };
         try {
           data = await res.json();
         } catch (err) {
@@ -71,17 +71,24 @@ function Dashboard() {
           setDocuments([]);
           return;
         }
-  
-        const mappedDocs: Doc[] = data.files.map((file) => ({
-          id: file.name + '-' + file.folder,
-          name: file.name,
-          folder: file.folder,
-          status: 'saved',
-          createdAt: new Date(),
+
+        if (!data.success || !Array.isArray(data.documents)) {
+          console.error('Invalid response format');
+          setDocuments([]);
+          return;
+        }
+
+        const mappedDocs: Doc[] = (data.documents as Record<string, unknown>[]).map((doc) => ({
+          id: String(doc.id || ''),
+          name: String(doc.name || doc.originalFileName || 'Untitled'),
+          folder: '',
+          status: String(doc.status || 'saved') as Doc['status'],
+          createdAt: new Date(doc.createdAt as string),
           file: undefined,
-          url: `/api/documents/get?folder=${file.folder}&name=${file.name}`,
+          url: `/api/documents/get?folder=${doc.userId || ''}&name=${doc.originalFileName}`,
+          documentId: String(doc.id || ''),
         }));
-  
+
         setDocuments(mappedDocs);
       } catch (err) {
         console.error('Error fetching documents:', err);
@@ -158,8 +165,9 @@ function Dashboard() {
                 documents={filteredDocuments}
                 onDocumentSelect={(doc) => {
                   clearFileFromIndexedDB()
-                  if (doc.url) {
+                  if (doc.url && doc.documentId) {
                     setSelectedFile(doc.url);
+                    localStorage.setItem('currentDocumentId', doc.documentId);
                     router.push('/builder');
                   } else {
                     toast('No file found for this document.');

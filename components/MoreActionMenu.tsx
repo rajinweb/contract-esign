@@ -39,7 +39,9 @@ const MoreActions: React.FC<MoreActionsProps> = ({ menuItems, triggerIcon: Trigg
                 key={index}
                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                 onClick={() => {
-                  item.action && item.action();
+                  if (item.action) {
+                    item.action();
+                  }
                 }}
               >
                 {item.type === 'checkbox' ? (
