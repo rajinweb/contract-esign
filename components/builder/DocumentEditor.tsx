@@ -22,7 +22,6 @@ import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
-import FieldAssignmentModal from './FieldAssignmentModal';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
@@ -64,6 +63,7 @@ const DocumentEditor: React.FC = () => {
   const [dialog, setDialog] = useState<boolean>(false);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
+  const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [fileName, setFileName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
@@ -72,8 +72,6 @@ const DocumentEditor: React.FC = () => {
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
-  const [showFieldAssignment, setShowFieldAssignment] = useState<boolean>(false);
-  const [selectedFieldForAssignment, setSelectedFieldForAssignment] = useState<DroppedComponent | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
 
   // ========= Refs =========
@@ -176,6 +174,9 @@ const DocumentEditor: React.FC = () => {
   const clickOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
     if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable') || e.target instanceof HTMLElement && e.target?.closest('.page-brake')) return;
 
+    // Clear field selection when clicking on empty area
+    setSelectedFieldId(null);
+
     const rect = documentRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -194,10 +195,36 @@ const DocumentEditor: React.FC = () => {
     setElementId((id) => id + 1);
   };
 
-  const deleteField = (e: MouseEvent, item: DroppedComponent) => {
-    e.stopPropagation();
+  const handleDeleteField = (item: DroppedComponent) => {
     setDroppedComponents((prev) => {
       const newComponents = prev.filter((c) => c.id !== item.id);      
+      // Save state after deleting component
+      saveToHistory(newComponents);
+      return newComponents;
+    });
+    setSelectedFieldId(null);
+  };
+
+  const handleDuplicateField = (item: DroppedComponent) => {
+    const newComponent: DroppedComponent = {
+      ...item,
+      id: elementId,
+      x: item.x + 20,
+      y: item.y + 20,
+      assignedRecipientId: undefined, // Reset assignment for duplicate
+    };
+
+    setDroppedComponents((prev) => [...prev, newComponent]);
+    saveToHistory([...droppedComponents, newComponent])
+    setElementId((id) => id + 1);
+    setSelectedFieldId(newComponent.id);
+  };
+
+  const handleAssignRecipient = (fieldId: number, recipientId: string | null) => {
+    setDroppedComponents((prev) => {
+      const newComponents = prev.map((c) =>
+        c.id === fieldId ? { ...c, assignedRecipientId: recipientId } : c
+      );
       saveToHistory(newComponents);
       return newComponents;
     });
@@ -210,7 +237,7 @@ const DocumentEditor: React.FC = () => {
     }
 
     if (data.x === item.x && data.y === item.y) {
-      clickField(e as MouseEvent, item);
+     // clickField(e as MouseEvent, item);
       return;
     }
 
@@ -665,22 +692,6 @@ const DocumentEditor: React.FC = () => {
       resetHistory([]);
   };
 
-  const handleAssignField = (fieldId: number, recipientId: string | null) => {
-    setDroppedComponents(prev => 
-      prev.map(comp => 
-        comp.id === fieldId 
-          ? { ...comp, assignedRecipientId: recipientId }
-          : comp
-      )
-    );
-  };
-  // Right-click to assign field
-  const handleRightClickField = (e: React.MouseEvent, field: DroppedComponent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedFieldForAssignment(field);
-    setShowFieldAssignment(true);
-  };
   // Drag & Drop Helpers
   const mouseLeaveOnDropArea = () => {
     document.body.classList.remove('dragging-no-select');
@@ -868,14 +879,18 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
                  <DroppedComponents
                     droppedComponents={droppedComponents}
                     setDroppedComponents={setDroppedComponents}
-                    deleteField={deleteField}
+                    selectedFieldId={selectedFieldId}
+                    setSelectedFieldId={setSelectedFieldId}
+                    onAssignRecipient={handleAssignRecipient}
+                    onDuplicateField={handleDuplicateField}
+                    onDeleteField={handleDeleteField}
                     updateField={updateField}
                     handleDragStop={handleDragStop}
                     handleResizeStop={handleResizeStop}
                     textFieldRefs={textFieldRefs}
                     zoom={zoom}
-                  recipients={recipients}
-                  onRightClickField={handleRightClickField}
+                    recipients={recipients}
+                    onAddRecipients={() => setShowAddRecipients(true)}
                   />
               <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''}/>
             </div>
@@ -935,17 +950,6 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
               // Optionally redirect to dashboard or show success message
               toast.success('Document sent successfully');
             }}
-          />
-        )}
-
-        {/* Field Assignment Modal */}
-        {showFieldAssignment && selectedFieldForAssignment && (
-          <FieldAssignmentModal
-            isOpen={showFieldAssignment}
-            onClose={() => setShowFieldAssignment(false)}
-            field={selectedFieldForAssignment}
-            recipients={recipients}
-            onAssignField={handleAssignField}
           />
         )}
       </div>

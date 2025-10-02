@@ -449,7 +449,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
             <button onClick={onClose} className="bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 hover:text-gray-600 hover:border-gray-400 p-2">
               Cancel
             </button>
-            <button onClick={handleSaveAndContinue} className="primary-button" > Save and Continue </button>
+            <button onClick={handleSaveAndContinue} className="primary-button"> Save and Continue </button>
           </div>
         </div>
 

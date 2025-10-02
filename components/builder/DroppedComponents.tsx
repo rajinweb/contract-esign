@@ -1,60 +1,82 @@
 "use client";
-import React, { MouseEvent } from 'react';
+import React, { MouseEvent, useEffect, useRef } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
-import { DroppedComponent } from '@/types/types';
+import { DroppedComponent, Recipient } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
 import DateField from './DateField';
 import ImageField from './ImageField';
-import { CircleX } from 'lucide-react';
+import FieldSelectionMenu from './FieldSelectionMenu';
 
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
   setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>;
-  deleteField: (e: MouseEvent, item: DroppedComponent) => void;
+  selectedFieldId: number | null;
+  setSelectedFieldId: React.Dispatch<React.SetStateAction<number | null>>;
+  onAssignRecipient: (fieldId: number, recipientId: string | null) => void;
+  onDuplicateField: (field: DroppedComponent) => void;
+  onDeleteField: (field: DroppedComponent) => void;
   updateField: (data: string | null, id: number) => void;
   handleDragStop: (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => void;
   handleResizeStop: (
     e: MouseEvent | TouchEvent,
     item: DroppedComponent, 
     ref: { style: { width: string; height: string } }, 
-    pos: { x: number, y: number }
+    pos: { x: number, y: number }, 
+    delta: { width: number, height: number }
   ) => void;
   textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
   zoom: number;
-  recipients?: { id: string; name: string; color?: string }[];
-  onRightClickField?: (e: React.MouseEvent, field: DroppedComponent) => void;
+  recipients?: Recipient[];
+  onAddRecipients: () => void;
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
   droppedComponents,
-  deleteField, 
+  selectedFieldId,
+  setSelectedFieldId,
+  onAssignRecipient,
+  onDuplicateField,
+  onDeleteField,
   updateField,
   handleDragStop,
   handleResizeStop,
   textFieldRefs,
   zoom,
   recipients = [],
-  onRightClickField,
+  onAddRecipients
 }) => {
+  const rndFields=useRef<Rnd>(null);
   const getAssignedRecipient = (recipientId?: string) => {
-    return recipients.find(r => r.id === recipientId);
+    return recipients?.find(r => r.id === recipientId);
   };
 
+  const handleFieldClick = (e: MouseEvent, field: DroppedComponent) => {
+    e.stopPropagation();
+    setSelectedFieldId(field.id === selectedFieldId ? null : field.id);
+  };
+  useEffect(()=>{
+   const el = rndFields?.current?.resizableElement.current;
+   if (el) { el.click() } // trigger new field dropped on pdf
+  }, [droppedComponents])
+  
+  const cornersCSS='bg-blue-500 !w-3 !h-3 rounded-full '
+  const assignedLabel='after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
   return (
     <>
       {droppedComponents.map((item) => {
         const assignedRecipient = getAssignedRecipient(item.assignedRecipientId || undefined);
-        
+        const isSelected = selectedFieldId === item.id;
         return (
           <Rnd
             key={item.id}
             scale={zoom}
             bounds="parent"
+            ref={rndFields}
             className={`absolute cursor-pointer min-w-[150px] min-h-[50px] z-50 text-center text-sm ${
-              assignedRecipient 
-                ? 'border-2' 
-                : 'bg-[#1ca4ff33]'
-            }`}
+              assignedRecipient  ? 'border-2 '  : 'bg-[#1ca4ff33]'
+            } ${isSelected ? 'bg-[#1ca4ff66]' : ''}            
+            ${ assignedRecipient && assignedLabel}
+            `}
             style={assignedRecipient ? { 
               backgroundColor: `${assignedRecipient.color}33`,
               borderColor: assignedRecipient.color 
@@ -62,32 +84,37 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
-            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position)}
-            onContextMenu={(e: React.MouseEvent) => onRightClickField?.(e, item)}
-            resizeHandleClasses={{
-              bottomLeft: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
-              bottomRight: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
-              topLeft: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`,
-              topRight: `${assignedRecipient ? 'bg-' + assignedRecipient.color : 'bg-blue-500'} !w-4 !h-4 rounded-full border-2 border-white`
-            }}
+            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
+          
+            {...(isSelected && {
+              resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight']
+                .reduce((acc, key) => ({ ...acc, [key]: cornersCSS }), {})
+            })}
+
+            {...(isSelected && assignedRecipient && {
+              resizeHandleStyles: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight']
+                .reduce((acc, position) => {
+                  acc[position] = { backgroundColor: `${assignedRecipient.color}33` };
+                  return acc;
+                }, {} as Record<string, React.CSSProperties>)
+            })}
+
+            onClick={(e: React.MouseEvent) => handleFieldClick(e as unknown as MouseEvent, item)}
+            data-name={assignedRecipient?.name}
           >
-            {/* Assignment indicator */}
-            {assignedRecipient && (
-              <div 
-                className="absolute -top-6 left-0 text-xs px-2 py-1 rounded text-white"
-                style={{ backgroundColor: assignedRecipient.color }}
-              >
-                {assignedRecipient.name}
-              </div>
-            )}
-            
-            <div className="absolute left-1/2 -top-6  transform -translate-x-1/2 cursor-pointer p-1 z-10 delete-button-wrapper">
-              <CircleX
-                size={18}
-                color="red"
-                onClick={(e) => deleteField(e, item)}
+        
+
+            {/* Field Selection Menu */}
+            {isSelected && (
+              <FieldSelectionMenu
+                field={item}
+                recipients={recipients || []}
+                onAssignRecipient={onAssignRecipient}
+                onDuplicateField={onDuplicateField}
+                onDeleteField={()=> onDeleteField(item)}
+                onAddRecipients={onAddRecipients}
               />
-            </div>
+            )}
             <div className={`flex items-center justify-center h-full w-full p-1 ${
               assignedRecipient ? '' : 'border border-blue-500'
             }`}>
