@@ -3,13 +3,12 @@ import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallbac
 import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from '@/utils/indexDB';
 // Third-party
 import { pdfjs } from "react-pdf";
-import { PDFDocument, rgb, degrees, StandardFonts } from "pdf-lib";
+import { PDFDocument } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
-import dayjs from "dayjs";
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
-import { DroppingField, DroppedComponent,  Recipient, UploadResult} from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions} from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
@@ -29,7 +28,7 @@ import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
 import RecipientsList from './RecipientsList';
 import toast from 'react-hot-toast';
-
+import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlob, uploadToServer, downloadPdf} from '@/utils/handleSavePDF';
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
@@ -237,7 +236,7 @@ const DocumentEditor: React.FC = () => {
     }
 
     if (data.x === item.x && data.y === item.y) {
-     // clickField(e as MouseEvent, item);
+      clickField(e as MouseEvent, item);
       return;
     }
 
@@ -392,304 +391,68 @@ const DocumentEditor: React.FC = () => {
     }
 
   }, [selectedFile]);
-/*
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!selectedFile) return setPdfDoc(null);
 
-      try {
+  const saveToServer = async (): Promise<void> => {
+    if (!selectedFile) return;
+    // Save as blob
+    const pdfDoc = await loadPdf(selectedFile as File | string );
+    const blob = await savePdfBlob(pdfDoc);
+    const safeName = sanitizeFileName(fileName);
+    // Upload to servers
+    await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setFileName, setSelectedFile);
+  }
 
-        const buffer = typeof selectedFile === 'string'
-          ? (async () => {
-              const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-              const opts: RequestInit = {};
-              if (selectedFile.startsWith('/api/documents/file') && token) {
-                opts.headers = { 'Authorization': `Bearer ${token}` };
-              }
-              const res = await fetch(selectedFile, opts);
-              if (!res.ok) throw new Error('Failed to load file');
-              return await res.arrayBuffer();
-            })()
-          : await selectedFile.arrayBuffer();
-
-        const loadedDoc = await PDFDocument.load(buffer);
-        if (!mounted) return;
-        setPdfDoc(loadedDoc);
-        generateThumbnails(loadedDoc.getPageCount());
-      } catch {
-        setError("Failed to load PDF");
-      } 
-    })();
-
-    return () => { mounted = false; };
-  }, [selectedFile]);
-  */
-
-  const uploadToServer = async (blob: Blob, fileName: string) => {
-    const formData = new FormData();
-  // sanitize filename to avoid embedding data urls or raw base64
-  const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
-  const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
-  formData.append('file', blob, finalFileName);
-    // documentName is the display name/title; fileName is the actual filename to write
-    formData.append('documentName', fileName);
-    formData.append('fileName', finalFileName);
-    formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
-      id: comp.id.toString(),
-      type: comp.component.toLowerCase(),
-      x: comp.x,
-      y: comp.y,
-      width: comp.width,
-      height: comp.height,
-      pageNumber: comp.pageNumber || currentPage,
-      recipientId: comp.assignedRecipientId,
-      required: comp.required !== false,
-      value: comp.data,
-      placeholder: comp.placeholder,
-    }))));
-    formData.append('recipients', JSON.stringify(recipients));
-    if (documentId) {
-      formData.append('documentId', documentId);
-    }
-    formData.append('changeLog', 'Document updated with fields and recipients');
-  
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const response = await fetch('/api/documents/save-with-fields', {
-      method: 'POST',
-      headers: Object.keys(headers).length ? headers : undefined,
-      body: formData,
-      credentials: 'include', // if you use cookies/session
-    });
-  
-    if (!response.ok) {
-      throw new Error('Failed to save PDF to server');
-    }
-    const result = await response.json();
-    if (result.documentId) setDocumentId(result.documentId);
-    // Prefer explicit fileName and folder returned by server
-    if (result.fileName) {
-      setFileName(result.fileName);
-    } else if (result.fileUrl) {
-      // Parse filename from fileUrl query param (if present)    
-        const u = new URL(result.fileUrl, window.location.origin);
-        const p = u.searchParams.get('path');
-        if (p) {
-          const decoded = decodeURIComponent(p);
-          const parts = decoded.split('/');
-          setFileName(parts[parts.length - 1]);
-        }
-    
-    }
-    // If server returned a fileUrl, set it as selectedFile so the editor can reload it
-    if (result.fileUrl) setSelectedFile(result.fileUrl);
-    return result;
-  };
   //File Handling
- const handleSave = async (isDownload: boolean = false) => {
+  const handleSavePDF = async ({
+    isServerSave = false,
+    isDownload = false,
+    isMergeFields = false,
+  }: HandleSavePDFOptions): Promise<Boolean | null> => {
+
     if (!isLoggedIn) {
       setShowModal(true);
-      return;
+      return null;
+    }
+
+    if (!selectedFile) {
+      console.error("No file selected!");
+      return null;
+    }
+    if(isServerSave){
+      await saveToServer();
+      return null; 
     }
 
     const canvas = documentRef.current;
-    const canvasRect = canvas?.getBoundingClientRect(); // Get the canvas bounds
+    const canvasRect = canvas?.getBoundingClientRect();
+    if (!canvasRect) return null;  
 
-    if (!canvasRect) {
-      console.error("Canvas not found!");
-      return; // Exit if there's no valid canvas
-    }
-
-    // Fetch and load the selected PDF
-    if (!selectedFile) {
-      console.error("No file selected!");
-      return;
-    }
-
-    const arrayBuffer = typeof selectedFile === 'string'
-      ? await fetch(selectedFile).then(res => res.arrayBuffer())
-      : await selectedFile.arrayBuffer();
-
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
-
-    // Get the specified page (pageNum)
-    const pages = pdfDoc.getPages();
-    const page = pages[currentPage - 1];
-
-    // Check if the page is rotated
-    const isPageRotated = page.getRotation().angle;
-
-    const pageWidth = page.getSize().width;
-    const pageHeight = page.getSize().height;
-
-    for (const item of droppedComponents) {
-      const { x, y, component, width, height, data, pageNumber } = item;
-
-      // Find the corresponding page element in DOM (must exist)
-      const pageIndex = (pageNumber ?? currentPage) - 1;
-      const pageEl = pageRefs.current[pageIndex];
-      if (!pageEl) {
-        console.warn('Page element not found for item, skipping', item);
-        continue;
-      }
-
-      const pageRect = pageEl.getBoundingClientRect();
-
-      // Calculate scale using the actual page element dimensions (DOM -> PDF)
-      const scaleX = pageWidth / pageRect.width;
-      const scaleY = pageHeight / pageRect.height;
-
-      // Compute coordinates of the item RELATIVE TO the page element.
-      // droppedComponents.x/y are relative to documentRef (canvas). Convert to page-local.
-      const relativeX = x - (pageRect.left - canvasRect.left);
-      const relativeY = y - (pageRect.top - canvasRect.top);
-
-      // Convert to PDF coordinates (PDF origin bottom-left)
-      const adjustedX = relativeX * scaleX;
-      const adjustedY = pageHeight - (relativeY + height) * scaleY;
-
-      // Boundary checks (use scaled sizes for comparisons)
-      const scaledW = width * scaleX;
-      const scaledH = height * scaleY;
-
-      let finalX = adjustedX;
-      let finalY = adjustedY;
-
-      if (finalX < 0) finalX = 0;
-      if (finalX + scaledW > pageWidth) finalX = pageWidth - scaledW;
-
-      if (finalY < 0) finalY = 0;
-      if (finalY + scaledH > pageHeight) finalY = pageHeight - scaledH;
-
-    if (data) {
-      // Draw the component (Text, Date, or Image)
-      if (component === "Text" || component === "Date") {
-
-        // PDFDocument load ke baad
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const fontSize = 12;
-        const lineHeight = fontSize * 1.2;
-        const maxWidth = width * scaleX; // textarea width scaled to PDF
-        const textLines: string[] = []; // lines to draw
-
-
-        data.split('\n').forEach((paragraph) => {
-          let line = '';
-          paragraph.split(' ').forEach((word) => {
-            const testLine = line ? line + ' ' + word : word;
-            const lineWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
-            if (lineWidth > maxWidth) {
-              textLines.push(line);
-              line = word;
-            } else {
-              line = testLine;
-            }
-          });
-          if (line) textLines.push(line);
-        });
-
-        // Draw lines within rectangle
-        let cursorY = adjustedY + height * scaleY - lineHeight;
-        textLines.forEach((line) => {
-          if (cursorY < adjustedY) return; // clip if overflows
-          page.drawText(line, { x: adjustedX, y: cursorY, size: fontSize, font: helveticaFont });
-          cursorY -= lineHeight;
-        });
-      } else if (component === "Signature" || component === "Image" || component === "Realtime Photo") {
-         try {
-            const imgUrl = data as string;
-            if (!imgUrl) continue;
-
-            const res = await fetch(imgUrl);
-            const imgBytes = await res.arrayBuffer();
-
-            // Check actual file signature (magic numbers)
-            const bytes = new Uint8Array(imgBytes);
-            let embeddedImage;
-
-            if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-              // PNG
-              embeddedImage = await pdfDoc.embedPng(imgBytes);
-            } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
-              // JPEG
-              embeddedImage = await pdfDoc.embedJpg(imgBytes);
-            } else {
-              console.warn("Unsupported image format (not PNG/JPEG). Skipped.");
-              continue;
-            }
-
-            page.drawImage(embeddedImage, {
-              x: finalX,
-              y: finalY,
-              width: scaledW,
-              height: scaledH,
-              ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {}),
-            });
-          } catch (err) {
-            console.error("Failed to embed image:", err);
-            continue;
-          }
-      }
-    }
-      // Add a timestamp if autoDate is true
-      if (autoDate) {
-        page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`,
-          {
-            x: finalX,
-            y: finalY - 20 * Math.min(scaleX, scaleY),
-            size: 10,
-            color: rgb(0.074, 0.545, 0.262),
-            ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
-          }
-        );
-      }
-    }
-
-    // Save the modified PDF to bytes and convert to a Blob
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-
-    // Convert the Blob into a URL for downloading / preview
-    const pdfUrl = await blobToURL(blob);
-
-     // Sanitize and apply file name
-     const safeFileName = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
-     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
-
-
-    if (isDownload) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = finalFileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      }
-            
-    // Upload to backend and prefer server-returned fileUrl when present
-    let uploadResult: UploadResult | null = null;
     try {
-      uploadResult = await uploadToServer(blob, finalFileName);
-    } catch {
-      setError('Failed to save PDF to your account.');
-      return;
+        // Load and merge
+        const pdfDoc = await loadPdf(selectedFile as File | string );
+        const blob = await savePdfBlob(pdfDoc);
+        const safeName = sanitizeFileName(fileName);
+        const pdfUrl = await createBlobUrl(blob); 
+         
+        if (isMergeFields) {
+          await mergeFieldsIntoPdf(pdfDoc, droppedComponents, pageRefs, canvasRect, currentPage, { autoDate });
+          setSelectedFile(pdfUrl);
+        }
+        if (isDownload && isMergeFields){
+          downloadPdf(blob, safeName);
+        }
+        // Cleanup
+        if (isDownload || isMergeFields){
+          setPosition({ x: 0, y: 0 });
+          setDroppedComponents([]);
+          resetHistory([]);
+        }        
+        return true; 
+    } catch (err) {
+        console.error("Save error:", err);
+        setError("Failed to save document.");
+        return null;
     }
-
-    if (uploadResult && uploadResult.fileUrl) {
-      setSelectedFile(uploadResult.fileUrl);
-    } else {
-      // fallback to local blob URL
-      setSelectedFile(pdfUrl);
-    }
-      /* Clean up filed after merge into pdf*/
-      setPosition({ x: 0, y: 0 });
-      setDroppedComponents([]);
-      resetHistory([]);
   };
 
   // Drag & Drop Helpers
@@ -829,7 +592,7 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         setFileName={setFileName}
         isEditingFileName={isEditingFileName}
         setIsEditingFileName={setIsEditingFileName}
-        handleSave={handleSave}
+        handleSavePDF={handleSavePDF}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={handleUndo}
@@ -867,10 +630,8 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onFileUpload}  />
-           
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onFileUpload}  />           
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
-
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}

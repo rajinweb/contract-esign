@@ -1,39 +1,28 @@
-import {
-  Download,
-  History,
-  FileText,
-  LayoutDashboard,
-  Keyboard,
-  Globe,
-  HelpCircle,
-  Star,
-  Ellipsis
-} from 'lucide-react';
+'use client'
+import { Ellipsis, LucideProps } from 'lucide-react';
 
-const menuItems = [
-  { label: 'Download', icon: Download },
-  { label: 'Download with History', icon: History },
-  { label: 'History', icon: History },
-  { type: 'divider' },
-  { label: 'Import Fields from Other Documents', icon: FileText, subtext: 'Payment Request', subIcon: FileText },
-  { label: 'Payment Request', icon: LayoutDashboard },
-  { type: 'divider' },
-  { label: 'Show Editing Tools', icon: LayoutDashboard, type: 'checkbox', checked: true },
-  { label: 'Enable Field Snapping', icon: Keyboard, type: 'checkbox', checked: false },
-  { type: 'divider' },
-  { label: 'Keyboard Shortcuts', icon: Keyboard },
-  { label: 'Language', icon: Globe },
-  { type: 'divider' },
-  { label: 'Support', icon: HelpCircle },
-  { label: 'Upgrade Subscription', icon: Star, className: 'text-yellow-500' },
-];
+interface MenuItem  {
+  label: string;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  subtext?: string;
+  subIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  type?: 'checkbox' | 'divider';
+  checked?: boolean;
+  className?: string;
+  action?: () => void;
+}
 
-const MoreActions = () => {
+interface MoreActionsProps {
+  menuItems: MenuItem[];
+  triggerIcon?: React.ComponentType<LucideProps>;
+}
+
+const MoreActions: React.FC<MoreActionsProps> = ({ menuItems, triggerIcon: TriggerIcon }) => {
   return (
     <div className="relative inline-block text-left group">
       {/* Button */}
       <button className="iconButton border border-gray-300 text-md" title="More Actions" >
-        <Ellipsis size={16} />
+          {TriggerIcon ? <TriggerIcon size={16} /> : <Ellipsis size={16} />}
       </button>
 
       {/* Dropdown Menu */}
@@ -49,6 +38,9 @@ const MoreActions = () => {
               <div
                 key={index}
                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  item.action && item.action();
+                }}
               >
                 {item.type === 'checkbox' ? (
                   <input

@@ -199,3 +199,8 @@ export interface UploadResult {
   message?: string;
   [key: string]: unknown;
 }
+export interface HandleSavePDFOptions {
+  isServerSave?: boolean;
+  isDownload?: boolean;
+  isMergeFields?: boolean;
+}

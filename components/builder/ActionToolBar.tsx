@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {useEffect, useRef, useState } from "react";
 import { FileText, Settings, PenLine, CheckLine,
   Undo,
   Redo,
@@ -9,20 +9,26 @@ import { FileText, Settings, PenLine, CheckLine,
   ChevronLeft,
   ChevronDown,
   FolderIcon,
+  History,
+  LayoutDashboard,
+  Keyboard,
+  Globe,
+  Star,
+  Merge
  } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
-import { Recipient } from "@/types/types";
-
+import { HandleSavePDFOptions, Recipient } from "@/types/types";
+import { downloadPdf, loadPdf, savePdfBlob} from '@/utils/handleSavePDF';
 interface ActionToolBarProps {
   fileName: string;
   setFileName: React.Dispatch<React.SetStateAction<string>>;
   isEditingFileName: boolean;
   setIsEditingFileName: React.Dispatch<React.SetStateAction<boolean>>;
-  handleSave: (isDownload?: boolean) => void;
+  handleSavePDF: (options: HandleSavePDFOptions) => Promise<Boolean | null>;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -32,14 +38,30 @@ interface ActionToolBarProps {
   handleReset?: () => void;
 }
 
-  
+const menuItems = [
+  { label: 'Download', icon: Download },
+  { label: 'Download with History', icon: History },
+  { label: 'History', icon: History },
+  { type: 'divider' },
+  { label: 'Import Fields from Other Documents', icon: FileText, subtext: 'Payment Request', subIcon: FileText },
+  { label: 'Payment Request', icon: LayoutDashboard },
+  { type: 'divider' },
+  { label: 'Show Editing Tools', icon: LayoutDashboard, type: 'checkbox', checked: true },
+  { label: 'Enable Field Snapping', icon: Keyboard, type: 'checkbox', checked: false },
+  { type: 'divider' },
+  { label: 'Keyboard Shortcuts', icon: Keyboard },
+  { label: 'Language', icon: Globe },
+  { type: 'divider' },
+  { label: 'Support', icon: HelpCircle },
+  { label: 'Upgrade Subscription', icon: Star, className: 'text-yellow-500' },
+];  
   
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   fileName,
   setFileName,
   isEditingFileName,
   setIsEditingFileName,
-  handleSave,
+  handleSavePDF,
   canUndo,
   canRedo,
   onUndo,
@@ -49,6 +71,12 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   handleReset
 }) => {
   const { selectedFile } = useContextStore();
+  const downloadDoc=async () => {
+      if (!selectedFile) return;
+      const pdfDoc = await loadPdf(selectedFile as File | string );
+      const blob = await savePdfBlob(pdfDoc);
+      downloadPdf(blob, fileName);
+  }
 
   const [documentMetadata, setDocumentMetadata] = useState<{
     createdAt?: Date;
@@ -151,9 +179,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                       onChange={(e) => setFileName(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          setIsEditingFileName(false);
-                          // Persist the rename after allowing React to flush state
-                          setTimeout(() =>  handleSave() , 0);
+                          setIsEditingFileName(false);                         
                         }
                       }}
                       data-testid="pdf-name"
@@ -162,7 +188,8 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     <CheckLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => { setIsEditingFileName(false); setTimeout(() => handleSave(), 0); }} />
+                        onClick={() => { setIsEditingFileName(false);                           
+                         }} />
                     </>
                   ) : (
                     <>
@@ -225,20 +252,18 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                       </div>
                 </div>
               </div>
-            
           </div> 
-
           {/* ---end of info --*/}
         </div>
 
         {/* Right actions */}
         <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
           {/* Settings Button */}
-            <MoreActions  />    
+            <MoreActions  menuItems={menuItems as []} />    
           <button
             type="button"
             className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200 text-sm"
-            onClick={() => handleSave()}
+            onClick={() => handleSavePDF({ isServerSave: true})}
           >
             Save and Close
           </button>
@@ -308,9 +333,14 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         <span>Open Preview</span>
       </button>
       <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className="iconButton" aria-label="Download" onClick={() => handleSave(true)}>
-        <Download size={16} />
-      </button>
+         <MoreActions  menuItems={[ 
+          { label: "Download PDF", icon: Download, action:downloadDoc },
+          { type: "divider", label: "" },
+          { label: "Merge and download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true })},
+          { type: "divider", label: "" },
+          { label: "Merge Fields Into PDF", icon: Merge, action: ()=> handleSavePDF({ isMergeFields: true })},
+         ]} triggerIcon={Download} />
+  
       <div className="w-px h-6 bg-gray-200 mx-2" />
       <button className="iconButton" aria-label="Help">
         <HelpCircle size={16} />
