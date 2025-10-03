@@ -108,7 +108,17 @@ export interface Recipient {
   order: number;
   isCC?: boolean;
 }
-
+/* send email */
+export interface SendDocumentRequest {
+  recipients: Recipient[];
+  documentName?: string;
+  documentId?: string;
+  subject: string;
+  message: string;
+  sendReminders: boolean;
+  reminderDays: number;
+  expiryDays: number;
+}
 /* contacts  */
 export interface Contact {
   _id?: string;

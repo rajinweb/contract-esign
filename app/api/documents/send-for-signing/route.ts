@@ -3,6 +3,7 @@ import connectDB, { getUserIdFromReq } from '@/utils/db';
 import DocumentModel from '@/models/Document';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { SendDocumentRequest } from '@/types/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,13 +14,21 @@ export async function POST(req: NextRequest) {
     }
 
     const {
+      recipients,
       documentId,
       subject,
       message,
       expiryDays,
       sendReminders,
       reminderDays,
-    } = await req.json();
+    }: SendDocumentRequest = await req.json();
+
+    if (!recipients || recipients.length === 0) {
+      return NextResponse.json(
+        { message: 'No recipients provided' },
+        { status: 400 }
+      );
+    }
 
     const document = await DocumentModel.findOne({ _id: documentId, userId });
     if (!document) {
@@ -157,6 +166,7 @@ export async function POST(req: NextRequest) {
       signingToken,
       sentEmails,
       expiresAt,
+      totalRecipients: recipients.length,
     });
 
   } catch (error) {

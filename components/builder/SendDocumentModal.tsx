@@ -50,6 +50,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
         body: JSON.stringify({
           documentId,
           documentName,
+          recipients,
           subject,
           message,
           expiryDays: hasExpiry ? expiryDays : null,
