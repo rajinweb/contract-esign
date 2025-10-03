@@ -51,7 +51,7 @@ function Dashboard() {
   useEffect(() => {
     async function fetchDocs() {
       try {
-        const res = await fetch('/api/documents/my-documents', {
+        const res = await fetch('/api/documents/list', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('AccessToken') || ''}`,
           },

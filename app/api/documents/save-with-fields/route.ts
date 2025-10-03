@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
         // Use the $set operator with dot notation to atomically update the specific version record
         // This is the most reliable way to update nested array elements.
         updateData[`versions.${currentVersionIndex}.pdfData`] = pdfBuffer;
-        updateData[`versions.${currentVersionIndex}.fields`] = fields;
+        updateData[`versions.${currentVersionIndex}.fields`] = fields || [];
         updateData[`versions.${currentVersionIndex}.updatedAt`] = now;
         updateData[`versions.${currentVersionIndex}.status`] = 'draft';
         updateData[`versions.${currentVersionIndex}.changeLog`] = changeLog;

@@ -43,7 +43,7 @@ export interface IDocumentRecipient {
 
 const DocumentFieldSchema = new Schema<IDocumentField>({
   id: { type: String, required: true },
-  type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials'] },
+  type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials', 'realtime photo'] },
   x: { type: Number, required: true },
   y: { type: Number, required: true },
   width: { type: Number, required: true },
@@ -51,7 +51,7 @@ const DocumentFieldSchema = new Schema<IDocumentField>({
   pageNumber: { type: Number, required: true },
   recipientId: { type: String },
   required: { type: Boolean, default: true },
-  value: { type: String },
+  value: { type: String, default: '' },
   placeholder: { type: String },
 });
 

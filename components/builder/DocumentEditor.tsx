@@ -331,12 +331,66 @@ const DocumentEditor: React.FC = () => {
   }, [handleUndo, handleRedo]);
 
   useEffect(() => {
+    // Load document data if we have a documentId from localStorage
+    const loadDocumentData = async () => {
+      const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
+      if (storedDocumentId && selectedFile) {
+        try {
+          const response = await fetch(`/api/documents/load?id=${storedDocumentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.document) {
+              // Restore fields and recipients from the saved document
+              const savedFields = data.document.fields || [];
+              const savedRecipients = data.document.recipients || [];
+              
+              // Convert saved fields to DroppedComponent format
+              const restoredComponents: DroppedComponent[] = savedFields.map((field: any) => ({
+                id: parseInt(field.id) || Math.random(),
+                component: field.type === 'signature' ? 'Signature' : 
+                          field.type === 'text' ? 'Text' :
+                          field.type === 'date' ? 'Date' :
+                          field.type === 'image' ? 'Image' :
+                          field.type === 'checkbox' ? 'Checkbox' :
+                          field.type,
+                x: field.x,
+                y: field.y,
+                width: field.width,
+                height: field.height,
+                pageNumber: field.pageNumber,
+                data: field.value,
+                assignedRecipientId: field.recipientId,
+                required: field.required,
+                placeholder: field.placeholder,
+              }));
+              
+              setDroppedComponents(restoredComponents);
+              setRecipients(savedRecipients);
+              setDocumentId(storedDocumentId);
+              
+              // Update element ID counter to avoid conflicts
+              const maxId = Math.max(0, ...restoredComponents.map(c => c.id));
+              setElementId(maxId + 1);
+              
+              // Reset history with loaded state
+              resetHistory(restoredComponents);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load document data:', error);
+        }
+      }
+    };
+
     // Restore file on reload
     (async () => {
       const file = await getFileFromIndexedDB()
       console.log("Restored file from IndexedDB:", file);
       if (file) {
         setSelectedFile(file as File);
+        // Load document data after setting the file
+        await loadDocumentData();
+        
         // If the stored file is a server URL, try to extract and set the filename immediately
         if (typeof file === 'string') {
         
@@ -351,9 +405,12 @@ const DocumentEditor: React.FC = () => {
             }
         
         }
+      } else {
+        // If no file in IndexedDB, still try to load document data
+        await loadDocumentData();
       }
     })();
-  }, [setSelectedFile, setFileName]);
+  }, [setSelectedFile, setFileName, resetHistory]);
 
   useEffect(() => {
     if (!selectedFile) return;

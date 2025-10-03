@@ -155,7 +155,7 @@ export const uploadToServer = async (
     formData.append('documentName', fileName);
     formData.append('fileName', finalFileName);
     formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
-        id: comp.id.toString(),
+        id: comp.id?.toString() || Math.random().toString(),
         type: comp.component.toLowerCase(),
         x: comp.x,
         y: comp.y,
@@ -164,7 +164,7 @@ export const uploadToServer = async (
         pageNumber: comp.pageNumber || currentPage,
         recipientId: comp.assignedRecipientId,
         required: comp.required !== false,
-        value: comp.data,
+        value: comp.data || '',
         placeholder: comp.placeholder,
     }))));
     formData.append('recipients', JSON.stringify(recipients));
