@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
     const documentId = formData.get('documentId') as string | null;
     const changeLog = (formData.get('changeLog') as string) || 'Manual upload/New final version';
 
+    console.log('Upload route - received fields data:', fieldsData);
+    
     if (!file || !documentName) return NextResponse.json({ message: 'File and document name are required' }, { status: 400 });
 
     let pdfBuffer: Buffer;
@@ -72,6 +74,10 @@ export async function POST(req: NextRequest) {
     console.log('upload file info', { name: file.name, size: pdfBuffer.length });
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
+    
+    console.log('Parsed fields:', fields);
+    console.log('Parsed recipients:', recipients);
+    
     const requestedFileName = formData.get('fileName') as string | null;
 
     const userDir = path.join(process.cwd(), 'uploads', userId);
@@ -111,12 +117,20 @@ export async function POST(req: NextRequest) {
       existingDoc.recipients = recipients;
       existingDoc.updatedAt = new Date();
 
+      console.log('Saving document with fields:', fields);
       await existingDoc.save();
+      
+      // Verify the save was successful
+      const savedDoc = await DocumentModel.findById(documentId);
+      const savedVersion = savedDoc?.versions.find(v => v.version === newVersion);
+      console.log('Verified saved fields in new version:', savedVersion?.fields);
 
       return NextResponse.json({
         success: true,
         documentId: existingDoc._id,
         version: newVersion,
+        fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
+        fileName: path.basename(detPath),
         message: `New version created and finalized: v${newVersion}`,
       });
     } else {
@@ -171,7 +185,13 @@ export async function POST(req: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date(),
       }];
+      
+      console.log('Creating new document with fields:', fields);
       await newDocument.save();
+      
+      // Verify the save was successful
+      const savedDoc = await DocumentModel.findById(newDocument._id);
+      console.log('Verified saved fields in new document:', savedDoc?.versions[0]?.fields);
 
       const fileUrl = `/api/documents/file?path=${encodeURIComponent(detPath)}`;
       return NextResponse.json({ success: true, documentId: newDocument._id, version: 1, fileUrl, fileName: finalFileName, folder: userId, message: 'Document saved successfully' });

@@ -16,7 +16,7 @@ export interface IDocumentVersion {
 
 export interface IDocumentField {
   id: string;
-  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials';
+  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials' | 'realtime_photo';
   x: number;
   y: number;
   width: number;
@@ -26,6 +26,7 @@ export interface IDocumentField {
   required: boolean;
   value?: string;
   placeholder?: string;
+  mimeType?: string;
 }
 
 export interface IDocumentRecipient {
@@ -43,7 +44,7 @@ export interface IDocumentRecipient {
 
 const DocumentFieldSchema = new Schema<IDocumentField>({
   id: { type: String, required: true },
-  type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials', 'realtime photo'] },
+  type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials', 'realtime_photo'] },
   x: { type: Number, required: true },
   y: { type: Number, required: true },
   width: { type: Number, required: true },
@@ -53,6 +54,7 @@ const DocumentFieldSchema = new Schema<IDocumentField>({
   required: { type: Boolean, default: true },
   value: { type: String, default: '' },
   placeholder: { type: String },
+  mimeType: { type: String },
 });
 
 const DocumentRecipientSchema = new Schema<IDocumentRecipient>({

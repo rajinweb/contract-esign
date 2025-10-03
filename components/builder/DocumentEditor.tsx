@@ -381,6 +381,7 @@ const DocumentEditor: React.FC = () => {
               setDroppedComponents(restoredComponents);
               setRecipients(savedRecipients);
               setDocumentId(storedDocumentId);
+              setFileName(data.document.documentName || data.document.originalFileName || fileName);
               
               // Update element ID counter to avoid conflicts
               const maxId = Math.max(0, ...restoredComponents.map(c => c.id));

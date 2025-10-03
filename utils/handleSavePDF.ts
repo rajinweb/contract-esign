@@ -154,9 +154,11 @@ export const uploadToServer = async (
     // documentName is the display name/title; fileName is the actual filename to write
     formData.append('documentName', fileName);
     formData.append('fileName', finalFileName);
+    
+    // Enhanced field mapping to ensure all field data is preserved
     formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
-        id: comp.id?.toString() || Math.random().toString(),
-        type: comp.component.toLowerCase(),
+        id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
+        type: comp.component.toLowerCase().replace(' ', '_'),
         x: comp.x,
         y: comp.y,
         width: comp.width,
@@ -166,7 +168,9 @@ export const uploadToServer = async (
         required: comp.required !== false,
         value: comp.data || '',
         placeholder: comp.placeholder,
+        mimeType: comp.mimeType,
     }))));
+    
     formData.append('recipients', JSON.stringify(recipients));
     if (documentId) {
         formData.append('documentId', documentId);
@@ -177,7 +181,7 @@ export const uploadToServer = async (
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch('/api/documents/save-with-fields', {
+    const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: Object.keys(headers).length ? headers : undefined,
         body: formData,
@@ -188,6 +192,9 @@ export const uploadToServer = async (
         throw new Error('Failed to save PDF to server');
     }
     const result = await response.json();
+    
+    console.log('Server response:', result);
+    
     if (result.documentId) setDocumentId(result.documentId);
     // Prefer explicit fileName and folder returned by server
     if (result.fileName) {
