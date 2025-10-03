@@ -178,8 +178,6 @@ const DocumentEditor: React.FC = () => {
 
     const rect = documentRef.current?.getBoundingClientRect();
     if (!rect) return;
-
-    const newComponent: DroppedComponent = {
     // Calculate the page number for the dropped component
     let targetPageNumber = currentPage;
     const dropY = e.clientY;
@@ -194,7 +192,7 @@ const DocumentEditor: React.FC = () => {
         break;
       }
     }
-
+    const newComponent: DroppedComponent = {
       id: elementId,
       component: draggingComponent.component,
       x: (e.clientX - rect.left) / zoom,

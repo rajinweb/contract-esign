@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
 import DocumentModel from '@/models/Document';
+import { DocumentVersion } from '@/types/types'
 import fs from 'fs';
 import path from 'path';
 
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
       
       // Verify the save was successful
       const savedDoc = await DocumentModel.findById(documentId);
-      const savedVersion = savedDoc?.versions.find(v => v.version === newVersion);
+      const savedVersion = savedDoc?.versions.find((v: DocumentVersion) => v.version === newVersion);
       console.log('Verified saved fields in new version:', savedVersion?.fields);
 
       return NextResponse.json({

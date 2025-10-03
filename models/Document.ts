@@ -79,7 +79,7 @@ export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   sentAt: { type: Date },
   signingToken: { type: String, index: { unique: true, sparse: true } },
   expiresAt: { type: Date },
-  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired'] },
+  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired', 'final'] },
   changeLog: { type: String, required: true },
 });
 
