@@ -180,13 +180,31 @@ const DocumentEditor: React.FC = () => {
     if (!rect) return;
 
     const newComponent: DroppedComponent = {
+    // Calculate the page number for the dropped component
+    let targetPageNumber = currentPage;
+    const dropY = e.clientY;
+    
+    for (let i = 0; i < pageRefs.current.length; i++) {
+      const pageEl = pageRefs.current[i];
+      if (!pageEl) continue;
+      
+      const pageRect = pageEl.getBoundingClientRect();
+      if (dropY >= pageRect.top && dropY <= pageRect.bottom) {
+        targetPageNumber = i + 1;
+        break;
+      }
+    }
+
       id: elementId,
       component: draggingComponent.component,
       x: (e.clientX - rect.left) / zoom,
       y: (e.clientY - rect.top) / zoom,
       width: 100,
       height: 50,
+      pageNumber: targetPageNumber,
     };
+
+    console.log('Adding new component:', newComponent);
 
     setDroppedComponents((prev) => [...prev, newComponent]);
     // Save state after adding component
