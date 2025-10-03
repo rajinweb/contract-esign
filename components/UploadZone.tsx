@@ -17,7 +17,7 @@ export default function UploadZone() {
       document.body as HTMLElement
     );
   }
-  // h-[calc(100vh-64px)]
+  
   return (
     <section 
           className="flex gap-10 max-w-7xl mx-auto p-10"

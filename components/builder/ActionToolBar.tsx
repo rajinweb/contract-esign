@@ -28,7 +28,7 @@ interface ActionToolBarProps {
   setFileName: React.Dispatch<React.SetStateAction<string>>;
   isEditingFileName: boolean;
   setIsEditingFileName: React.Dispatch<React.SetStateAction<boolean>>;
-  handleSavePDF: (options: HandleSavePDFOptions) => Promise<Boolean | null>;
+  handleSavePDF: (options: HandleSavePDFOptions) => Promise<boolean | null>;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;

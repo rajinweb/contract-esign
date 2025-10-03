@@ -1,6 +1,6 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose from 'mongoose';
 import DocumentModel from '@/models/Document';
 import { IDocument } from '@/types/types';
 

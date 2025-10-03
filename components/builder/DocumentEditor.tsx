@@ -8,7 +8,7 @@ import { DraggableData } from 'react-rnd';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions} from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
@@ -350,7 +350,7 @@ const DocumentEditor: React.FC = () => {
     // Load document data if we have a documentId from localStorage
     const loadDocumentData = async () => {
       const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
-      if (storedDocumentId && selectedFile) {
+      if (storedDocumentId) {
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
           const headers: Record<string, string> = {};
@@ -372,32 +372,37 @@ const DocumentEditor: React.FC = () => {
               console.log('Restoring fields:', savedFields);
               
               // Convert saved fields to DroppedComponent format
-              const restoredComponents: DroppedComponent[] = savedFields.map((field: any) => ({
-                id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-                component: field.type === 'signature' ? 'Signature' : 
-                          field.type === 'text' ? 'Text' :
-                          field.type === 'date' ? 'Date' :
-                          field.type === 'image' ? 'Image' :
-                          field.type === 'checkbox' ? 'Checkbox' :
-                          field.type === 'realtime photo' ? 'Realtime Photo' :
-                          field.type.charAt(0).toUpperCase() + field.type.slice(1),
-                x: field.x,
-                y: field.y,
-                width: field.width,
-                height: field.height,
-                pageNumber: field.pageNumber,
-                data: field.value,
-                assignedRecipientId: field.recipientId,
-                required: field.required,
-                placeholder: field.placeholder,
-              }));
+              const restoredComponents: DroppedComponent[] = savedFields.map((field: DocumentField) => {
+                const ft = String(field.type || '');
+                const componentLabel = ft === 'signature' ? 'Signature'
+                  : ft === 'text' ? 'Text'
+                  : ft === 'date' ? 'Date'
+                  : ft === 'image' ? 'Image'
+                  : ft === 'checkbox' ? 'Checkbox'
+                  : (ft === 'realtime_photo' || ft === 'realtime photo') ? 'Realtime Photo'
+                  : ft.charAt(0).toUpperCase() + ft.slice(1);
+
+                return {
+                  id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+                  component: componentLabel,
+                  x: field.x,
+                  y: field.y,
+                  width: field.width,
+                  height: field.height,
+                  pageNumber: field.pageNumber,
+                  data: field.value,
+                  assignedRecipientId: field.recipientId,
+                  required: field.required,
+                  placeholder: field.placeholder,
+                } as DroppedComponent;
+              });
               
               console.log('Restored components:', restoredComponents);
               
               setDroppedComponents(restoredComponents);
               setRecipients(savedRecipients);
               setDocumentId(storedDocumentId);
-              setFileName(data.document.documentName || data.document.originalFileName || fileName);
+              setFileName(prev => data.document.documentName || data.document.originalFileName || prev);
               
               // Update element ID counter to avoid conflicts
               const maxId = Math.max(0, ...restoredComponents.map(c => c.id));
@@ -441,7 +446,7 @@ const DocumentEditor: React.FC = () => {
         await loadDocumentData();
       }
     })();
-  }, [setSelectedFile, setFileName, resetHistory]);
+  }, [setSelectedFile, setFileName, resetHistory, selectedFile, fileName]);
 
   useEffect(() => {
     if (!selectedFile) return;
@@ -495,7 +500,7 @@ const DocumentEditor: React.FC = () => {
     isServerSave = false,
     isDownload = false,
     isMergeFields = false,
-  }: HandleSavePDFOptions): Promise<Boolean | null> => {
+  }: HandleSavePDFOptions): Promise<boolean | null> => {
 
     if (!isLoggedIn) {
       setShowModal(true);
