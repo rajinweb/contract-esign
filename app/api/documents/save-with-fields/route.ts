@@ -284,11 +284,17 @@ export async function POST(req: NextRequest) {
 
         // 3. Execute the Atomic Update
         console.debug('Updating DB with version-level data', { documentId, currentVersionIndex, updateKeys: Object.keys(updateData) });
+        console.log('Saving fields to database:', fields);
         await DocumentModel.updateOne(
           { _id: documentId, userId: userId },
           { $set: updateData }
         );
         console.debug('DB update complete for', documentId);
+        
+        // Verify the update was successful
+        const updatedDoc = await DocumentModel.findById(documentId);
+        const updatedVersion = updatedDoc?.versions[currentVersionIndex];
+        console.log('Verified saved fields:', updatedVersion?.fields);
 
         // Respond with helpful metadata for the client to update UI
         const respPath = overwritePath || latestVersion.filePath;

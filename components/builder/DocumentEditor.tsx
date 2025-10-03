@@ -336,23 +336,35 @@ const DocumentEditor: React.FC = () => {
       const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
       if (storedDocumentId && selectedFile) {
         try {
-          const response = await fetch(`/api/documents/load?id=${storedDocumentId}`);
+          const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+          const headers: Record<string, string> = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          
+          const response = await fetch(`/api/documents/load?id=${storedDocumentId}`, {
+            headers: Object.keys(headers).length ? headers : undefined,
+            credentials: 'include',
+          });
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.document) {
+              console.log('Loaded document data:', data.document);
+              
               // Restore fields and recipients from the saved document
               const savedFields = data.document.fields || [];
               const savedRecipients = data.document.recipients || [];
               
+              console.log('Restoring fields:', savedFields);
+              
               // Convert saved fields to DroppedComponent format
               const restoredComponents: DroppedComponent[] = savedFields.map((field: any) => ({
-                id: parseInt(field.id) || Math.random(),
+                id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
                 component: field.type === 'signature' ? 'Signature' : 
                           field.type === 'text' ? 'Text' :
                           field.type === 'date' ? 'Date' :
                           field.type === 'image' ? 'Image' :
                           field.type === 'checkbox' ? 'Checkbox' :
-                          field.type,
+                          field.type === 'realtime photo' ? 'Realtime Photo' :
+                          field.type.charAt(0).toUpperCase() + field.type.slice(1),
                 x: field.x,
                 y: field.y,
                 width: field.width,
@@ -363,6 +375,8 @@ const DocumentEditor: React.FC = () => {
                 required: field.required,
                 placeholder: field.placeholder,
               }));
+              
+              console.log('Restored components:', restoredComponents);
               
               setDroppedComponents(restoredComponents);
               setRecipients(savedRecipients);
