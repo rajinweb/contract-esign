@@ -8,7 +8,7 @@ const uri = process.env.MONGODB_URI;
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState >= 1) {
-      return; // Use existing connection
+      return;
     }
     if (!uri) {
       throw new Error('MONGODB_URI is not defined in the environment variables.');
@@ -17,7 +17,7 @@ const connectDB = async () => {
     console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    process.exit(1); // Exit process with failure
+    throw error;
   }
 };
 

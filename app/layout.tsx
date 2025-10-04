@@ -7,10 +7,9 @@ export const metadata: Metadata = {
   title: 'Contract e-sign',
   description: 'Contract e-sign app',
   icons: {
-    icon: '/favicon.ico', 
+    icon: '/favicon.ico',
   },
 };
-import connectDB from '../utils/db';
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['200', '400', '500', '600', '700', '800', '900'],
@@ -18,9 +17,6 @@ const poppins = Poppins({
   display: 'swap',
   preload: true,
 });
-
-
-await connectDB();
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {

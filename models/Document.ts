@@ -93,7 +93,7 @@ const DocumentSchema = new Schema<IDocument>({
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: Array, default: [] },
   status: { type: String, default: 'draft' },
-  token: { type: String, unique: true },
+  token: { type: String, sparse: true, unique: true },
 }, { timestamps: true });
 
 // Indexes for performance
