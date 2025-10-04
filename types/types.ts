@@ -167,6 +167,11 @@ export interface DocumentVersion {
   status: 'draft' | 'sent' | 'completed' | 'expired';
   changeLog: string;
 }
+export interface DocumentVersionsProps {
+  documentId: string;
+  currentVersion: number;
+  onVersionSelect?: (version: number) => void;
+}
 
 export interface SavedDocument {
   id: string;

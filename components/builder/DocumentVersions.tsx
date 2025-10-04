@@ -1,20 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, FileText, Send, CheckCircle, X } from 'lucide-react';
-
-interface DocumentVersion {
-  version: number;
-  status: 'draft' | 'sent' | 'completed' | 'expired';
-  changeLog: string;
-  sentAt?: string;
-  expiresAt?: string;
-}
-
-interface DocumentVersionsProps {
-  documentId: string;
-  currentVersion: number;
-  onVersionSelect?: (version: number) => void;
-}
+import { DocumentVersion, DocumentVersionsProps } from '@/types/types';
 
 const DocumentVersions: React.FC<DocumentVersionsProps> = ({
   documentId,

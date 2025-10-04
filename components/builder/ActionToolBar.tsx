@@ -35,7 +35,6 @@ interface ActionToolBarProps {
   onRedo: () => void;
   recipients: Recipient[];
   onSendDocument: () => void;
-  handleReset?: () => void;
 }
 
 const menuItems = [
@@ -67,8 +66,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   onUndo,
   onRedo,
   recipients,
-  onSendDocument,
-  handleReset
+  onSendDocument
 }) => {
   const { selectedFile } = useContextStore();
   const downloadDoc=async () => {
@@ -306,7 +304,6 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     </div>
 
     <div className="w-px h-6 bg-gray-200 mx-2" />
-    <button className="primary-button hidden" onClick={handleReset}>Reset</button>
 
     {/* Tool Buttons */}
     {/* <div className="flex items-center gap-2">

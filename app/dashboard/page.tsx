@@ -12,7 +12,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
-import { clearFileFromIndexedDB} from '@/utils/indexDB';
+import { saveFileToIndexedDB} from '@/utils/indexDB';
 function Dashboard() {
   const { setSelectedFile, documents, setDocuments } = useContextStore();
 
@@ -37,6 +37,7 @@ function Dashboard() {
   
       // Remove locally
       setDocuments(prev => prev.filter(d => d.id !== doc.id));
+      localStorage.removeItem('currentDocumentId'); // remove stored doc id 
       toast.success('Document deleted');
     } catch (err) {
       if (err instanceof Error) {
@@ -49,6 +50,7 @@ function Dashboard() {
   
 
   useEffect(() => {
+    localStorage.removeItem('currentDocumentId'); // remove stored doc id   
     async function fetchDocs() {
       try {
         const res = await fetch('/api/documents/list', {
@@ -164,9 +166,9 @@ function Dashboard() {
               <DocumentList
                 documents={filteredDocuments}
                 onDocumentSelect={(doc) => {
-                  clearFileFromIndexedDB()
                   if (doc.url && doc.documentId) {
                     setSelectedFile(doc.url);
+                    saveFileToIndexedDB(doc.url);
                     localStorage.setItem('currentDocumentId', doc.documentId);
                     router.push('/builder');
                   } else {

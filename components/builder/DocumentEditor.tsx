@@ -345,11 +345,10 @@ const DocumentEditor: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
-
+  const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
   useEffect(() => {
     // Load document data if we have a documentId from localStorage
     const loadDocumentData = async () => {
-      const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
       if (storedDocumentId) {
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
@@ -421,15 +420,16 @@ const DocumentEditor: React.FC = () => {
     // Restore file on reload
     (async () => {
       const file = await getFileFromIndexedDB()
-      console.log("Restored file from IndexedDB:", file);
+      console.log('stored DocumentId ', storedDocumentId, "Restored file from IndexedDB:", file);
       if (file) {
         setSelectedFile(file as File);
+         setFileName((file as File).name)
         // Load document data after setting the file
         await loadDocumentData();
         
         // If the stored file is a server URL, try to extract and set the filename immediately
+        /* 
         if (typeof file === 'string') {
-        
             const u = new URL(file, window.location.origin);
             if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
               const name = u.searchParams.get('name') || u.searchParams.get('path');
@@ -441,49 +441,15 @@ const DocumentEditor: React.FC = () => {
             }
         
         }
+        */
       } else {
         // If no file in IndexedDB, still try to load document data
         await loadDocumentData();
       }
     })();
-  }, [setSelectedFile, setFileName, resetHistory, selectedFile, fileName]);
-
-  useEffect(() => {
-    if (!selectedFile) return;
-    saveFileToIndexedDB(selectedFile as File);
-    setError(null);
-    setCurrentPage(1);
-
-    if (selectedFile instanceof File) {
-      setFileName(selectedFile.name);
-    } else {
-      const s = selectedFile as string;
-      // If it's a data: or blob: URL (created by blobToURL), don't derive the filename from it
-      if (!s.startsWith('data:') && !s.startsWith('blob:')) {
-        try {
-          const u = new URL(s, window.location.origin);
-          // Handle our API endpoints explicitly
-          if (u.pathname.includes('/api/documents/get')) {
-            const name = u.searchParams.get('name');
-            if (name) {
-              setFileName(decodeURIComponent(name));
-            }
-          } else if (u.pathname.includes('/api/documents/file')) {
-            const p = u.searchParams.get('path');
-            if (p) {
-              const parts = decodeURIComponent(p).split('/');
-              setFileName(parts[parts.length - 1]);
-            }
-          } else {
-            setFileName(decodeURIComponent(u.pathname.split('/').pop() || ''));
-          }
-        } catch {         
-          setFileName(decodeURIComponent(s.split('/').pop()?.split('?')[0] || ''));
-        }
-      }
-    }
-
-  }, [selectedFile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
 
   const saveToServer = async (): Promise<void> => {
     if (!selectedFile) return;
@@ -600,9 +566,7 @@ const updateField = (data: string | null, id: number) => {
   );
 };
 
-const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-  //clean local file cache first 
-  clearFileFromIndexedDB();
+const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -692,12 +656,6 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         onRedo={handleRedo}
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
-        handleReset={() => {
-          resetHistory([]);
-          setSelectedFile(null);
-          setDroppedComponents([]);
-          clearFileFromIndexedDB();
-        }}
       />
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
@@ -723,7 +681,7 @@ const onFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
-            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onFileUpload}  />           
+            <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onImgUpload}  />
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}

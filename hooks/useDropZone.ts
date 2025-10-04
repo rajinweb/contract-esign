@@ -3,9 +3,9 @@ import React, { useCallback, useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { useRouter } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
-
+import { saveFileToIndexedDB } from '@/utils/indexDB';
 export default function useDropZone() {
-  const { setSelectedFile, setDocuments } = useContextStore();
+  const { setSelectedFile, setDocuments, documents } = useContextStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,6 +23,7 @@ export default function useDropZone() {
           file,
         },
       ]);
+      saveFileToIndexedDB(file) //store in indexDB 
     },
     [setSelectedFile, setDocuments]
   );
