@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback} from 'react';
-import { saveFileToIndexedDB, getFileFromIndexedDB, clearFileFromIndexedDB} from '@/utils/indexDB';
+import { getFileFromIndexedDB} from '@/utils/indexDB';
 // Third-party
 import { pdfjs } from "react-pdf";
 import { PDFDocument } from "pdf-lib";
