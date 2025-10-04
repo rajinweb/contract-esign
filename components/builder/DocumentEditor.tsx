@@ -420,7 +420,6 @@ const DocumentEditor: React.FC = () => {
     // Restore file on reload
     (async () => {
       const file = await getFileFromIndexedDB()
-      console.log('stored DocumentId ', storedDocumentId, "Restored file from IndexedDB:", file);
       if (file) {
         setSelectedFile(file as File);
          setFileName((file as File).name)
@@ -454,7 +453,9 @@ const DocumentEditor: React.FC = () => {
     const pdfDoc = await loadPdf(selectedFile as File | string );
     const blob = await savePdfBlob(pdfDoc);
     const safeName = sanitizeFileName(fileName);
+    const currentdoc=localStorage.getItem('currentDocumentId');
     // Upload to servers
+      setDocumentId(currentdoc)
     await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setFileName, setSelectedFile);
   }
 

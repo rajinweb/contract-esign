@@ -2,6 +2,7 @@ import { DroppedComponent, Recipient, UploadResult } from "@/types/types";
 import { degrees, PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { blobToURL } from "./Utils";
 import dayjs from "dayjs";
+import {saveFileToIndexedDB } from "./indexDB";
 
 // --- Utility functions ---
 export async function loadPdf(selectedFile: File | string) {
@@ -192,10 +193,12 @@ export const uploadToServer = async (
         throw new Error('Failed to save PDF to server');
     }
     const result = await response.json();
-    
     console.log('Server response:', result);
-    
-    if (result.documentId) setDocumentId(result.documentId);
+    saveFileToIndexedDB(result.fileUrl)
+    if (result.documentId) {
+        setDocumentId(result.documentId)
+        localStorage.setItem('currentDocumentId', result.documentId);
+    };
     // Prefer explicit fileName and folder returned by server
     if (result.fileName) {
         setFileName(result.fileName);
