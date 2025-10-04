@@ -426,9 +426,7 @@ const DocumentEditor: React.FC = () => {
          setFileName((file as File).name)
         // Load document data after setting the file
         await loadDocumentData();
-        
         // If the stored file is a server URL, try to extract and set the filename immediately
-        /* 
         if (typeof file === 'string') {
             const u = new URL(file, window.location.origin);
             if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
@@ -441,7 +439,6 @@ const DocumentEditor: React.FC = () => {
             }
         
         }
-        */
       } else {
         // If no file in IndexedDB, still try to load document data
         await loadDocumentData();
