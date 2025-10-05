@@ -12,7 +12,6 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
-import { saveFileToIndexedDB} from '@/utils/indexDB';
 function Dashboard() {
   const { setSelectedFile, documents, setDocuments } = useContextStore();
 
@@ -169,9 +168,10 @@ function Dashboard() {
                 onDocumentSelect={(doc) => {
                   if (doc.url && doc.documentId) {
                     setSelectedFile(doc.url);
-                    saveFileToIndexedDB(doc.url);
                     localStorage.setItem('currentDocumentId', doc.documentId);
-                    router.push('/builder');
+                    // clear any previous session id so a new session will start when editor opens
+                    localStorage.removeItem('currentSessionId');
+                    router.push(`/builder/${doc.documentId}`);
                   } else {
                     toast('No file found for this document.');
                   }

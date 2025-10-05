@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback} from 'react';
-import { getFileFromIndexedDB} from '@/utils/indexDB';
+// removed IndexedDB usage: files are served from server and referenced by URL
 // Third-party
 import { pdfjs } from "react-pdf";
 import { PDFDocument } from "pdf-lib";
@@ -32,7 +32,15 @@ import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlo
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-const DocumentEditor: React.FC = () => {
+interface DocumentEditorProps {
+  documentId?: string | null;
+  initialFileUrl?: string | null;
+  initialFileName?: string | null;
+  initialFields?: any[] | null;
+  initialRecipients?: any[] | null;
+}
+
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialFileName = null, initialFields = null, initialRecipients = null }) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -80,6 +88,113 @@ const DocumentEditor: React.FC = () => {
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+
+  // If the route passed initial props (prefetch), seed state from them on mount
+  useEffect(() => {
+    if (initialFields && Array.isArray(initialFields) && initialFields.length) {
+      const restored = initialFields.map((field: any) => ({
+        id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+        component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+        pageNumber: field.pageNumber,
+        data: field.value,
+        assignedRecipientId: field.recipientId,
+        required: field.required !== false,
+        placeholder: field.placeholder,
+      } as DroppedComponent));
+      setDroppedComponents(restored);
+      const maxId = Math.max(0, ...restored.map(c => c.id));
+      setElementId(maxId + 1);
+      resetHistory(restored);
+    }
+    if (initialRecipients && Array.isArray(initialRecipients) && initialRecipients.length) {
+      setRecipients(initialRecipients);
+    }
+    if (initialFileUrl) {
+      setSelectedFile(initialFileUrl);
+    }
+    if (initialFileName) setFileName(initialFileName);
+    if (propDocumentId) setDocumentId(propDocumentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Draft autosave (sessionStorage) ---
+  const draftKey = (id: string | null | undefined) => `doc-draft:${id || 'unknown'}`;
+
+  // On mount, prefer sessionStorage draft if present
+  useEffect(() => {
+    try {
+      const id = propDocumentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+      if (!id) return;
+      const raw = sessionStorage.getItem(draftKey(id));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.fields) {
+          const restored: DroppedComponent[] = parsed.fields.map((field: any) => ({
+            id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+            component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            pageNumber: field.pageNumber,
+            data: field.value,
+            assignedRecipientId: field.recipientId,
+            required: field.required !== false,
+            placeholder: field.placeholder,
+          } as DroppedComponent));
+          setDroppedComponents(restored);
+          const maxId = Math.max(0, ...restored.map(c => c.id));
+          setElementId(maxId + 1);
+          resetHistory(restored);
+        }
+        if (parsed.recipients) setRecipients(parsed.recipients);
+        if (parsed.fileName) setFileName(parsed.fileName);
+        if (parsed.fileUrl) setSelectedFile(parsed.fileUrl);
+      }
+    } catch (err) {
+      // ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save draft to sessionStorage when relevant state changes (debounced)
+  useEffect(() => {
+    const id = documentId || propDocumentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+    if (!id) return;
+
+    const handler = setTimeout(() => {
+      try {
+        const payload = {
+          fields: droppedComponents.map(c => ({
+            id: c.id?.toString(),
+            type: (c.component || '').toLowerCase().replace(' ', '_'),
+            x: c.x,
+            y: c.y,
+            width: c.width,
+            height: c.height,
+            pageNumber: c.pageNumber,
+            recipientId: c.assignedRecipientId,
+            required: c.required,
+            value: c.data,
+            placeholder: c.placeholder,
+          })),
+          recipients,
+          fileName,
+          fileUrl: typeof selectedFile === 'string' ? selectedFile : null,
+          updatedAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem(draftKey(id), JSON.stringify(payload));
+      } catch (err) {
+        // ignore
+      }
+    }, 800);
+
+    return () => clearTimeout(handler);
+  }, [droppedComponents, recipients, fileName, selectedFile, documentId, propDocumentId, resetHistory]);
 
   // ==========================================================
   // Undo/Redo Functions
@@ -345,16 +460,16 @@ const DocumentEditor: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
-  const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
   useEffect(() => {
-    // Load document data if we have a documentId from localStorage
+    // Load document data if we have a documentId from localStorage (read at runtime so dynamic route can set it)
     const loadDocumentData = async () => {
+      const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
       if (storedDocumentId) {
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
           const headers: Record<string, string> = {};
           if (token) headers['Authorization'] = `Bearer ${token}`;
-          
+
           const response = await fetch(`/api/documents/load?id=${storedDocumentId}`, {
             headers: Object.keys(headers).length ? headers : undefined,
             credentials: 'include',
@@ -363,13 +478,13 @@ const DocumentEditor: React.FC = () => {
             const data = await response.json();
             if (data.success && data.document) {
               console.log('Loaded document data:', data.document);
-              
+
               // Restore fields and recipients from the saved document
               const savedFields = data.document.fields || [];
               const savedRecipients = data.document.recipients || [];
-              
+
               console.log('Restoring fields:', savedFields);
-              
+
               // Convert saved fields to DroppedComponent format
               const restoredComponents: DroppedComponent[] = savedFields.map((field: DocumentField) => {
                 const ft = String(field.type || '');
@@ -395,20 +510,27 @@ const DocumentEditor: React.FC = () => {
                   placeholder: field.placeholder,
                 } as DroppedComponent;
               });
-              
+
               console.log('Restored components:', restoredComponents);
-              
+
               setDroppedComponents(restoredComponents);
               setRecipients(savedRecipients);
               setDocumentId(storedDocumentId);
-              setFileName(prev => data.document.documentName || data.document.originalFileName || prev);
-              
+              // Prefer the current version's filename when available
+              setFileName(prev => data.document.fileName || data.document.documentName || data.document.originalFileName || prev);
+
               // Update element ID counter to avoid conflicts
               const maxId = Math.max(0, ...restoredComponents.map(c => c.id));
               setElementId(maxId + 1);
-              
+
               // Reset history with loaded state
               resetHistory(restoredComponents);
+
+              // set selected file from server file path
+              if (data.document.filePath) {
+                const fileUrl = `/api/documents/file?path=${encodeURIComponent(data.document.filePath)}`;
+                setSelectedFile(fileUrl);
+              }
             }
           }
         } catch (error) {
@@ -417,32 +539,8 @@ const DocumentEditor: React.FC = () => {
       }
     };
 
-    // Restore file on reload
-    (async () => {
-      const file = await getFileFromIndexedDB()
-      if (file) {
-        setSelectedFile(file as File);
-         setFileName((file as File).name)
-        // Load document data after setting the file
-        await loadDocumentData();
-        // If the stored file is a server URL, try to extract and set the filename immediately
-        if (typeof file === 'string') {
-            const u = new URL(file, window.location.origin);
-            if (u.pathname.includes('/api/documents/get') || u.pathname.includes('/api/documents/file')) {
-              const name = u.searchParams.get('name') || u.searchParams.get('path');
-              if (name) {
-                const decoded = decodeURIComponent(name);
-                const parts = decoded.split('/');
-                setFileName(parts[parts.length - 1]);
-              }
-            }
-        
-        }
-      } else {
-        // If no file in IndexedDB, still try to load document data
-        await loadDocumentData();
-      }
-    })();
+    // Call loader
+    loadDocumentData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
@@ -453,10 +551,14 @@ const DocumentEditor: React.FC = () => {
     const pdfDoc = await loadPdf(selectedFile as File | string );
     const blob = await savePdfBlob(pdfDoc);
     const safeName = sanitizeFileName(fileName);
-    const currentdoc=localStorage.getItem('currentDocumentId');
-    // Upload to servers
-      setDocumentId(currentdoc)
-    await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setFileName, setSelectedFile);
+    // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
+    const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+    // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
+    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setFileName, setSelectedFile, sessionId, false);
+    if (result && result.documentId) {
+      setDocumentId(result.documentId);
+    }
   }
 
   //File Handling
@@ -634,6 +736,72 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
   // ==========================================================
   // Render
   // ==========================================================
+
+  // Finalize session when user leaves the editor: persist last editHistory as metadata-only and clear session
+  useEffect(() => {
+    const finalizeSession = async () => {
+      try {
+        const currentdoc = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
+        const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+        if (!currentdoc || !sessionId) return;
+
+        // Build metadata-only FormData and use fetch keepalive to improve chance of delivery on unload
+        const formData = new FormData();
+  formData.append('documentName', fileName || 'Untitled Document');
+  formData.append('fileName', fileName ? fileName : 'Untitled Document.pdf');
+        formData.append('isMetadataOnly', 'true');
+        formData.append('sessionId', sessionId);
+        formData.append('documentId', currentdoc);
+        formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
+          id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
+          type: comp.component.toLowerCase().replace(' ', '_'),
+          x: comp.x,
+          y: comp.y,
+          width: comp.width,
+          height: comp.height,
+          pageNumber: comp.pageNumber || currentPage,
+          recipientId: comp.assignedRecipientId,
+          required: comp.required !== false,
+          value: comp.data || '',
+          placeholder: comp.placeholder,
+        }))));
+        formData.append('recipients', JSON.stringify(recipients));
+        formData.append('changeLog', 'Finalize session: metadata update');
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        // use keepalive to improve unload delivery
+        await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+          headers: Object.keys(headers).length ? headers : undefined,
+          credentials: 'include',
+          keepalive: true,
+        });
+
+        // Clear current session to mark it ended
+        localStorage.removeItem('currentSessionId');
+      } catch (err) {
+        console.error('Failed to finalize session:', err);
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Attempt to finalize synchronously is limited; call async but allow default unload
+      finalizeSession();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      // on component unmount, finalize session
+      finalizeSession();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [droppedComponents, recipients, fileName, currentPage]);
   const containerHeight = pageRefs.current.reduce((acc, page) => {
     if (!page) return acc;
     const rect = page.getBoundingClientRect();

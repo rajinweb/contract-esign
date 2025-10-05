@@ -129,7 +129,52 @@ export async function POST(req: NextRequest) {
           message: 'Metadata updated successfully',
         });
       } else if (pdfBuffer) {
-        // NEW VERSION: Create new physical file and version
+        // PDF provided for existing document
+        // Determine whether this belongs to the same active session
+        const incomingSessionId = sessionId || existingDoc.currentSessionId || null;
+
+        if (incomingSessionId && existingDoc.currentSessionId && incomingSessionId === existingDoc.currentSessionId) {
+          // SAME SESSION: overwrite current version in-place (do NOT create a new version)
+          console.log('Overwriting current version within same session:', incomingSessionId);
+
+          const currentVersionIndex = existingDoc.currentVersion - 1;
+          const currentVersionData = existingDoc.versions[currentVersionIndex];
+          if (!currentVersionData) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
+
+          // attempt to overwrite at same path if possible
+          let detPath = currentVersionData.filePath || path.join(userDir, `${existingDoc._id}_v${existingDoc.currentVersion}.pdf`);
+          try {
+            fs.writeFileSync(detPath, pdfBuffer);
+          } catch {
+            const res = writeFileStable(userDir, existingDoc.originalFileName || file!.name, pdfBuffer, existingDoc.currentVersion);
+            detPath = res.filePath;
+          }
+
+          // update current version content
+          currentVersionData.pdfData = pdfBuffer;
+          currentVersionData.filePath = detPath;
+          currentVersionData.fileName = path.basename(detPath);
+          currentVersionData.fields = fields;
+          currentVersionData.updatedAt = new Date();
+
+          existingDoc.documentName = documentName;
+          existingDoc.recipients = recipients;
+          // keep currentSessionId as is (session still active)
+          existingDoc.updatedAt = new Date();
+
+          await existingDoc.save();
+
+          return NextResponse.json({
+            success: true,
+            documentId: existingDoc._id,
+            version: existingDoc.currentVersion,
+            fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
+            fileName: path.basename(detPath),
+            message: `Current version ${existingDoc.currentVersion} updated (same session)`,
+          });
+        }
+
+        // Otherwise, NEW VERSION: Create new physical file and version
         console.log('Creating new version with new PDF file');
 
         const newVersion = existingDoc.currentVersion + 1;

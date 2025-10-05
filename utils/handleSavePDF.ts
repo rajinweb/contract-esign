@@ -2,7 +2,6 @@ import { DroppedComponent, Recipient, UploadResult } from "@/types/types";
 import { degrees, PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { blobToURL } from "./Utils";
 import dayjs from "dayjs";
-import {saveFileToIndexedDB } from "./indexDB";
 
 // --- Utility functions ---
 export async function loadPdf(selectedFile: File | string) {
@@ -165,7 +164,7 @@ export const uploadToServer = async (
     if (sessionId) {
         formData.append('sessionId', sessionId);
     }
-    
+
     // Enhanced field mapping to ensure all field data is preserved
     formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
         id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
@@ -181,10 +180,12 @@ export const uploadToServer = async (
         placeholder: comp.placeholder,
         mimeType: comp.mimeType,
     }))));
-    
+
     formData.append('recipients', JSON.stringify(recipients));
-    if (documentId) {
-        formData.append('documentId', documentId);
+    // ensure we include a documentId if available either from the caller or localStorage
+    const docIdToSend = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+    if (docIdToSend) {
+        formData.append('documentId', docIdToSend);
     }
 
     const changeLog = isMetadataOnly
@@ -211,8 +212,7 @@ export const uploadToServer = async (
     const result = await response.json();
     console.log('Server response:', result);
 
-    saveFileToIndexedDB(result.fileUrl);
-
+    // Do not persist to IndexedDB anymore; client should use server fileUrl/localStorage
     if (result.documentId) {
         setDocumentId(result.documentId);
         localStorage.setItem('currentDocumentId', result.documentId);

@@ -3,27 +3,72 @@ import React, { useCallback, useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { useRouter } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
-import { saveFileToIndexedDB } from '@/utils/indexDB';
+import { uploadToServer } from '@/utils/handleSavePDF';
 export default function useDropZone() {
   const { setSelectedFile, setDocuments, documents } = useContextStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const addDocument = useCallback(
-    (file: File) => {
-      setSelectedFile(file);
-      setDocuments(prevDocs => [
-        ...prevDocs,
-        {
-          id: `${Date.now()}-${file.name}`,
-          name: file.name,
-          createdAt: new Date(),
-          status: 'draft',
-          signers: [],
-          file,
-        },
-      ]);
-      saveFileToIndexedDB(file) //store in indexDB 
+    async (file: File) => {
+      // Immediately create document on server (Version 1) and start a session
+      try {
+        // set a temporary selected file while upload occurs
+        setSelectedFile(file);
+
+        // Build form data similar to upload flow
+        const formData = new FormData();
+        formData.append('file', file, file.name);
+        formData.append('documentName', file.name);
+        formData.append('fileName', file.name);
+        formData.append('isMetadataOnly', 'false');
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+          headers: Object.keys(headers).length ? headers : undefined,
+          credentials: 'include',
+        });
+
+        if (!res.ok) throw new Error('Failed to upload document');
+
+        const result = await res.json();
+        if (result && result.success) {
+          // store current ids and set selected file url
+          if (result.documentId) {
+            localStorage.setItem('currentDocumentId', result.documentId);
+          }
+          if (result.sessionId) {
+            localStorage.setItem('currentSessionId', result.sessionId);
+          }
+          if (result.fileUrl) {
+            setSelectedFile(result.fileUrl);
+          }
+
+          // Add to local documents list for UI
+          setDocuments(prevDocs => [
+            ...prevDocs,
+            {
+              id: result.documentId || `${Date.now()}-${file.name}`,
+              name: result.fileName || file.name,
+              createdAt: new Date(),
+              status: 'draft',
+              signers: [],
+              file: result.fileUrl || file,
+            },
+          ]);
+
+          return result;
+        }
+        return null;
+      } catch (err) {
+        console.error('Failed to create document on upload:', err);
+        return null;
+      }
     },
     [setSelectedFile, setDocuments]
   );
@@ -34,8 +79,11 @@ export default function useDropZone() {
       setIsLoading(true);
       const file = e.dataTransfer.files[0];
       if (file) {
-        addDocument(file);
-        router.push('/builder');
+        addDocument(file).then((res) => {
+          const docId = res?.documentId;
+          if (docId) router.push(`/builder/${docId}`);
+          else router.push('/builder');
+        });
       }
     },
     [addDocument, router]
@@ -46,8 +94,11 @@ export default function useDropZone() {
       const file = e.target.files?.[0];
       if (file) {
         setIsLoading(true);
-        addDocument(file);
-        router.push('/builder');
+        addDocument(file).then((res) => {
+          const docId = res?.documentId;
+          if (docId) router.push(`/builder/${docId}`);
+          else router.push('/builder');
+        });
       }
     },
     [addDocument, router]
@@ -66,7 +117,11 @@ export default function useDropZone() {
     );
 
     addDocument(file);
-    router.push('/builder');
+    addDocument(file).then((res) => {
+      const docId = res?.documentId;
+      if (docId) router.push(`/builder/${docId}`);
+      else router.push('/builder');
+    });
   }, [addDocument, router]);
 
   return { isLoading, handleDrop, handleSampleContract, handleFileInput };
