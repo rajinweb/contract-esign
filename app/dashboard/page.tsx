@@ -51,6 +51,7 @@ function Dashboard() {
 
   useEffect(() => {
     localStorage.removeItem('currentDocumentId'); // remove stored doc id   
+    localStorage.removeItem('currentSessionId'); // remove currentFileSessionId    
     async function fetchDocs() {
       try {
         const res = await fetch('/api/documents/list', {

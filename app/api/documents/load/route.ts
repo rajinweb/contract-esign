@@ -32,8 +32,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
     }
 
-    console.log('Loading document fields:', currentVersion.fields);
-    
     return NextResponse.json({
       success: true,
       document: {

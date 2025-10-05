@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
       console.warn('upload: missing userId - unauthorized');
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    console.log('upload start', { userId });
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -62,7 +61,6 @@ export async function POST(req: NextRequest) {
     const isMetadataOnly = formData.get('isMetadataOnly') === 'true';
     const changeLog = (formData.get('changeLog') as string) || 'Document updated';
 
-    console.log('Upload route - received:', { documentId, sessionId, isMetadataOnly, hasFile: !!file });
 
     if (!documentName) return NextResponse.json({ message: 'Document name is required' }, { status: 400 });
 
@@ -73,16 +71,12 @@ export async function POST(req: NextRequest) {
     if (file) {
       try {
         pdfBuffer = Buffer.from(await file.arrayBuffer());
-        console.log('upload file info', { name: file.name, size: pdfBuffer.length });
+
       } catch (err) {
         console.error('upload: failed to read file buffer', err);
         return NextResponse.json({ message: 'Invalid file' }, { status: 400 });
       }
     }
-    
-    console.log('Parsed fields:', fields);
-    console.log('Parsed recipients:', recipients);
-    
     const requestedFileName = formData.get('fileName') as string | null;
 
     const userDir = path.join(process.cwd(), 'uploads', userId);
@@ -123,7 +117,6 @@ export async function POST(req: NextRequest) {
         existingDoc.currentSessionId = currentSessionId;
         existingDoc.updatedAt = new Date();
 
-        console.log('Saving metadata update with fields:', fields);
         await existingDoc.save();
 
         return NextResponse.json({

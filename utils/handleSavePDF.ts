@@ -153,9 +153,9 @@ export const uploadToServer = async (
     const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
 
-    // Only append file if it's a new version (not metadata-only update)
-    if (blob && !isMetadataOnly) {
-        formData.append('file', blob, finalFileName);
+    // Only append file if it's a new version (not metadata-only update)\
+    if (blob && !isMetadataOnly || !documentId) {
+        formData.append('file', blob as Blob, finalFileName);
     }
 
     formData.append('documentName', fileName);

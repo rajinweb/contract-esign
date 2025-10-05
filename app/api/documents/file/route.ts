@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (!p) return NextResponse.json({ message: 'Missing path' }, { status: 400 });
 
     const filePath = decodeURIComponent(p);
-    console.log('file route request', { userId, requested: filePath });
+
     const uploadsRoot = path.join(process.cwd(), 'uploads');
 
     // Ensure the file is under uploads directory
