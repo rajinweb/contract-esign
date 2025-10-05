@@ -193,6 +193,7 @@ export interface IDocument extends Document {
   documentName: string;
   originalFileName: string;
   currentVersion: number;
+  currentSessionId?: string;
   versions: {
     version: number;
     pdfData: Buffer;

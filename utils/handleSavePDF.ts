@@ -136,7 +136,7 @@ export async function savePdfBlob(pdfDoc: PDFDocument): Promise<Blob> {
 }
 
 export const uploadToServer = async (
-    blob: Blob,
+    blob: Blob | null,
     fileName: string,
     currentPage: number,
     droppedComponents: DroppedComponent[],
@@ -144,17 +144,27 @@ export const uploadToServer = async (
     documentId: string | null,
     setDocumentId: (id: string) => void,
     setFileName: (name: string) => void,
-    setSelectedFile: (name: string) => void
+    setSelectedFile: (name: string) => void,
+    sessionId?: string | null,
+    isMetadataOnly: boolean = true
 ): Promise<UploadResult | null> => {
 
     const formData = new FormData();
-    // sanitize filename to avoid embedding data urls or raw base64
     const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
-    formData.append('file', blob, finalFileName);
-    // documentName is the display name/title; fileName is the actual filename to write
+
+    // Only append file if it's a new version (not metadata-only update)
+    if (blob && !isMetadataOnly) {
+        formData.append('file', blob, finalFileName);
+    }
+
     formData.append('documentName', fileName);
     formData.append('fileName', finalFileName);
+    formData.append('isMetadataOnly', isMetadataOnly.toString());
+
+    if (sessionId) {
+        formData.append('sessionId', sessionId);
+    }
     
     // Enhanced field mapping to ensure all field data is preserved
     formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
@@ -176,7 +186,13 @@ export const uploadToServer = async (
     if (documentId) {
         formData.append('documentId', documentId);
     }
-    formData.append('changeLog', 'Document updated with fields and recipients');
+
+    const changeLog = isMetadataOnly
+        ? 'Field metadata updated'
+        : documentId
+            ? 'New version created with file changes'
+            : 'Initial document creation';
+    formData.append('changeLog', changeLog);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
     const headers: Record<string, string> = {};
@@ -194,16 +210,21 @@ export const uploadToServer = async (
     }
     const result = await response.json();
     console.log('Server response:', result);
-    saveFileToIndexedDB(result.fileUrl)
+
+    saveFileToIndexedDB(result.fileUrl);
+
     if (result.documentId) {
-        setDocumentId(result.documentId)
+        setDocumentId(result.documentId);
         localStorage.setItem('currentDocumentId', result.documentId);
-    };
-    // Prefer explicit fileName and folder returned by server
+    }
+
+    if (result.sessionId) {
+        localStorage.setItem('currentSessionId', result.sessionId);
+    }
+
     if (result.fileName) {
         setFileName(result.fileName);
     } else if (result.fileUrl) {
-        // Parse filename from fileUrl query param (if present)    
         const u = new URL(result.fileUrl, window.location.origin);
         const p = u.searchParams.get('path');
         if (p) {
@@ -211,9 +232,8 @@ export const uploadToServer = async (
             const parts = decoded.split('/');
             setFileName(parts[parts.length - 1]);
         }
-
     }
-    // If server returned a fileUrl, set it as selectedFile so the editor can reload it
+
     if (result.fileUrl) setSelectedFile(result.fileUrl);
     return result;
 };

@@ -1,6 +1,14 @@
 import mongoose, { Schema } from 'mongoose';
 import { IDocument } from '@/types/types';
 
+export interface IEditHistory {
+  sessionId: string;
+  fields: IDocumentField[];
+  documentName?: string;
+  timestamp: Date;
+  changeLog: string;
+}
+
 export interface IDocumentVersion {
   version: number;
   pdfData: Buffer;
@@ -10,8 +18,11 @@ export interface IDocumentVersion {
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
-  status: 'draft' | 'sent' | 'completed' | 'expired';
+  status: 'draft' | 'sent' | 'completed' | 'expired' | 'final';
   changeLog: string;
+  editHistory: IEditHistory[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IDocumentField {
@@ -70,6 +81,14 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   ipAddress: { type: String },
 });
 
+const EditHistorySchema = new Schema<IEditHistory>({
+  sessionId: { type: String, required: true },
+  fields: [DocumentFieldSchema],
+  documentName: { type: String },
+  timestamp: { type: Date, default: Date.now },
+  changeLog: { type: String, required: true },
+});
+
 export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   version: { type: Number, required: true },
   pdfData: { type: Buffer, required: true },
@@ -81,6 +100,9 @@ export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   expiresAt: { type: Date },
   status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired', 'final'] },
   changeLog: { type: String, required: true },
+  editHistory: { type: [EditHistorySchema], default: [] },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 const DocumentSchema = new Schema<IDocument>({
@@ -88,8 +110,7 @@ const DocumentSchema = new Schema<IDocument>({
   documentName: { type: String, required: true },
   originalFileName: { type: String, required: true },
   currentVersion: { type: Number, default: 1 },
-  // Use the detailed DocumentVersionSchema so filePath/fileName and other
-  // metadata are persisted correctly and not stripped by a simpler inline schema.
+  currentSessionId: { type: String },
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: Array, default: [] },
   status: { type: String, default: 'draft' },

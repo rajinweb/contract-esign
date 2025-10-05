@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
 import DocumentModel from '@/models/Document';
-import { DocumentVersion } from '@/types/types'
 import fs from 'fs';
 import path from 'path';
 
@@ -59,22 +58,27 @@ export async function POST(req: NextRequest) {
     const fieldsData = formData.get('fields') as string | null;
     const recipientsData = formData.get('recipients') as string | null;
     const documentId = formData.get('documentId') as string | null;
-    const changeLog = (formData.get('changeLog') as string) || 'Manual upload/New final version';
+    const sessionId = formData.get('sessionId') as string | null;
+    const isMetadataOnly = formData.get('isMetadataOnly') === 'true';
+    const changeLog = (formData.get('changeLog') as string) || 'Document updated';
 
-    console.log('Upload route - received fields data:', fieldsData);
-    
-    if (!file || !documentName) return NextResponse.json({ message: 'File and document name are required' }, { status: 400 });
+    console.log('Upload route - received:', { documentId, sessionId, isMetadataOnly, hasFile: !!file });
 
-    let pdfBuffer: Buffer;
-    try {
-      pdfBuffer = Buffer.from(await file.arrayBuffer());
-    } catch (err) {
-      console.error('upload: failed to read file buffer', err);
-      return NextResponse.json({ message: 'Invalid file' }, { status: 400 });
-    }
-    console.log('upload file info', { name: file.name, size: pdfBuffer.length });
+    if (!documentName) return NextResponse.json({ message: 'Document name is required' }, { status: 400 });
+
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
+
+    let pdfBuffer: Buffer | null = null;
+    if (file) {
+      try {
+        pdfBuffer = Buffer.from(await file.arrayBuffer());
+        console.log('upload file info', { name: file.name, size: pdfBuffer.length });
+      } catch (err) {
+        console.error('upload: failed to read file buffer', err);
+        return NextResponse.json({ message: 'Invalid file' }, { status: 400 });
+      }
+    }
     
     console.log('Parsed fields:', fields);
     console.log('Parsed recipients:', recipients);
@@ -84,65 +88,116 @@ export async function POST(req: NextRequest) {
     const userDir = path.join(process.cwd(), 'uploads', userId);
     fs.mkdirSync(userDir, { recursive: true });
 
-    // ------------------------- UPDATE EXISTING DOCUMENT (ALWAYS NEW VERSION) -------------------------
+    // ------------------------- UPDATE EXISTING DOCUMENT -------------------------
     if (documentId) {
       const existingDoc = await DocumentModel.findOne({ _id: documentId, userId });
       if (!existingDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
 
-      // write deterministically based on document id and new version number
-      const newVersion = existingDoc.currentVersion + 1;
-      const detName = `${existingDoc._id}_v${newVersion}.pdf`;
-      let detPath = path.join(userDir, detName);
-      try {
-        fs.writeFileSync(detPath, pdfBuffer);
-      } catch {
-        // fallback
-        const res = writeFileStable(userDir, existingDoc.originalFileName || file.name, pdfBuffer, newVersion);
-        detPath = res.filePath;
+      const currentVersionData = existingDoc.versions[existingDoc.currentVersion - 1];
+      if (!currentVersionData) {
+        return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
       }
 
-      existingDoc.versions.push({
-        version: newVersion,
-        pdfData: pdfBuffer,
-        filePath: detPath,
-        fileName: path.basename(detPath),
-        fields,
-        status: 'final' as const,
-        changeLog,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      // Generate or reuse session ID
+      const currentSessionId = sessionId || existingDoc.currentSessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      existingDoc.currentVersion = newVersion;
-      existingDoc.documentName = documentName;
-      existingDoc.recipients = recipients;
-      existingDoc.updatedAt = new Date();
+      if (isMetadataOnly) {
+        // METADATA-ONLY UPDATE: Add to edit history without creating new file
+        console.log('Metadata-only update for session:', currentSessionId);
 
-      console.log('Saving document with fields:', fields);
-      await existingDoc.save();
-      
-      // Verify the save was successful
-      const savedDoc = await DocumentModel.findById(documentId);
-      const savedVersion = savedDoc?.versions.find((v: DocumentVersion) => v.version === newVersion);
-      console.log('Verified saved fields in new version:', savedVersion?.fields);
+        currentVersionData.editHistory = currentVersionData.editHistory || [];
+        currentVersionData.editHistory.push({
+          sessionId: currentSessionId,
+          fields,
+          documentName: documentName !== existingDoc.documentName ? documentName : undefined,
+          timestamp: new Date(),
+          changeLog,
+        });
 
-      return NextResponse.json({
-        success: true,
-        documentId: existingDoc._id,
-        version: newVersion,
-        fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
-        fileName: path.basename(detPath),
-        message: `New version created and finalized: v${newVersion}`,
-      });
+        // Update current version fields and metadata
+        currentVersionData.fields = fields;
+        currentVersionData.updatedAt = new Date();
+
+        existingDoc.documentName = documentName;
+        existingDoc.recipients = recipients;
+        existingDoc.currentSessionId = currentSessionId;
+        existingDoc.updatedAt = new Date();
+
+        console.log('Saving metadata update with fields:', fields);
+        await existingDoc.save();
+
+        return NextResponse.json({
+          success: true,
+          documentId: existingDoc._id,
+          version: existingDoc.currentVersion,
+          sessionId: currentSessionId,
+          fileUrl: `/api/documents/file?path=${encodeURIComponent(currentVersionData.filePath)}`,
+          fileName: currentVersionData.fileName,
+          message: 'Metadata updated successfully',
+        });
+      } else if (pdfBuffer) {
+        // NEW VERSION: Create new physical file and version
+        console.log('Creating new version with new PDF file');
+
+        const newVersion = existingDoc.currentVersion + 1;
+        const detName = `${existingDoc._id}_v${newVersion}.pdf`;
+        let detPath = path.join(userDir, detName);
+
+        try {
+          fs.writeFileSync(detPath, pdfBuffer);
+        } catch {
+          const res = writeFileStable(userDir, existingDoc.originalFileName || file!.name, pdfBuffer, newVersion);
+          detPath = res.filePath;
+        }
+
+        existingDoc.versions.push({
+          version: newVersion,
+          pdfData: pdfBuffer,
+          filePath: detPath,
+          fileName: path.basename(detPath),
+          fields,
+          status: 'final' as const,
+          changeLog,
+          editHistory: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        existingDoc.currentVersion = newVersion;
+        existingDoc.documentName = documentName;
+        existingDoc.recipients = recipients;
+        existingDoc.currentSessionId = null;
+        existingDoc.updatedAt = new Date();
+
+        await existingDoc.save();
+
+        return NextResponse.json({
+          success: true,
+          documentId: existingDoc._id,
+          version: newVersion,
+          fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
+          fileName: path.basename(detPath),
+          message: `New version ${newVersion} created`,
+        });
+      } else {
+        return NextResponse.json({ message: 'No file provided for new version' }, { status: 400 });
+      }
     } else {
-      // create the document instance (not saved yet) to use its assigned _id for filename
+      // CREATE NEW DOCUMENT
+      if (!pdfBuffer || !file) {
+        return NextResponse.json({ message: 'File is required for new document' }, { status: 400 });
+      }
+
+      const initialSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       const newDocument = new DocumentModel({
         userId,
         documentName,
         currentVersion: 1,
+        currentSessionId: initialSessionId,
         versions: [],
         recipients,
-        status: 'final',
+        status: 'draft',
         updatedAt: new Date(),
         createdAt: new Date(),
       });
@@ -181,21 +236,27 @@ export async function POST(req: NextRequest) {
         filePath: detPath,
         fileName: finalFileName,
         fields,
-        status: 'final',
-        changeLog,
+        status: 'draft',
+        changeLog: 'Initial document creation',
+        editHistory: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       }];
-      
+
       console.log('Creating new document with fields:', fields);
       await newDocument.save();
-      
-      // Verify the save was successful
-      const savedDoc = await DocumentModel.findById(newDocument._id);
-      console.log('Verified saved fields in new document:', savedDoc?.versions[0]?.fields);
 
       const fileUrl = `/api/documents/file?path=${encodeURIComponent(detPath)}`;
-      return NextResponse.json({ success: true, documentId: newDocument._id, version: 1, fileUrl, fileName: finalFileName, folder: userId, message: 'Document saved successfully' });
+      return NextResponse.json({
+        success: true,
+        documentId: newDocument._id,
+        version: 1,
+        sessionId: initialSessionId,
+        fileUrl,
+        fileName: finalFileName,
+        folder: userId,
+        message: 'Document created successfully'
+      });
     }
 
   } catch (error) {
