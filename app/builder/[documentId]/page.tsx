@@ -53,7 +53,7 @@ async function fetchDocumentData(documentId: string) {
 }
 
 export default async function BuilderDoc({ params }: Props) {
-  const { documentId } = await params; // ✅ must await
+  const { documentId } = await params; 
   console.log("Resolved documentId:", documentId);
 
   const initialData = await fetchDocumentData(documentId);
