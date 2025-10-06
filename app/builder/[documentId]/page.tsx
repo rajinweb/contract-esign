@@ -1,81 +1,74 @@
-'use client';
-import React, { useEffect } from 'react';
-import DocumentEditor from '@/components/builder/DocumentEditor';
-import useContextStore from '@/hooks/useContextStore';
+import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import DocumentEditor from "@/components/builder/DocumentEditor";
 
 interface Props {
-  params: any;
+  params: Promise<{ documentId: string }>;
 }
 
-export default function BuilderDoc({ params }: Props) {
-  const { setSelectedFile } = useContextStore();
+async function fetchDocumentData(documentId: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (!baseUrl) return null;
 
-  const [initialData, setInitialData] = React.useState<{
-    fileUrl?: string | null;
-    fileName?: string | null;
-    fields?: any[] | null;
-    recipients?: any[] | null;
-  }>({});
+  try {
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const p = await params; // supports Promise or object
-        const docId = p?.documentId;
-        if (typeof window !== 'undefined' && docId) {
-          localStorage.setItem('currentDocumentId', docId);
+    const url = `${baseUrl}/api/documents/load?id=${encodeURIComponent(documentId)}`;
+    console.log("Fetching document from:", url);
 
-          // Fetch document metadata and pass it to the editor as props
-          try {
-            const token = localStorage.getItem('AccessToken');
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Cookie: cookieHeader,
+      },
+      cache: "no-store",
+    });
 
-            const res = await fetch(`/api/documents/load?id=${encodeURIComponent(docId)}`, {
-              headers: Object.keys(headers).length ? headers : undefined,
-              credentials: 'include',
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.success && data.document) {
-                const filePath = data.document.filePath;
-                const fileUrl = filePath ? `/api/documents/file?path=${encodeURIComponent(filePath)}` : null;
-                if (fileUrl) setSelectedFile(fileUrl);
-                setInitialData({
-                  fileUrl,
-                  fileName: data.document.fileName || data.document.documentName || null,
-                  fields: data.document.fields || [],
-                  recipients: data.document.recipients || [],
-                });
-              }
-            }
-          } catch (err) {
-            console.error('Failed to prefetch document metadata:', err);
-          }
-        }
-      } catch (err) {
-        const docId = (params as any)?.documentId;
-        if (typeof window !== 'undefined' && docId) {
-          localStorage.setItem('currentDocumentId', docId);
-        }
-      }
-    })();
-  }, [params, setSelectedFile]);
+    console.log("Fetch status:", res.status);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    console.log("Document data response:", data);
+
+    if (data.success && data.document) {
+      const filePath = data.document.filePath;
+      const fileUrl = filePath
+        ? `${baseUrl}/api/documents/file?path=${encodeURIComponent(filePath)}`
+        : null;
+
+      return {
+        fileUrl,
+        documentName: data.document.documentName || null,
+        fields: data.document.fields || [],
+        recipients: data.document.recipients || [],
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error("Error fetching document:", err);
+    return null;
+  }
+}
+
+export default async function BuilderDoc({ params }: Props) {
+  const { documentId } = await params; // ✅ must await
+  console.log("Resolved documentId:", documentId);
+
+  const initialData = await fetchDocumentData(documentId);
+
+  if (!initialData) {
+    notFound();
+  }
 
   return (
-    (() => {
-      // params may be a Promise in this Next.js version; use React.use to unwrap
-      const resolved = (React as any).use ? (React as any).use(params) : params;
-      const docId = resolved?.documentId || (params as any)?.documentId || '';
-      return (
-        <DocumentEditor
-          documentId={String(docId)}
-          initialFileUrl={initialData.fileUrl || null}
-          initialFileName={initialData.fileName || null}
-          initialFields={initialData.fields || null}
-          initialRecipients={initialData.recipients || null}
-        />
-      );
-    })()
+    <DocumentEditor
+      documentId={documentId}
+      initialFileUrl={initialData.fileUrl}
+      initialDocumentName={initialData.documentName}
+      initialFields={initialData.fields}
+      initialRecipients={initialData.recipients}
+    />
   );
 }

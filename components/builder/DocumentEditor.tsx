@@ -35,12 +35,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 interface DocumentEditorProps {
   documentId?: string | null;
   initialFileUrl?: string | null;
-  initialFileName?: string | null;
+  initialDocumentName?: string | null;
   initialFields?: any[] | null;
   initialRecipients?: any[] | null;
 }
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialFileName = null, initialFields = null, initialRecipients = null }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null }) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -116,7 +116,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     if (initialFileUrl) {
       setSelectedFile(initialFileUrl);
     }
-    if (initialFileName) setFileName(initialFileName);
+    if (initialDocumentName) setFileName(initialDocumentName);
     if (propDocumentId) setDocumentId(propDocumentId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
