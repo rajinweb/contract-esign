@@ -124,17 +124,48 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   // --- Draft autosave (sessionStorage) ---
   const draftKey = (id: string | null | undefined) => `doc-draft:${id || 'unknown'}`;
 
-  // On mount, prefer sessionStorage draft if present
-  useEffect(() => {
-      const id = propDocumentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
-      if (!id) return;
-      const raw = sessionStorage.getItem(draftKey(id));
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.fields) {
-          const restored: DroppedComponent[] = parsed.fields.map((field: DocumentField) => ({
+useEffect(() => {
+  const currentDocId = propDocumentId || localStorage.getItem('currentDocumentId');
+  if (!currentDocId) return;
+
+  const loadDocument = async () => {
+    try {
+      // Load server document
+      const token = localStorage.getItem('AccessToken');
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await fetch(`/api/documents/load?id=${currentDocId}`, {
+        headers: Object.keys(headers).length ? headers : undefined,
+        credentials: 'include',
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch document');
+
+      const data = await response.json();
+      const doc = data.document;
+
+      // Server fields
+      const serverFields: DroppedComponent[] = (doc?.fields || []).map((field:DocumentField) => ({
+        id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+        component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+        pageNumber: field.pageNumber,
+        data: field.value,
+        assignedRecipientId: field.recipientId,
+        required: field.required !== false,
+        placeholder: field.placeholder,
+      }));
+
+      // Restore draft if exists
+      const rawDraft = sessionStorage.getItem(draftKey(currentDocId));
+      const draftFields: DroppedComponent[] = rawDraft
+        ? JSON.parse(rawDraft).fields.map((field:DocumentField) => ({
             id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-            component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
+            component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
             x: field.x,
             y: field.y,
             width: field.width,
@@ -144,50 +175,58 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
             assignedRecipientId: field.recipientId,
             required: field.required !== false,
             placeholder: field.placeholder,
-          } as DroppedComponent));
-          setDroppedComponents(restored);
-          const maxId = Math.max(0, ...restored.map(c => c.id));
-          setElementId(maxId + 1);
-          resetHistory(restored);
-        }
-        if (parsed.recipients) setRecipients(parsed.recipients);
-        if (parsed.documentName) setDocumentName(parsed.documentName);
-        if (parsed.fileUrl) setSelectedFile(parsed.fileUrl);
+          }))
+        : [];
+
+      // Merge draft on top of server fields
+      const restoredFields = draftFields.length ? draftFields : serverFields;
+
+      setDroppedComponents(restoredFields);
+      setRecipients(doc?.recipients || []);
+      setDocumentName(doc?.documentName || doc?.originalFileName || '');
+      const maxId = Math.max(0, ...restoredFields.map(c => c.id));
+      setElementId(maxId + 1);
+      resetHistory(restoredFields);
+
+      if (doc?.documentId) {
+        const fileUrl = `/api/documents/file?documentId=${encodeURIComponent(doc.documentId)}`;
+        setSelectedFile(fileUrl);
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    } catch (err) {
+      console.error('Failed to load document:', err);
+    }
+  };
 
-  // Save draft to sessionStorage when relevant state changes (debounced)
-  useEffect(() => {
-    const id = documentId || propDocumentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
-    if (!id) return;
+  loadDocument();
+}, [propDocumentId]);
+useEffect(() => {
+  if (!documentId) return;
 
-    const handler = setTimeout(() => {
-        const payload = {
-          fields: droppedComponents.map(c => ({
-            id: c.id?.toString(),
-            type: (c.component || '').toLowerCase().replace(' ', '_'),
-            x: c.x,
-            y: c.y,
-            width: c.width,
-            height: c.height,
-            pageNumber: c.pageNumber,
-            recipientId: c.assignedRecipientId,
-            required: c.required,
-            value: c.data,
-            placeholder: c.placeholder,
-          })),
-          recipients,
-          documentName,
-          fileUrl: typeof selectedFile === 'string' ? selectedFile : null,
-          updatedAt: new Date().toISOString(),
-        };
-        sessionStorage.setItem(draftKey(id), JSON.stringify(payload));
-     
-    }, 800);
+  const timeout = setTimeout(() => {
+    const payload = {
+      fields: droppedComponents.map(c => ({
+        id: c.id?.toString(),
+        type: (c.component || '').toLowerCase().replace(' ', '_'),
+        x: c.x,
+        y: c.y,
+        width: c.width,
+        height: c.height,
+        pageNumber: c.pageNumber,
+        recipientId: c.assignedRecipientId,
+        required: c.required,
+        value: c.data,
+        placeholder: c.placeholder,
+      })),
+      recipients,
+      documentName,
+      fileUrl: typeof selectedFile === 'string' ? selectedFile : null,
+      updatedAt: new Date().toISOString(),
+    };
+    sessionStorage.setItem(draftKey(documentId), JSON.stringify(payload));
+  }, 800);
 
-    return () => clearTimeout(handler);
-  }, [droppedComponents, recipients, documentName, selectedFile, documentId, propDocumentId, resetHistory]);
+  return () => clearTimeout(timeout);
+}, [droppedComponents, recipients, documentName, selectedFile, documentId]);
 
   // ==========================================================
   // Undo/Redo Functions
@@ -360,7 +399,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     }
 
     if (data.x === item.x && data.y === item.y) {
-      clickField(e as MouseEvent, item);
+      // clickField(e as MouseEvent, item);
       return;
     }
 
@@ -453,90 +492,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
-  useEffect(() => {
-    // Load document data if we have a documentId from localStorage (read at runtime so dynamic route can set it)
-    const loadDocumentData = async () => {
-      const storedDocumentId = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
-      if (storedDocumentId) {
-        try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-          const headers: Record<string, string> = {};
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-
-          const response = await fetch(`/api/documents/load?id=${storedDocumentId}`, {
-            headers: Object.keys(headers).length ? headers : undefined,
-            credentials: 'include',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.document) {
-              console.log('Loaded document data:', data.document);
-
-              // Restore fields and recipients from the saved document
-              const savedFields = data.document.fields || [];
-              const savedRecipients = data.document.recipients || [];
-
-              console.log('Restoring fields:', savedFields);
-
-              // Convert saved fields to DroppedComponent format
-              const restoredComponents: DroppedComponent[] = savedFields.map((field: DocumentField) => {
-                const ft = String(field.type || '');
-                const componentLabel = ft === 'signature' ? 'Signature'
-                  : ft === 'text' ? 'Text'
-                  : ft === 'date' ? 'Date'
-                  : ft === 'image' ? 'Image'
-                  : ft === 'checkbox' ? 'Checkbox'
-                  : (ft === 'realtime_photo' || ft === 'realtime photo') ? 'Realtime Photo'
-                  : ft.charAt(0).toUpperCase() + ft.slice(1);
-
-                return {
-                  id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-                  component: componentLabel,
-                  x: field.x,
-                  y: field.y,
-                  width: field.width,
-                  height: field.height,
-                  pageNumber: field.pageNumber,
-                  data: field.value,
-                  assignedRecipientId: field.recipientId,
-                  required: field.required,
-                  placeholder: field.placeholder,
-                } as DroppedComponent;
-              });
-
-              console.log('Restored components:', restoredComponents);
-
-              setDroppedComponents(restoredComponents);
-              setRecipients(savedRecipients);
-              setDocumentId(storedDocumentId);
-              // Prefer the current version's documentName when available
-              setDocumentName(prev => data.document.documentName || data.document.originalFileName || prev);
-
-              // Update element ID counter to avoid conflicts
-              const maxId = Math.max(0, ...restoredComponents.map(c => c.id));
-              setElementId(maxId + 1);
-
-              // Reset history with loaded state
-              resetHistory(restoredComponents);
-
-              // set selected file from server file path
-              if(documentId){
-                const fileUrl=`/api/documents/file?documentId=${encodeURIComponent(documentId)}`;
-                setSelectedFile(fileUrl);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Failed to load document data:', error);
-        }
-      }
-    };
-
-    // Call loader
-    loadDocumentData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
 
   const saveToServer = async (): Promise<void> => {
     if (!selectedFile) return;
