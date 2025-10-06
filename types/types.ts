@@ -210,7 +210,7 @@ export interface IDocument extends Document {
 
 export interface UploadResult {
   fileUrl?: string;
-  fileName?: string;
+  documentName?: string;
   documentId?: string;
   version?: number;
   message?: string;

@@ -36,8 +36,8 @@ interface DocumentEditorProps {
   documentId?: string | null;
   initialFileUrl?: string | null;
   initialDocumentName?: string | null;
-  initialFields?: any[] | null;
-  initialRecipients?: any[] | null;
+  initialFields?: [] | null;
+  initialRecipients?: [] | null;
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null }) => {
@@ -72,7 +72,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [autoDate, setAutoDate] = useState<boolean>(true);
-  const [fileName, setFileName] = useState<string>('');
+  const [documentName, setDocumentName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
   
   // ========= Recipients State =========
@@ -92,7 +92,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   // If the route passed initial props (prefetch), seed state from them on mount
   useEffect(() => {
     if (initialFields && Array.isArray(initialFields) && initialFields.length) {
-      const restored = initialFields.map((field: any) => ({
+      const restored = initialFields.map((field: DocumentField) => ({
         id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
         component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
         x: field.x,
@@ -116,7 +116,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     if (initialFileUrl) {
       setSelectedFile(initialFileUrl);
     }
-    if (initialDocumentName) setFileName(initialDocumentName);
+    if (initialDocumentName) setDocumentName(initialDocumentName);
     if (propDocumentId) setDocumentId(propDocumentId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,14 +126,13 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
 
   // On mount, prefer sessionStorage draft if present
   useEffect(() => {
-    try {
       const id = propDocumentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       if (!id) return;
       const raw = sessionStorage.getItem(draftKey(id));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.fields) {
-          const restored: DroppedComponent[] = parsed.fields.map((field: any) => ({
+          const restored: DroppedComponent[] = parsed.fields.map((field: DocumentField) => ({
             id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
             component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
             x: field.x,
@@ -152,12 +151,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
           resetHistory(restored);
         }
         if (parsed.recipients) setRecipients(parsed.recipients);
-        if (parsed.fileName) setFileName(parsed.fileName);
+        if (parsed.documentName) setDocumentName(parsed.documentName);
         if (parsed.fileUrl) setSelectedFile(parsed.fileUrl);
       }
-    } catch (err) {
-      // ignore parse errors
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -167,7 +163,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     if (!id) return;
 
     const handler = setTimeout(() => {
-      try {
         const payload = {
           fields: droppedComponents.map(c => ({
             id: c.id?.toString(),
@@ -183,18 +178,16 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
             placeholder: c.placeholder,
           })),
           recipients,
-          fileName,
+          documentName,
           fileUrl: typeof selectedFile === 'string' ? selectedFile : null,
           updatedAt: new Date().toISOString(),
         };
         sessionStorage.setItem(draftKey(id), JSON.stringify(payload));
-      } catch (err) {
-        // ignore
-      }
+     
     }, 800);
 
     return () => clearTimeout(handler);
-  }, [droppedComponents, recipients, fileName, selectedFile, documentId, propDocumentId, resetHistory]);
+  }, [droppedComponents, recipients, documentName, selectedFile, documentId, propDocumentId, resetHistory]);
 
   // ==========================================================
   // Undo/Redo Functions
@@ -516,8 +509,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
               setDroppedComponents(restoredComponents);
               setRecipients(savedRecipients);
               setDocumentId(storedDocumentId);
-              // Prefer the current version's filename when available
-              setFileName(prev => data.document.fileName || data.document.documentName || data.document.originalFileName || prev);
+              // Prefer the current version's documentName when available
+              setDocumentName(prev => data.document.documentName || data.document.originalFileName || prev);
 
               // Update element ID counter to avoid conflicts
               const maxId = Math.max(0, ...restoredComponents.map(c => c.id));
@@ -527,8 +520,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
               resetHistory(restoredComponents);
 
               // set selected file from server file path
-              if (data.document.filePath) {
-                const fileUrl = `/api/documents/file?path=${encodeURIComponent(data.document.filePath)}`;
+              if(documentId){
+                const fileUrl=`/api/documents/file?documentId=${encodeURIComponent(documentId)}`;
                 setSelectedFile(fileUrl);
               }
             }
@@ -550,12 +543,12 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     // Save as blob
     const pdfDoc = await loadPdf(selectedFile as File | string );
     const blob = await savePdfBlob(pdfDoc);
-    const safeName = sanitizeFileName(fileName);
+    const safeName = sanitizeFileName(documentName);
     // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
     const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
     const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
     // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
-    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setFileName, setSelectedFile, sessionId, false);
+    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, false);
     if (result && result.documentId) {
       setDocumentId(result.documentId);
     }
@@ -590,7 +583,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
         // Load and merge
         const pdfDoc = await loadPdf(selectedFile as File | string );
         const blob = await savePdfBlob(pdfDoc);
-        const safeName = sanitizeFileName(fileName);
+        const safeName = sanitizeFileName(documentName);
         const pdfUrl = await createBlobUrl(blob); 
          
         if (isMergeFields) {
@@ -768,10 +761,10 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         formData.append('recipients', JSON.stringify(recipients));
         formData.append('changeLog', 'Finalize session: metadata update');
 
-        if (fileName && fileName.trim()) {
-          const cleanName = fileName.trim();
+        if (documentName && documentName.trim()) {
+          const cleanName = documentName.trim();
           formData.append('documentName', cleanName);
-          formData.append('fileName', cleanName.endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
+        //  formData.append('documentName', cleanName.endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
         }
 
         const token = localStorage.getItem('AccessToken');
@@ -798,26 +791,21 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       }
     };
 
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Attempt to finalize synchronously is limited; call async but allow default unload
-      finalizeSession();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', finalizeSession);
 
     return () => {
       // on component unmount, finalize session
       finalizeSession();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', finalizeSession);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [droppedComponents, recipients, fileName, currentPage]);
+  }, [droppedComponents, recipients, documentName, currentPage]);
 
   // Auto-save metadata when user finishes renaming (isEditingFileName toggles false)
   const lastSavedNameRef = React.useRef<string | null>(null);
   useEffect(() => {
-    // initialize lastSavedName on mount from current fileName
-    lastSavedNameRef.current = fileName || null;
+    // initialize lastSavedName on mount from current documentName
+    lastSavedNameRef.current = documentName || null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -826,16 +814,16 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       const id = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       if (!id) return;
       // Only save if the user changed the name and it's different than lastSavedName
-      if (lastSavedNameRef.current !== fileName && fileName && fileName.trim()) {
+      if (lastSavedNameRef.current !== documentName && documentName && documentName.trim()) {
         try {
           // use uploadToServer with isMetadataOnly = true
           const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
-          const res = await uploadToServer(null, fileName.trim(), currentPage, droppedComponents, recipients, id, setDocumentId, setFileName, setSelectedFile, sessionId, true);
-          if (res && res.fileName) {
-            setFileName(res.documentName as string);
-            lastSavedNameRef.current = res.fileName;
+          const res = await uploadToServer(null, documentName.trim(), currentPage, droppedComponents, recipients, id, setDocumentId, setDocumentName, setSelectedFile, sessionId, true);
+          if (res && res.documentName) {
+            setDocumentName(res.documentName as string);
+            lastSavedNameRef.current = res.documentName as string;
           } else {
-            lastSavedNameRef.current = fileName;
+            lastSavedNameRef.current = documentName;
           }
         } catch (err) {
           console.error('Failed to save renamed document name:', err);
@@ -843,7 +831,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       }
     };
 
-    // run when user finishes editing filename (isEditingFileName becomes false)
+    // run when user finishes editing documentName (isEditingFileName becomes false)
     if (!isEditingFileName) {
       saveRenameIfNeeded();
     }
@@ -858,8 +846,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     <>
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
       <ActionToolBar
-        fileName={fileName}
-        setFileName={setFileName}
+        documentName={documentName}
+        setDocumentName={setDocumentName}
         isEditingFileName={isEditingFileName}
         setIsEditingFileName={setIsEditingFileName}
         handleSavePDF={handleSavePDF}
@@ -969,7 +957,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
             isOpen={showSendDocument}
             onClose={() => setShowSendDocument(false)}
             recipients={recipients}
-            documentName={fileName}
+            documentName={documentName}
             documentId={documentId}
             onSendComplete={() => {
               // Optionally redirect to dashboard or show success message

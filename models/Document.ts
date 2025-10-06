@@ -13,7 +13,7 @@ export interface IDocumentVersion {
   version: number;
   pdfData: Buffer;
   fields: IDocumentField[];
-  fileName: string;
+  documentName: string;
   filePath: string;
   sentAt?: Date;
   signingToken?: string;
@@ -93,7 +93,7 @@ export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   version: { type: Number, required: true },
   pdfData: { type: Buffer, required: true },
   fields: [DocumentFieldSchema],
-  fileName: { type: String, required: true },
+  documentName: { type: String, required: true },
   filePath: { type: String, required: true },
   sentAt: { type: Date },
   signingToken: { type: String, index: { unique: true, sparse: true } },

@@ -42,7 +42,6 @@ export async function GET(req: NextRequest) {
         fields: currentVersion.fields || [],
         recipients: document.recipients || [],
         status: document.status,
-        fileName: currentVersion.fileName,
         filePath: currentVersion.filePath,
       },
     });

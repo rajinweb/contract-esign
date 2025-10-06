@@ -12,8 +12,8 @@ export async function loadPdf(selectedFile: File | string) {
     return PDFDocument.load(arrayBuffer);
 }
 
-export function sanitizeFileName(fileName: string): string {
-    const safe = fileName.replace(/[<>:"/\\|?*]+/g, '').trim();
+export function sanitizeFileName(documentName: string): string {
+    const safe = documentName.replace(/[<>:"/\\|?*]+/g, '').trim();
     return safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
 }
 
@@ -136,20 +136,20 @@ export async function savePdfBlob(pdfDoc: PDFDocument): Promise<Blob> {
 
 export const uploadToServer = async (
     blob: Blob | null,
-    fileName: string,
+    documentName: string,
     currentPage: number,
     droppedComponents: DroppedComponent[],
     recipients: Recipient[],
     documentId: string | null,
     setDocumentId: (id: string) => void,
-    setFileName: (name: string) => void,
+    setDocumentName: (name: string) => void,
     setSelectedFile: (name: string) => void,
     sessionId?: string | null,
     isMetadataOnly: boolean = true
 ): Promise<UploadResult | null> => {
 
     const formData = new FormData();
-    const safeFileName = (fileName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
+    const safeFileName = (documentName || 'document').replace(/[<>:"/\\|?*]+/g, '').trim();
     const finalFileName = safeFileName.endsWith('.pdf') ? safeFileName : `${safeFileName}.pdf`;
 
     // Only append file if it's a new version (not metadata-only update)\
@@ -157,8 +157,7 @@ export const uploadToServer = async (
         formData.append('file', blob as Blob, finalFileName);
     }
 
-    formData.append('documentName', fileName);
-    formData.append('fileName', finalFileName);
+    formData.append('documentName', finalFileName);
     formData.append('isMetadataOnly', isMetadataOnly.toString());
 
     if (sessionId) {
@@ -222,15 +221,15 @@ export const uploadToServer = async (
         localStorage.setItem('currentSessionId', result.sessionId);
     }
 
-    if (result.fileName) {
-        setFileName(result.fileName);
+    if (result.documentName) {
+        setDocumentName(result.documentName);
     } else if (result.fileUrl) {
         const u = new URL(result.fileUrl, window.location.origin);
         const p = u.searchParams.get('path');
         if (p) {
             const decoded = decodeURIComponent(p);
             const parts = decoded.split('/');
-            setFileName(parts[parts.length - 1]);
+            setDocumentName(parts[parts.length - 1]);
         }
     }
 
@@ -238,11 +237,11 @@ export const uploadToServer = async (
     return result;
 };
 
-export function downloadPdf(blob: Blob, fileName: string) {
+export function downloadPdf(blob: Blob, documentName: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = fileName;
+    a.download = documentName;
     document.body.appendChild(a);
     a.click();
     a.remove();

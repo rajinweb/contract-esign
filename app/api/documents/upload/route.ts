@@ -58,7 +58,6 @@ export async function POST(req: NextRequest) {
     const sessionId = formData.get('sessionId') as string | null;
     const isMetadataOnly = formData.get('isMetadataOnly') === 'true';
     const changeLog = (formData.get('changeLog') as string) || 'Document updated';
-    const requestedFileName = formData.get('fileName') as string | null;
 
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
@@ -81,8 +80,6 @@ export async function POST(req: NextRequest) {
       const currentVersionIndex = existingDoc.currentVersion - 1;
       const currentVersionData = existingDoc.versions[currentVersionIndex];
       if (!currentVersionData) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
-
-      const currentSessionId = sessionId || existingDoc.currentSessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // -------------------- METADATA-ONLY UPDATE --------------------
       if (isMetadataOnly) {
@@ -115,15 +112,41 @@ export async function POST(req: NextRequest) {
 
         if (!updatedDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
 
-        const currentVersionData = updatedDoc.versions[updatedDoc.currentVersion - 1];
+        // -------------------- PHYSICAL FILE RENAME --------------------
+        try {
+          const currentVersion = updatedDoc.versions[updatedDoc.currentVersion - 1];
+          if (documentName && documentName !== currentVersion.documentName) {
+            const oldFilePath = currentVersion.filePath;
+            const uploadsDir = path.dirname(oldFilePath);
+            const sanitizedNewName = documentName.replace(/[<>:"/\\|?*]+/g, '').trim();
+            let newFilePath = path.join(uploadsDir, sanitizedNewName.endsWith('.pdf') ? sanitizedNewName : `${sanitizedNewName}.pdf`);
+
+            // Handle name collisions
+            let i = 1;
+            while (fs.existsSync(newFilePath)) {
+              const nameWithoutExt = path.basename(sanitizedNewName, '.pdf');
+              newFilePath = path.join(uploadsDir, `${nameWithoutExt}_v${i}.pdf`);
+              i++;
+            }
+
+            if (fs.existsSync(oldFilePath)) {
+              fs.renameSync(oldFilePath, newFilePath);
+              currentVersion.filePath = newFilePath;
+              currentVersion.documentName = path.basename(newFilePath);
+              updatedDoc.documentName = path.basename(newFilePath);
+              await updatedDoc.save();
+            }
+          }
+        } catch (err) {
+          console.error('Failed to rename physical file:', err);
+        }
 
         return NextResponse.json({
           success: true,
           documentId: updatedDoc._id,
           version: updatedDoc.currentVersion,
           sessionId: sessionIdFinal,
-          fileUrl: `/api/documents/file?path=${encodeURIComponent(currentVersionData.filePath)}`,
-          fileName: currentVersionData.fileName,
+          fileUrl: `/api/documents/file?documentId=${updatedDoc._id}`,
           documentName: updatedDoc.documentName,
           message: 'Metadata updated successfully',
         });
@@ -147,7 +170,6 @@ export async function POST(req: NextRequest) {
           // update current version content
           currentVersionData.pdfData = pdfBuffer;
           currentVersionData.filePath = detPath;
-          currentVersionData.fileName = path.basename(detPath);
           currentVersionData.fields = fields;
           currentVersionData.updatedAt = new Date();
 
@@ -162,8 +184,7 @@ export async function POST(req: NextRequest) {
             success: true,
             documentId: existingDoc._id,
             version: existingDoc.currentVersion,
-            fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
-            fileName: path.basename(detPath),
+            fileUrl: `/api/documents/file?documentId=${existingDoc._id}`,
             documentName: existingDoc.documentName,
             message: `Current version ${existingDoc.currentVersion} updated (same session)`,
           });
@@ -183,7 +204,7 @@ export async function POST(req: NextRequest) {
           version: newVersion,
           pdfData: pdfBuffer,
           filePath: detPath,
-          fileName: path.basename(detPath),
+          documentName: path.basename(detPath),
           fields,
           status: 'final' as const,
           changeLog,
@@ -204,8 +225,7 @@ export async function POST(req: NextRequest) {
           success: true,
           documentId: existingDoc._id,
           version: newVersion,
-          fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
-          fileName: path.basename(detPath),
+          fileUrl: `/api/documents/file?documentId=${existingDoc._id}`,
           documentName: existingDoc.documentName,
           message: `New version ${newVersion} created`,
         });
@@ -230,11 +250,11 @@ export async function POST(req: NextRequest) {
       createdAt: new Date(),
     });
 
-    // Try to write using the original filename the user uploaded (do NOT rename)
+    // Try to write using the original documentName the user uploaded (do NOT rename)
     // If there is a collision with different content, pick a stable fallback
-    // filename via writeFileStable (which will pick _vN or timestamp style names).
-    const preferredName = requestedFileName || file.name || documentName || 'document.pdf';
-    let candidate = path.join(userDir, preferredName);
+    // documentName via writeFileStable (which will pick _vN or timestamp style names).
+    const preferredName = file.name || documentName || 'document.pdf';
+    const candidate = path.join(userDir, preferredName);
     let detPath = candidate;
     let finalFileName = preferredName;
     try {
@@ -262,7 +282,7 @@ export async function POST(req: NextRequest) {
       version: 1,
       pdfData: pdfBuffer,
       filePath: detPath,
-      fileName: finalFileName,
+      documentName: finalFileName,
       fields,
       status: 'draft',
       changeLog: 'Initial document creation',
@@ -273,15 +293,13 @@ export async function POST(req: NextRequest) {
 
     console.log('Creating new document with fields:', fields);
     await newDocument.save();
-
-    const fileUrl = `/api/documents/file?path=${encodeURIComponent(detPath)}`;
+    const fileUrl = `/api/documents/file?documentId=${newDocument._id}`;
     return NextResponse.json({
       success: true,
       documentId: newDocument._id,
       version: 1,
       sessionId: initialSessionId,
       fileUrl,
-      fileName: finalFileName,
       documentName: newDocument.documentName,
       folder: userId,
       message: 'Document created successfully'

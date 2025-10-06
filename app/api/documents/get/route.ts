@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
             return new Response(buf, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
         }
 
-        // If folder missing but name provided, try to find document by fileName in DB and check ownership
+        // If folder missing but name provided, try to find document by documentName in DB and check ownership
         if (name) {
             // normalize name to include .pdf if needed
             const nameWithExt = path.extname(name) ? name : `${name}.pdf`;
@@ -59,18 +59,18 @@ export async function GET(req: NextRequest) {
             // normalize name to include .pdf if needed has been done above
 
             // Normal lookup: prefer exact match with extension
-            let doc = await DocumentModel.findOne({ $or: [{ originalFileName: nameWithExt }, { 'versions.fileName': nameWithExt }], userId }).exec();
+            let doc = await DocumentModel.findOne({ $or: [{ originalFileName: nameWithExt }, { 'versions.documentName': nameWithExt }], userId }).exec();
 
             // fallback: try same-name without extension in DB records
             if (!doc) {
                 const nameNoExt = path.basename(nameWithExt, path.extname(nameWithExt));
-                doc = await DocumentModel.findOne({ $or: [{ originalFileName: nameNoExt }, { 'versions.fileName': nameNoExt }], userId }).exec();
+                doc = await DocumentModel.findOne({ $or: [{ originalFileName: nameNoExt }, { 'versions.documentName': nameNoExt }], userId }).exec();
             }
 
             if (!doc) return new Response('Not found', { status: 404 });
 
-            // find matching version by fileName (with extension), fallback to current
-            const version = doc.versions.find((v: IDocumentVersion) => v.fileName === nameWithExt) || doc.versions[doc.currentVersion - 1];
+            // find matching version by documentName (with extension), fallback to current
+            const version = doc.versions.find((v: IDocumentVersion) => v.documentName === nameWithExt) || doc.versions[doc.currentVersion - 1];
             if (version?.pdfData) return new Response(new Uint8Array(version.pdfData), { status: 200, headers: { 'Content-Type': 'application/pdf' } });
 
             // If the recorded filePath exists, return it

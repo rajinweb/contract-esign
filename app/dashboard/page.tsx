@@ -28,7 +28,7 @@ function Dashboard() {
 
   async function handleDeleteDoc(doc: Doc) {
     try {
-      const res = await fetch(`/api/documents/delete?name=${encodeURIComponent(doc.name)}&folder=${encodeURIComponent(doc.folder)}`, {
+      const res = await fetch(`/api/documents/delete?documentId=${encodeURIComponent(doc.id)}&name=${encodeURIComponent(doc.name)}`, {
         method: 'DELETE',
       });
       

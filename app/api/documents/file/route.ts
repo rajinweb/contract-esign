@@ -1,47 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
+import DocumentModel from '@/models/Document';
 import fs from 'fs';
-import path from 'path';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
+
     const userId = await getUserIdFromReq(req);
-    if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-
-    const url = new URL(req.url);
-    const p = url.searchParams.get('path');
-    if (!p) return NextResponse.json({ message: 'Missing path' }, { status: 400 });
-
-    const filePath = decodeURIComponent(p);
-
-    const uploadsRoot = path.join(process.cwd(), 'uploads');
-
-    // Ensure the file is under uploads directory
-    const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(path.resolve(uploadsRoot))) {
-      return NextResponse.json({ message: 'Invalid file path' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Basic ownership check: ensure the path contains the userId folder
-    if (!resolved.includes(path.join(path.sep, userId, path.sep)) && !resolved.endsWith(path.join(path.sep, userId))) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    const { searchParams } = new URL(req.url);
+    const documentId = searchParams.get('documentId');
+    if (!documentId) {
+      return NextResponse.json({ message: 'Missing documentId' }, { status: 400 });
     }
 
-    if (!fs.existsSync(resolved)) {
-      console.warn('file route not found', { resolved });
-      return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    // Fetch document from DB
+    const doc = await DocumentModel.findOne({ _id: documentId, userId });
+    if (!doc) {
+      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
 
-    const fileBuffer = fs.readFileSync(resolved);
+    const currentVersion = doc.versions[doc.currentVersion - 1];
+    if (!currentVersion || !currentVersion.filePath) {
+      return NextResponse.json({ message: 'File not found for document' }, { status: 404 });
+    }
+
+    const filePath = currentVersion.filePath;
+
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ message: 'File missing on server' }, { status: 404 });
+    }
+
+    // Stream file
+    const fileBuffer = fs.readFileSync(filePath);
     return new NextResponse(fileBuffer, {
       status: 200,
-      headers: { 'Content-Type': 'application/pdf' }
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${encodeURIComponent(currentVersion.documentName || 'document.pdf')}"`,
+      },
     });
   } catch (error) {
-    console.error('file route error', error);
-    return NextResponse.json({ message: 'Error' }, { status: 500 });
+    console.error('Error fetching file:', error);
+    return NextResponse.json({ message: 'Error fetching file' }, { status: 500 });
   }
 }

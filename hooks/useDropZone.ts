@@ -20,7 +20,6 @@ export default function useDropZone() {
         const formData = new FormData();
         formData.append('file', file, file.name);
         formData.append('documentName', file.name);
-        formData.append('fileName', file.name);
         formData.append('isMetadataOnly', 'false');
 
         const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
@@ -50,7 +49,7 @@ export default function useDropZone() {
           }
 
           // Add to local documents list for UI
-          const displayName = result.documentName || result.fileName || file.name;
+          const displayName = result.documentName || file.name;
           setDocuments(prevDocs => [
             ...prevDocs,
             {

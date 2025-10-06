@@ -32,10 +32,7 @@ async function fetchDocumentData(documentId: string) {
     console.log("Document data response:", data);
 
     if (data.success && data.document) {
-      const filePath = data.document.filePath;
-      const fileUrl = filePath
-        ? `${baseUrl}/api/documents/file?path=${encodeURIComponent(filePath)}`
-        : null;
+      const fileUrl = `${baseUrl}/api/documents/file?documentId=${encodeURIComponent(documentId)}`;
 
       return {
         fileUrl,

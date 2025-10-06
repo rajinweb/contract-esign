@@ -24,8 +24,8 @@ import MoreActions from "../MoreActionMenu";
 import { HandleSavePDFOptions, Recipient } from "@/types/types";
 import { downloadPdf, loadPdf, savePdfBlob} from '@/utils/handleSavePDF';
 interface ActionToolBarProps {
-  fileName: string;
-  setFileName: React.Dispatch<React.SetStateAction<string>>;
+  documentName: string;
+  setDocumentName: React.Dispatch<React.SetStateAction<string>>;
   isEditingFileName: boolean;
   setIsEditingFileName: React.Dispatch<React.SetStateAction<boolean>>;
   handleSavePDF: (options: HandleSavePDFOptions) => Promise<boolean | null>;
@@ -56,8 +56,8 @@ const menuItems = [
 ];  
   
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
-  fileName,
-  setFileName,
+  documentName,
+  setDocumentName,
   isEditingFileName,
   setIsEditingFileName,
   handleSavePDF,
@@ -73,7 +73,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
       if (!selectedFile) return;
       const pdfDoc = await loadPdf(selectedFile as File | string );
       const blob = await savePdfBlob(pdfDoc);
-      downloadPdf(blob, fileName);
+      downloadPdf(blob, documentName);
   }
 
   const [documentMetadata, setDocumentMetadata] = useState<{
@@ -108,7 +108,8 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         if (typeof selectedFile === "string") {
           const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
           const opts: RequestInit = {};
-          if (selectedFile.startsWith('/api/documents/file') && token) opts.headers = { 'Authorization': `Bearer ${token}` };
+          if (token) opts.headers = { Authorization: `Bearer ${token}` };
+          console.log("Fetching metadata from:", selectedFile);
           const res = await fetch(selectedFile, opts);
           if (!res.ok) {
             throw new Error(`Failed to fetch file: ${res.status} ${res.statusText}`);
@@ -173,8 +174,8 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     <input
                       ref={inputRef}
                       type="text"
-                      value={fileName}
-                      onChange={(e) => setFileName(e.target.value)}
+                      value={documentName}
+                      onChange={(e) => setDocumentName(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           setIsEditingFileName(false);                         
@@ -191,7 +192,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     </>
                   ) : (
                     <>
-                      <span className="truncate text-xs focus:outline-0 w-[80%] p-1">{fileName || 'Untitled Document'}</span>
+                      <span className="truncate text-xs focus:outline-0 w-[80%] p-1">{documentName || 'Untitled Document'}</span>
                       <PenLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
