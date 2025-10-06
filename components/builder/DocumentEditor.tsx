@@ -741,20 +741,17 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
   useEffect(() => {
     const finalizeSession = async () => {
       try {
-        const currentdoc = typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null;
-        const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
-        if (!currentdoc || !sessionId) return;
+        if (typeof window === 'undefined') return;
+        const currentDocumentId = localStorage.getItem('currentDocumentId');
+        const currentSessionId = localStorage.getItem('currentSessionId');
+        if (!currentDocumentId || !currentSessionId) return;
 
         // Build metadata-only FormData and use fetch keepalive to improve chance of delivery on unload
         const formData = new FormData();
-        // Only include documentName/fileName when the user has explicitly set a name
-        if (fileName && fileName.trim()) {
-          formData.append('documentName', fileName.trim());
-          formData.append('fileName', fileName.trim().endsWith('.pdf') ? fileName.trim() : `${fileName.trim()}.pdf`);
-        }
+        
         formData.append('isMetadataOnly', 'true');
-        formData.append('sessionId', sessionId);
-        formData.append('documentId', currentdoc);
+        formData.append('sessionId', currentSessionId);
+        formData.append('documentId', currentDocumentId);
         formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
           id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
           type: comp.component.toLowerCase().replace(' ', '_'),
@@ -771,18 +768,28 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         formData.append('recipients', JSON.stringify(recipients));
         formData.append('changeLog', 'Finalize session: metadata update');
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        if (fileName && fileName.trim()) {
+          const cleanName = fileName.trim();
+          formData.append('documentName', cleanName);
+          formData.append('fileName', cleanName.endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
+        }
+
+        const token = localStorage.getItem('AccessToken');
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
         // use keepalive to improve unload delivery
-        await fetch('/api/documents/upload', {
+        const res = await fetch('/api/documents/upload', {
           method: 'POST',
           body: formData,
           headers: Object.keys(headers).length ? headers : undefined,
           credentials: 'include',
           keepalive: true,
         });
+
+        if (!res.ok) {
+          console.warn('Finalize session request failed', await res.text());
+        }
 
         // Clear current session to mark it ended
         localStorage.removeItem('currentSessionId');
