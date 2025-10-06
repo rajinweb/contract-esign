@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
           sessionId: currentSessionId,
           fileUrl: `/api/documents/file?path=${encodeURIComponent(currentVersionData.filePath)}`,
           fileName: currentVersionData.fileName,
+          documentName: existingDoc.documentName,
           message: 'Metadata updated successfully',
         });
       } else if (pdfBuffer) {
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
             version: existingDoc.currentVersion,
             fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
             fileName: path.basename(detPath),
+            documentName: existingDoc.documentName,
             message: `Current version ${existingDoc.currentVersion} updated (same session)`,
           });
         }
@@ -215,6 +217,7 @@ export async function POST(req: NextRequest) {
           version: newVersion,
           fileUrl: `/api/documents/file?path=${encodeURIComponent(detPath)}`,
           fileName: path.basename(detPath),
+          documentName: existingDoc.documentName,
           message: `New version ${newVersion} created`,
         });
       } else {
@@ -292,6 +295,7 @@ export async function POST(req: NextRequest) {
         sessionId: initialSessionId,
         fileUrl,
         fileName: finalFileName,
+        documentName: newDocument.documentName,
         folder: userId,
         message: 'Document created successfully'
       });

@@ -747,8 +747,11 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
 
         // Build metadata-only FormData and use fetch keepalive to improve chance of delivery on unload
         const formData = new FormData();
-  formData.append('documentName', fileName || 'Untitled Document');
-  formData.append('fileName', fileName ? fileName : 'Untitled Document.pdf');
+        // Only include documentName/fileName when the user has explicitly set a name
+        if (fileName && fileName.trim()) {
+          formData.append('documentName', fileName.trim());
+          formData.append('fileName', fileName.trim().endsWith('.pdf') ? fileName.trim() : `${fileName.trim()}.pdf`);
+        }
         formData.append('isMetadataOnly', 'true');
         formData.append('sessionId', sessionId);
         formData.append('documentId', currentdoc);
@@ -802,6 +805,43 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [droppedComponents, recipients, fileName, currentPage]);
+
+  // Auto-save metadata when user finishes renaming (isEditingFileName toggles false)
+  const lastSavedNameRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    // initialize lastSavedName on mount from current fileName
+    lastSavedNameRef.current = fileName || null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const saveRenameIfNeeded = async () => {
+      const id = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+      if (!id) return;
+      // Only save if the user changed the name and it's different than lastSavedName
+      if (lastSavedNameRef.current !== fileName && fileName && fileName.trim()) {
+        try {
+          // use uploadToServer with isMetadataOnly = true
+          const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+          const res = await uploadToServer(null, fileName.trim(), currentPage, droppedComponents, recipients, id, setDocumentId, setFileName, setSelectedFile, sessionId, true);
+          if (res && res.fileName) {
+            setFileName(res.documentName as string);
+            lastSavedNameRef.current = res.fileName;
+          } else {
+            lastSavedNameRef.current = fileName;
+          }
+        } catch (err) {
+          console.error('Failed to save renamed document name:', err);
+        }
+      }
+    };
+
+    // run when user finishes editing filename (isEditingFileName becomes false)
+    if (!isEditingFileName) {
+      saveRenameIfNeeded();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditingFileName]);
   const containerHeight = pageRefs.current.reduce((acc, page) => {
     if (!page) return acc;
     const rect = page.getBoundingClientRect();
@@ -922,7 +962,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
             isOpen={showSendDocument}
             onClose={() => setShowSendDocument(false)}
             recipients={recipients}
-            documentName={fileName || 'Untitled Document'}
+            documentName={fileName}
             documentId={documentId}
             onSendComplete={() => {
               // Optionally redirect to dashboard or show success message

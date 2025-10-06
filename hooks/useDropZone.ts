@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { useRouter } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
-import { uploadToServer } from '@/utils/handleSavePDF';
+
 export default function useDropZone() {
   const { setSelectedFile, setDocuments, documents } = useContextStore();
   const router = useRouter();
@@ -50,11 +50,12 @@ export default function useDropZone() {
           }
 
           // Add to local documents list for UI
+          const displayName = result.documentName || result.fileName || file.name;
           setDocuments(prevDocs => [
             ...prevDocs,
             {
               id: result.documentId || `${Date.now()}-${file.name}`,
-              name: result.fileName || file.name,
+              name: displayName,
               createdAt: new Date(),
               status: 'draft',
               signers: [],
