@@ -15,6 +15,9 @@ type FiltersProps = {
   setSortBy: (s: string) => void;
   view: "list" | "grid";
   setView: (v: "list" | "grid") => void;
+  toggleSelectAll:()=>void;
+  selectedIds: string[];
+  totalDocuments: number;
 };
 
 export default function Filters({
@@ -30,7 +33,11 @@ export default function Filters({
   setSortBy,
   view,
   setView,
+  toggleSelectAll,
+  selectedIds,
+  totalDocuments
 }: FiltersProps) {
+  const isAllSelected = selectedIds.length === totalDocuments;
   return (
     <div className="w-full flex items-center justify-between bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm">
      
@@ -39,6 +46,8 @@ export default function Filters({
           type="checkbox"
           className="w-4 h-4 border-gray-300 rounded"
           aria-label="Select all"
+          checked={isAllSelected}
+          onChange={toggleSelectAll}
         />
      
         <StatusDropdown

@@ -1,53 +1,18 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState } from 'react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import {PrimarySidebar, SecondarySidebar} from '@/components/dashboard/Sidebar';
 import { Doc } from '@/types/types';
 import useContextStore from '@/hooks/useContextStore';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import Filters from '@/components/dashboard/Filters';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
 function Dashboard() {
-  const { setSelectedFile, documents, setDocuments } = useContextStore();
-
-  // 🔑 States for filters & view
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [selectedTime, setSelectedTime] = useState<string>('all');
-  const [selectedOwner, setSelectedOwner] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('recent');
-  const [view, setView] = useState<'list' | 'grid'>('list');
-
+  const { documents, setDocuments } = useContextStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const router = useRouter();
-
-  async function handleDeleteDoc(doc: Doc) {
-    try {
-      const res = await fetch(`/api/documents/delete?documentId=${encodeURIComponent(doc.id)}&name=${encodeURIComponent(doc.name)}`, {
-        method: 'DELETE',
-      });
-      
-      if (!res.ok) throw new Error('Failed to delete document');
-  
-      // Remove locally
-      setDocuments(prev => prev.filter(d => d.id !== doc.id));
-      localStorage.removeItem('currentDocumentId'); // remove stored doc id 
-      toast.success('Document deleted');
-    } catch (err) {
-      if (err instanceof Error) {
-        toast.error(`Cannot delete: ${err.message}`);
-      } else {
-        toast.error("Cannot delete: Unknown error");
-      }
-    }
-  }
-  
-
+  const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
   useEffect(() => {
     localStorage.removeItem('currentDocumentId'); // remove stored doc id   
     localStorage.removeItem('currentSessionId'); // remove currentFileSessionId    
@@ -99,15 +64,6 @@ function Dashboard() {
     }
     fetchDocs();
   }, [setDocuments]);
-  
-
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesStatus = selectedStatus === "all" || !selectedStatus || doc.status === selectedStatus;
-    const matchesSearch = doc.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-  const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
-
   return (
     <div className="flex h-screen">
        <div className="min-h-screen flex flex-col w-[300px] bg-white border-r border-gray-200">
@@ -138,52 +94,26 @@ function Dashboard() {
       </div>
   
       <div className="flex-1">
+
         <header className="flex items-center justify-end  border-b  gap-4 px-6  bg-white h-16">
           <SearchInput searchQuery={searchQuery} setSearchQuery={setSearchQuery} placeholder={activeSidebar === 'contacts' ? 'Search contacts...' : 'Search documents and forms'}  />
           <DashboardHeader/>
         </header>
+
         {documents.length === 0 && activeSidebar === 'documents' ? (
           <UploadZone />
         ) : (
+
           <div className='p-4 overflow-auto h-[calc(100vh-65px)] bg-gray-100'>
           
             {activeSidebar === 'documents' && (
-            <>              
-              <Filters
-                selectedStatus={selectedStatus}
-                setSelectedStatus={setSelectedStatus}
-                selectedType={selectedType}
-                setSelectedType={setSelectedType}
-                selectedTime={selectedTime}
-                setSelectedTime={setSelectedTime}
-                selectedOwner={selectedOwner}
-                setSelectedOwner={setSelectedOwner}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                view={view}
-                setView={setView}
-              />
-              <DocumentList
-                documents={filteredDocuments}
-                onDocumentSelect={(doc) => {
-                  if (doc.url && doc.documentId) {
-                    setSelectedFile(doc.url);
-                    localStorage.setItem('currentDocumentId', doc.documentId);
-                    // clear any previous session id so a new session will start when editor opens
-                    localStorage.removeItem('currentSessionId');
-                    router.push(`/builder/${doc.documentId}`);
-                  } else {
-                    toast('No file found for this document.');
-                  }
-                }}
-                onDelete={handleDeleteDoc}
-              />
-            </>
+            <DocumentList searchQuery={searchQuery}/>
             )
             }
             {activeSidebar === 'contacts' && <Contacts searchQuery={searchQuery}/>}
             {activeSidebar === 'reports' &&  <>Report page</>}    
           </div>
+
         )}
       </div>
     </div>
