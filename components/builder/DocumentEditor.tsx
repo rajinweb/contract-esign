@@ -569,7 +569,7 @@ useEffect(() => {
       draggingEle.current.style.display = 'none';
     }
   };
-
+/*
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
 
@@ -603,7 +603,7 @@ useEffect(() => {
         console.warn("Unknown component clicked:", item.component);
     }
   };
-
+*/
 const updateField = (data: string | null, id: number) => {
   setDroppedComponents(prev => {
     const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));

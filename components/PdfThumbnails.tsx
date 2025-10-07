@@ -16,11 +16,16 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
 
   useEffect(() => {
     const renderThumbnail = async () => {
+      if (!fileUrl) {
+        console.warn("No file URL provided for PDF thumbnail");
+        return;
+      }
+
       try {
         const pdf = await pdfjs.getDocument(fileUrl).promise;
         const page = await pdf.getPage(1);
 
-        const viewport = page.getViewport({ scale: 0.2 }); // adjust scale for sharper preview
+        const viewport = page.getViewport({ scale: 0.2 });
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
@@ -29,7 +34,7 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
 
         await page.render({ canvasContext: ctx!, viewport }).promise;
 
-        setThumbUrl(canvas.toDataURL("image/png")); // blob-like base64 string
+        setThumbUrl(canvas.toDataURL("image/png"));
       } catch (err) {
         console.error("Error rendering thumbnail:", err);
       }
