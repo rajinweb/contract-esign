@@ -33,7 +33,17 @@ export default function useDropZone() {
           credentials: 'include',
         });
 
-        if (!res.ok) throw new Error('Failed to upload document');
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Failed to upload document' }));
+
+          if (res.status === 401) {
+            console.error('Unauthorized: Please log in');
+            router.push('/login');
+            return null;
+          }
+
+          throw new Error(errorData.message || 'Failed to upload document');
+        }
 
         const result = await res.json();
         if (result && result.success) {
@@ -67,10 +77,11 @@ export default function useDropZone() {
         return null;
       } catch (err) {
         console.error('Failed to create document on upload:', err);
+        setIsLoading(false);
         return null;
       }
     },
-    [setSelectedFile, setDocuments]
+    [setSelectedFile, setDocuments, router]
   );
 
   const handleDrop = useCallback(
@@ -80,9 +91,12 @@ export default function useDropZone() {
       const file = e.dataTransfer.files[0];
       if (file) {
         addDocument(file).then((res) => {
+          setIsLoading(false);
           const docId = res?.documentId;
           if (docId) router.push(`/builder/${docId}`);
           else router.push('/builder');
+        }).catch(() => {
+          setIsLoading(false);
         });
       }
     },
@@ -95,9 +109,12 @@ export default function useDropZone() {
       if (file) {
         setIsLoading(true);
         addDocument(file).then((res) => {
+          setIsLoading(false);
           const docId = res?.documentId;
           if (docId) router.push(`/builder/${docId}`);
           else router.push('/builder');
+        }).catch(() => {
+          setIsLoading(false);
         });
       }
     },
@@ -107,21 +124,25 @@ export default function useDropZone() {
   const handleSampleContract = useCallback(async () => {
     setIsLoading(true);
 
-    const pdfDoc = await PDFDocument.create();
-    const pdfBytes = await pdfDoc.save();
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const pdfBytes = await pdfDoc.save();
 
-    const file = new File(
-      [new Uint8Array(pdfBytes.buffer as ArrayBuffer)],
-      'sample-contract.pdf',
-      { type: 'application/pdf' }
-    );
+      const file = new File(
+        [new Uint8Array(pdfBytes.buffer as ArrayBuffer)],
+        'sample-contract.pdf',
+        { type: 'application/pdf' }
+      );
 
-    addDocument(file);
-    addDocument(file).then((res) => {
+      const res = await addDocument(file);
+      setIsLoading(false);
       const docId = res?.documentId;
       if (docId) router.push(`/builder/${docId}`);
       else router.push('/builder');
-    });
+    } catch (error) {
+      console.error('Failed to create sample contract:', error);
+      setIsLoading(false);
+    }
   }, [addDocument, router]);
 
   return { isLoading, handleDrop, handleSampleContract, handleFileInput };
