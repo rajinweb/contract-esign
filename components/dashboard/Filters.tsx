@@ -1,5 +1,5 @@
 "use client";
-import { RefreshCcw, ArrowUpDown, List, Grid } from "lucide-react";
+import { RefreshCcw, ArrowUpDown } from "lucide-react";
 import StatusDropdown from "./StatusDropdown";
 
 type FiltersProps = {
@@ -12,9 +12,7 @@ type FiltersProps = {
   selectedOwner: string;
   setSelectedOwner: (o: string) => void;
   sortBy: string;
-  setSortBy: (s: string) => void;
-  view: "list" | "grid";
-  setView: (v: "list" | "grid") => void;
+  setSortBy: (s: string) => void
   toggleSelectAll:()=>void;
   selectedIds: string[];
   totalDocuments: number;
@@ -31,8 +29,6 @@ export default function Filters({
   setSelectedOwner,
   sortBy,
   setSortBy,
-  view,
-  setView,
   toggleSelectAll,
   selectedIds,
   totalDocuments
@@ -105,17 +101,6 @@ export default function Filters({
           <option value="oldest">Oldest</option>
           <option value="name">Name</option>
         </select>
-
-        <button
-          onClick={() => setView(view === "list" ? "grid" : "list")}
-          className="p-2 rounded hover:bg-gray-100"
-        >
-          {view === "list" ? (
-            <Grid className="w-4 h-4 text-gray-600" />
-          ) : (
-            <List className="w-4 h-4 text-gray-600" />
-          )}
-        </button>
       </div>
     </div>
   );

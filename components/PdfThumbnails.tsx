@@ -53,6 +53,7 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
       alt="PDF thumbnail"
       width={width}
       height={height}
+      quality={100}
       className={`rounded border object-cover ${className}`}
     />
   );

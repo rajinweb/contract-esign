@@ -26,7 +26,7 @@ export default function StatusDropdown({
         className="border border-gray-300 bg-white rounded-md px-3 py-1 flex items-center justify-between w-52 text-sm"
       >
         <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full ${selected.dot} ${selected.value =='all' && 'border border-gray-400'}`}></span>
+          <span className={`w-2.5 h-2.5 rounded-full ${selected.dot}`}></span>
           <span>{selected.label}</span>
         </div>
         <ChevronDown strokeWidth={1} className={`w-4 h-4 ml-2 transition-transform ${
@@ -54,7 +54,7 @@ export default function StatusDropdown({
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full ${status.dot} ${status.value =='all' && 'border border-gray-400'}`}
+                    className={`w-2.5 h-2.5 rounded-full ${status.dot}`}
                   ></span>
                   <span>{status.label}</span>
                 </div>

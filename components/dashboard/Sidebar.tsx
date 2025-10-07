@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ChevronDown,
   FileText,
-  User,
   BarChart3,
   Users,
   UserPlus,
@@ -11,6 +10,9 @@ import {
   Layers,
   Plus,
   ChevronRight,
+  FileStack,
+  Files,
+  Contact,
 } from 'lucide-react';
 import useDropZone from '@/hooks/useDropZone'
 import useContextStore from '@/hooks/useContextStore';
@@ -36,7 +38,7 @@ export const PrimarySidebar = ({
         }`}
         title="Documents"
       >
-        <FileText className="w-5 h-5" />
+        <Files className="w-5 h-5" />
       </button>
       {/* Contact  click */}
       <button
@@ -47,7 +49,7 @@ export const PrimarySidebar = ({
             : 'text-slate-500 hover:text-slate-700'
         }`}
         title="Contacts">
-        <User className="w-5 h-5" />
+        <Contact className="w-5 h-5" />
       </button>
       {/* Report  click 
       <div className="relative">
@@ -95,7 +97,7 @@ export const SecondarySidebar = ({ active }: { active: SidebarType }) => (
 );
 
 export const DocumentsMenu = () => {
-
+  const {documents} = useContextStore()
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Documents</h2>     
@@ -109,10 +111,10 @@ export const DocumentsMenu = () => {
           className="flex items-center justify-between rounded-md bg-slate-100 px-3 py-2.5 hover:bg-slate-100 border-l-4 border-blue-600"
         >
           <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-slate-600" />
+            <FileStack className="w-5 h-5 text-slate-600" />
             <span className="font-medium text-slate-800">Documents</span>
           </div>
-          <div className="text-slate-500">1</div>
+          <div className="text-slate-500">{documents.length}</div>
         </a>
         
         <a

@@ -10,6 +10,10 @@ import {
   Trash2,
   Save,
   View,
+  Download,
+  Share2,
+  MoveRight,
+  SendHorizontal,
 } from 'lucide-react';
 import { Doc, statuses} from '@/types/types';
 import PdfThumbnail from '@/components/PdfThumbnails';
@@ -32,19 +36,19 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   declined: XCircle,
   expired: Clock,
   delivery_failed: AlertTriangle,
-  saved:Save
+  saved:Save,
+  sent: SendHorizontal 
 }
 
 export default function DocumentList({searchQuery}: DocumentListProps) {
   const { setSelectedFile, documents, setDocuments } = useContextStore();
   // 🔑 States for filters & view
-  
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedTime, setSelectedTime] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
-  const [view, setView] = useState<'list' | 'grid'>('list');
+ 
   const router = useRouter();
   const filteredDocuments = useFilteredDocs(documents, selectedStatus, searchQuery);
   async function handleDeleteDoc(doc: Doc) {
@@ -68,7 +72,6 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
     }
   }
   
-  
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
@@ -83,8 +86,27 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
       setSelectedIds(documents.map((d) => d.id));
     }
   };
+  const hasSelection = selectedIds.length > 0;
   return ( 
-    <>              
+    <div className='relative'>
+      {/* Toolbar - appears when something is selected */}
+      {hasSelection && (
+        <div className="absolute top-0 left-0 w-full bg-white shadow-md border-b z-10 flex items-center gap-3 p-3">
+          <span className="font-medium">{selectedIds.length} selected</span>
+          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
+            <MoveRight size={16} /> Move
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
+            <Download size={16} /> Download
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
+            <Share2 size={16} /> Share
+          </button>
+          <button className="flex items-center gap-1 px-3 py-1 border rounded text-red-600 hover:bg-red-50">
+            <Trash2 size={16} /> Delete
+          </button>
+        </div>
+      )}           
       <Filters
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
@@ -96,13 +118,11 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         setSelectedOwner={setSelectedOwner}
         sortBy={sortBy}
         setSortBy={setSortBy}
-        view={view}
-        setView={setView} 
         toggleSelectAll={toggleSelectAll} 
         selectedIds={selectedIds} 
         totalDocuments={documents.length}      
         />
-  <div className="space-y-4">
+  <div className="space-y-2 mt-2">
       {filteredDocuments.map((doc) => {
         const statusObj=statuses.find(item => item?.value == doc.status)
         const StatusIcon = statusIcons[doc.status];
@@ -110,7 +130,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         return (
           <div
             key={doc.id}
-            className="flex items-center p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            className="flex items-center px-4 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
             >
             <div className="flex flex-1 items-center gap-3">
                 <input
@@ -119,7 +139,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                 onChange={() => toggleSelect(doc.id)}
                 className="h-4 w-4 accent-blue-600"
               />
-              <PdfThumbnail fileUrl={doc.url} width={60} height={70} />
+              <PdfThumbnail fileUrl={doc.url} width={40} height={50} />
               <div className="font-medium text-gray-900"  onClick={() => {
                   if (doc.url && doc.documentId) {
                     setSelectedFile(doc.url);
@@ -170,6 +190,6 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         );
       })}
     </div>
-  </>
+  </div>
   );
 }

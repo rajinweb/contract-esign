@@ -16,24 +16,26 @@ export interface Doc {
   | 'declined'
   | 'expired'
   | 'delivery_failed'
-  | 'saved';
+  | 'saved'
+  | 'sent';
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
   documentId?: string;
 }
 export const statuses = [
-  { value: "all", label: "All Statuses", color: "text-blue-600", dot: "bg-white" },
-  { value: "unfinished", label: "Unfinished", color: "text-yellow-500", dot: "bg-yellow-500" },
-  { value: "waiting_me", label: "Waiting for Me", color: "text-blue-600", dot: "bg-blue-600" },
-  { value: "waiting_others", label: "Waiting for Others", color: "text-teal-500", dot: "bg-teal-500" },
+  { value: "all", label: "All Statuses", color: "text-slate-300", dot: "bg-slate-300" },
+  { value: "unfinished", label: "Unfinished", color: "text-yellow-400", dot: "bg-yellow-400" },
+  { value: "waiting_me", label: "Waiting for Me", color: "text-sky-400", dot: "bg-sky-400" },
+  { value: "waiting_others", label: "Waiting for Others", color: "text-teal-400", dot: "bg-teal-400" },
   { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
-  { value: "pending", label: "Pending", color: "text-orange-500", dot: "bg-orange-500" },
+  { value: "pending", label: "Pending", color: "text-amber-600", dot: "bg-amber-600" },
   { value: "draft", label: "Draft", color: "text-gray-400", dot: "bg-gray-400" },
-  { value: "declined", label: "Declined", color: "text-red-500", dot: "bg-red-500" },
-  { value: "expired", label: "Expired", color: "text-red-400", dot: "bg-red-400" },
-  { value: "delivery_failed", label: "Delivery Failed", color: "text-red-600", dot: "bg-red-600" },
-  { value: "saved", label: "Saved", color: "text-purple-600", dot: "bg-purple-600" },
+  { value: "declined", label: "Declined", color: "text-rose-400", dot: "bg-rose-400" },
+  { value: "expired", label: "Expired", color: "text-zinc-300", dot: "bg-zinc-300" },
+  { value: "delivery_failed", label: "Delivery Failed", color: "text-red-500", dot: "bg-red-500" },
+  { value: "saved", label: "Saved", color: "text-purple-400", dot: "bg-purple-400" },
+  { value: "sent", label: "Sent", color: "text-indigo-500", dot: "bg-indigo-500" },
 ];
 export interface ContextValue {
   selectedFile: Doc | File | string | null;

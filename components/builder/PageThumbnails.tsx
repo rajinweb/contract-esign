@@ -23,7 +23,7 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
   toggleMenu,
 }) => {
   return (
-    <aside className="w-64 overflow-auto bg-white p-5">
+    <aside className="w-40 overflow-auto bg-white p-5">
       <Document file={selectedFile} className="w-26">
         {pages.map((pageNum) => (
           <Fragment key={pageNum}>
