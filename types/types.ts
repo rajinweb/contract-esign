@@ -166,7 +166,7 @@ export interface DocumentVersion {
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
-  status: 'draft' | 'sent' | 'completed' | 'expired';
+  status: 'draft' | 'sent' | 'signed' | 'expired';
   changeLog: string;
 }
 export interface DocumentVersionsProps {
@@ -183,7 +183,7 @@ export interface SavedDocument {
   currentVersion: number;
   versions: DocumentVersion[];
   recipients: Recipient[];
-  status: 'draft' | 'sent' | 'completed' | 'expired' | 'cancelled';
+  status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -208,6 +208,14 @@ export interface IDocument extends Document {
   token?: string;
   createdAt?: Date;
   updatedAt?: Date;
+}
+export interface DocumentEditorProps {
+  documentId?: string | null;
+  initialFileUrl?: string | null;
+  initialDocumentName?: string | null;
+  initialFields?: DocumentField[] | null;
+  initialRecipients?: Recipient[] | null;
+  isSigningMode?: boolean
 }
 
 export interface UploadResult {

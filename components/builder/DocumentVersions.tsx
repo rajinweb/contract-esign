@@ -33,7 +33,7 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
     switch (status) {
       case 'draft': return <FileText className="w-4 h-4 text-gray-500" />;
       case 'sent': return <Send className="w-4 h-4 text-blue-500" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'signed': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'expired': return <X className="w-4 h-4 text-red-500" />;
       default: return <Clock className="w-4 h-4 text-gray-400" />;
     }
@@ -43,7 +43,7 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
     switch (status) {
       case 'draft': return 'text-gray-600 bg-gray-100';
       case 'sent': return 'text-blue-600 bg-blue-100';
-      case 'completed': return 'text-green-600 bg-green-100';
+      case 'signed': return 'text-green-600 bg-green-100';
       case 'expired': return 'text-red-600 bg-red-100';
       default: return 'text-gray-600 bg-gray-100';
     }

@@ -14,7 +14,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   }, []);
 
   // Only decide to show header/footer after client mount to avoid hydration mismatch
-  const hideHeaderFooter = mounted && pathname && (pathname.startsWith('/builder') || pathname.startsWith('/dashboard'));
+  const hideHeaderFooter = mounted && pathname && (pathname.startsWith('/builder') || pathname.startsWith('/dashboard') ||  pathname.startsWith('/sign'));
 
   return (
     <ContextProvider>

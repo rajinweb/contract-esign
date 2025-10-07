@@ -8,7 +8,7 @@ import { DraggableData } from 'react-rnd';
 
 // Project utils & types
 import { blobToURL } from "@/utils/Utils";
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField } from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentEditorProps } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 // Components
@@ -32,15 +32,7 @@ import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlo
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-interface DocumentEditorProps {
-  documentId?: string | null;
-  initialFileUrl?: string | null;
-  initialDocumentName?: string | null;
-  initialFields?: [] | null;
-  initialRecipients?: [] | null;
-}
-
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false }) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -129,6 +121,9 @@ useEffect(() => {
   if (!currentDocId) return;
 
   const loadDocument = async () => {
+    if (isSigningMode) {
+      return;
+    }
     try {
       // Load server document
       const token = localStorage.getItem('AccessToken');
@@ -198,7 +193,7 @@ useEffect(() => {
   };
 
   loadDocument();
-}, [propDocumentId]);
+}, [propDocumentId, isSigningMode]);
 useEffect(() => {
   if (!documentId) return;
 
@@ -800,6 +795,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
   return (
     <>
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
+      
+      {!isSigningMode &&
       <ActionToolBar
         documentName={documentName}
         setDocumentName={setDocumentName}
@@ -812,8 +809,10 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         onRedo={handleRedo}
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
-      />
+      />}
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
+         {!isSigningMode &&
+         <>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
         <RecipientsList recipients={recipients} onAddRecipients={() => setShowAddRecipients(true)} />
         <Fields
@@ -824,9 +823,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         />
         </div>
         {!selectedFile && (<UploadZone />)}
-        {selectedFile && (
-          <>
-            {draggingComponent && (
+           {draggingComponent && (
               <div
                 className="bg-[#f4faff] border border-1 border-blue-300 px-2 text-center text-[12px] fixed min-w-[100px] z-[999999] left-[7px] top-[38px]"
                 style={{
@@ -837,6 +834,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
                 {draggingComponent.component}
               </div>
             )}
+        </>
+        }
             <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onImgUpload}  />
             <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
@@ -873,8 +872,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
               insertBlankPageAt={insertBlankPageAt}
               toggleMenu={toggleMenu}
             />
-          </>
-        )}
+         
+      
         {dialog && (
           <AddSigDialog
             autoDate={autoDate}
@@ -895,7 +894,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
             }}
           />
         )}
-        
+        {!isSigningMode && (
+        <>
         {/* Add Recipients Modal */}
         {showAddRecipients && (
           <AddRecipientModal
@@ -920,17 +920,17 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
             }}
           />
         )}
-      </div>
-      {selectedFile && (
-        <Footer
+
+         <Footer
           currentPage={currentPage}
           totalPages={pages.length}
           zoom={zoom}
           setZoom={setZoom}
           onPageChange={handleThumbnailClick}
         />
-      )}
-
+      </>
+      )}        
+      </div>
       {/* -- PageThumbnailMenu integration (uses pdfDoc, pageIndex and onPdfUpdated) */}
      {pdfDoc && showMenu && selectedPageIndex !== null && (
       <PageThumbnailMenu

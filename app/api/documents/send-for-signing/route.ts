@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     // Create email transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
+      port: Number(process.env.SMTP_PORT),
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER,
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
               </p>
               ${sendReminders && !recipient.isCC ? `
                 <p style="color: #6b7280; font-size: 12px;">
-                  You will receive reminders every ${reminderDays} day${reminderDays > 1 ? 's' : ''} until this document is ${recipient.role === 'signer' ? 'signed' : 'completed'}.
+                  You will receive reminders every ${reminderDays} day${reminderDays > 1 ? 's' : ''} until this document is ${recipient.role === 'signer' ? 'signed' : 'ok completed'}.
                 </p>
               ` : ''}
             </div>

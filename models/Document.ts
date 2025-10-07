@@ -11,14 +11,15 @@ export interface IEditHistory {
 
 export interface IDocumentVersion {
   version: number;
-  pdfData: Buffer;
+  fileUrl?: string;
+  pdfData?: Buffer;
   fields: IDocumentField[];
   documentName: string;
   filePath: string;
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
-  status: 'draft' | 'sent' | 'completed' | 'expired' | 'final';
+  status: 'draft' | 'sent' | 'signed' | 'expired' | 'final';
   changeLog: string;
   editHistory: IEditHistory[];
   createdAt: Date;
@@ -46,7 +47,7 @@ export interface IDocumentRecipient {
   name: string;
   role: 'signer' | 'approver' | 'viewer';
   order: number;
-  isCC: boolean;
+  isCC?: boolean;
   color: string;
   status: 'pending' | 'viewed' | 'signed' | 'approved' | 'declined';
   signedAt?: Date;
@@ -98,7 +99,7 @@ export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   sentAt: { type: Date },
   signingToken: { type: String, index: { unique: true, sparse: true } },
   expiresAt: { type: Date },
-  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'completed', 'expired', 'final'] },
+  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'signed', 'expired', 'final'] },
   changeLog: { type: String, required: true },
   editHistory: { type: [EditHistorySchema], default: [] },
   createdAt: { type: Date, default: Date.now },
