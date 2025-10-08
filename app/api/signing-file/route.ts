@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel from '@/models/Document';
+import { DocumentVersion } from '@/types/types';
 
 export async function GET(req: NextRequest) {
     try {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
             return new Response('Document not found', { status: 404 });
         }
 
-        const version = document.versions.find((v: any) => v.signingToken === token);
+        const version = document.versions.find((v: DocumentVersion) => v.signingToken === token);
         if (!version || !version.pdfData) {
             return new Response('PDF not found', { status: 404 });
         }

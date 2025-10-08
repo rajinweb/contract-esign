@@ -64,7 +64,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
    const el = rndFields?.current?.resizableElement.current;
    if (el) { el.click() } // trigger new field dropped on pdf
    }
-  }, [droppedComponents])
+  }, [droppedComponents, isSigningMode])
   
   const cornersCSS='bg-blue-500 !w-3 !h-3 rounded-full '
   const assignedLabel='after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
