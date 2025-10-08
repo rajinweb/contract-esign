@@ -34,7 +34,13 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   useEffect(() => {
     const fetchPdf = async () => {
       try {
-        const res = await fetch(`/api/sign-document?token=${encodeURIComponent(token)}`, {
+        const recipientId = new URLSearchParams(window.location.search).get("recipient");
+        if (!recipientId) {
+            setError("Recipient not specified.");
+            setLoading(false);
+            return;
+        }
+        const res = await fetch(`/api/sign-document?token=${encodeURIComponent(token)}&recipient=${recipientId}`, {
           cache: "no-store",
         });
 
