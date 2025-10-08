@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { LoaderPinwheel } from "lucide-react";
+import { LoaderPinwheel, Download } from "lucide-react";
+import Image from "next/image";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
 import { DocumentField, Recipient } from "@/types/types";
 import { notFound } from "next/navigation";
+import Brand from "@/components/Brand";
 
 interface SignPageClientProps {
   token: string;
@@ -26,6 +28,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
+  const [page, setPage] = useState(1);
+  const [numPages, setNumPages] = useState(1);
 
   useEffect(() => {
     const fetchPdf = async () => {
@@ -89,6 +93,20 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
   return (
     <div className="flex flex-col items-center">
+        <header className="w-full bg-white px-4 py-2 flex justify-between items-center">
+        <Brand/>
+        <div className="text-gray-600">
+          Page {page} of {numPages}
+        </div>
+        <a
+          href={doc?.fileUrl}
+          download
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center text-xs"
+        >
+          <Download size={16} className="mr-2" />
+          Download
+        </a>
+      </header>
       <div className="w-full">
         {doc && (
           <DocumentEditor
@@ -98,14 +116,15 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
             initialFields={doc.fields}
             initialRecipients={doc.recipients}
             isSigningMode={true}
+            onPageChange={setPage}
+            onNumPagesChange={setNumPages}
           />
-
         )}
       </div>
       {!signed ? (
         <button
           onClick={handleSign}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 mt-4"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-4 text-sm"
         >
           Sign Document
         </button>

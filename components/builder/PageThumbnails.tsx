@@ -11,6 +11,7 @@ interface PageThumbnailsProps {
   handleThumbnailClick: (pageNum: number) => void;
   insertBlankPageAt: (pageNum: number) => void;
   toggleMenu: (event: React.MouseEvent, pageIndex?: number) => void;
+  isSigningMode:boolean
 }
 
 const PageThumbnails: React.FC<PageThumbnailsProps> = ({
@@ -21,6 +22,7 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
   handleThumbnailClick,
   insertBlankPageAt,
   toggleMenu,
+  isSigningMode
 }) => {
   return (
     <aside className="w-40 overflow-auto bg-white p-5">
@@ -48,6 +50,7 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
                 renderAnnotationLayer={false}
                 renderTextLayer={false}
               />
+              {!isSigningMode &&
               <div className="absolute right-2 top-2">
                 <div
                   className="relative"
@@ -62,10 +65,11 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
                   </button>
                 </div>
               </div>
+              }
             </div>
 
             <small className="flex justify-center group relative h-10 cursor-pointer">
-              <span
+             {!isSigningMode &&  <span
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 p-1 rounded group-hover:bg-blue-500 group-hover:text-white"
                 onClick={() => insertBlankPageAt(pageNum)}
               >
@@ -75,6 +79,7 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
                   className="w-4 h-4 text-center"
                 />
               </span>
+              }
               <hr className="border-gray-300 w-full group-hover:border-blue-500 absolute top-1/2  z-9" />
             </small>
           </Fragment>

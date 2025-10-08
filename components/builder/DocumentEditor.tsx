@@ -32,7 +32,7 @@ import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlo
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange }) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -665,6 +665,12 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       if (el) observer.observe(el);
     });
 
+    if (typeof onPageChange === 'function') {
+      onPageChange(currentPage);
+    }
+    if (typeof onNumPagesChange === 'function') {
+      onNumPagesChange(pages.length);
+    }
     return () => observer.disconnect();
   }, [pages]);
 
@@ -875,6 +881,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
               handleThumbnailClick={handleThumbnailClick}
               insertBlankPageAt={insertBlankPageAt}
               toggleMenu={toggleMenu}
+              isSigningMode={isSigningMode}
             />
          
       

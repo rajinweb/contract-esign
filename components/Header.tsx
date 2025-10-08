@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
 import UserDropdown from './UserDropdown';
+import Brand from './Brand';
 
 
 export function Header() {
@@ -29,10 +30,7 @@ export function Header() {
     <header className={`fixed w-full top-0 z-10 transition-colors duration-300 ${scrolled ? 'bg-white shadow-sm' : ''}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <FileSignature className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">SecureSign</span> 
-          </Link>
+          <Brand/>
           <nav className="hidden md:flex space-x-8">
             <Link href="/" className="text-gray-600 hover:text-blue-600">Solutions</Link>
             <Link href="/" className="text-gray-600 hover:text-blue-600">Products</Link>

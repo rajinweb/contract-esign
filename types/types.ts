@@ -215,7 +215,9 @@ export interface DocumentEditorProps {
   initialDocumentName?: string | null;
   initialFields?: DocumentField[] | null;
   initialRecipients?: Recipient[] | null;
-  isSigningMode?: boolean
+  isSigningMode?: boolean,
+  onPageChange?: (currentPage: number) => void,
+  onNumPagesChange?: (pages: number) => void
 }
 
 export interface UploadResult {
