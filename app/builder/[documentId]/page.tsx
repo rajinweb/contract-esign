@@ -29,7 +29,6 @@ async function fetchDocumentData(documentId: string) {
 
     if (!res.ok) return null;
     const data = await res.json();
-    console.log("Document data response:", data);
 
     if (data.success && data.document) {
       const fileUrl = `${baseUrl}/api/documents/file?documentId=${encodeURIComponent(documentId)}`;

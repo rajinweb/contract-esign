@@ -313,6 +313,9 @@ useEffect(() => {
   };
 
   const clickOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
+      if(isSigningMode){
+      return
+     }
     if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable') || e.target instanceof HTMLElement && e.target?.closest('.page-brake')) return;
 
     // Clear field selection when clicking on empty area
@@ -394,7 +397,6 @@ useEffect(() => {
     }
 
     if (data.x === item.x && data.y === item.y) {
-      // clickField(e as MouseEvent, item);
       return;
     }
 
@@ -564,7 +566,7 @@ useEffect(() => {
       draggingEle.current.style.display = 'none';
     }
   };
-/*
+
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
 
@@ -590,7 +592,7 @@ useEffect(() => {
       case "Date":
         setSelectedFieldForDialog(item);
         break;
-      case "Realtime Photo":
+      case "Realtime photo":
         setSelectedFieldForDialog(item);
         setPhotoDialog(true);
         break;
@@ -598,7 +600,7 @@ useEffect(() => {
         console.warn("Unknown component clicked:", item.component);
     }
   };
-*/
+
 const updateField = (data: string | null, id: number) => {
   setDroppedComponents(prev => {
     const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));
@@ -858,6 +860,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
                     zoom={zoom}
                     recipients={recipients}
                     onAddRecipients={() => setShowAddRecipients(true)}
+                    isSigningMode={isSigningMode}
+                    onClickField={clickField}
                   />
               <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''}/>
             </div>

@@ -28,6 +28,8 @@ interface DroppedComponentsProps {
   zoom: number;
   recipients?: Recipient[];
   onAddRecipients: () => void;
+  onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent) => void;
+  isSigningMode:boolean
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
@@ -43,7 +45,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   textFieldRefs,
   zoom,
   recipients = [],
-  onAddRecipients
+  onAddRecipients,
+  onClickField,
+  isSigningMode
 }) => {
   const rndFields=useRef<Rnd>(null);
   const getAssignedRecipient = (recipientId?: string) => {
@@ -53,10 +57,13 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   const handleFieldClick = (e: MouseEvent, field: DroppedComponent) => {
     e.stopPropagation();
     setSelectedFieldId(field.id === selectedFieldId ? null : field.id);
+     if(isSigningMode){ onClickField(e, field)}
   };
   useEffect(()=>{
+  if(!isSigningMode){
    const el = rndFields?.current?.resizableElement.current;
    if (el) { el.click() } // trigger new field dropped on pdf
+   }
   }, [droppedComponents])
   
   const cornersCSS='bg-blue-500 !w-3 !h-3 rounded-full '
@@ -86,26 +93,29 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
           
-            {...(isSelected && {
-              resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight']
-                .reduce((acc, key) => ({ ...acc, [key]: cornersCSS }), {})
-            })}
-
-            {...(isSelected && assignedRecipient && {
-              resizeHandleStyles: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight']
-                .reduce((acc, position) => {
-                  acc[position] = { backgroundColor: `${assignedRecipient.color}33` };
-                  return acc;
-                }, {} as Record<string, React.CSSProperties>)
-            })}
-
+            {...(!isSigningMode && isSelected && {
+                resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight'].reduce(
+                  (acc, key) => ({ ...acc, [key]: cornersCSS }),
+                  {}
+                ),
+                ...(assignedRecipient && {
+                  resizeHandleStyles: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight'].reduce(
+                    (acc, position) => {
+                      acc[position] = { backgroundColor: `${assignedRecipient.color}33` };
+                      return acc;
+                    },
+                    {} as Record<string, React.CSSProperties>
+                  ),
+                })
+              }
+            )}
             onClick={(e: React.MouseEvent) => handleFieldClick(e as unknown as MouseEvent, item)}
+            disableDragging={isSigningMode}  
+            enableResizing={!isSigningMode}  
             data-name={assignedRecipient?.name}
           >
-        
-
             {/* Field Selection Menu */}
-            {isSelected && (
+            {isSelected && !isSigningMode &&(
               <FieldSelectionMenu
                 field={item}
                 recipients={recipients || []}
@@ -119,9 +129,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               assignedRecipient ? '' : 'border border-blue-500'
             }`}>
             {item.data &&
-              (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime Photo') ? <ImageField image={item.data} /> :
+              (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime photo') ? <ImageField image={item.data} /> :
               item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime Photo' ? "Click to capture " : '') + item.component.toLowerCase()
+              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime photo' ? "Click to capture " : '') + item.component.toLowerCase()
             }
             </div>
           </Rnd>
