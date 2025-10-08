@@ -1,10 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { LoaderPinwheel, Download } from "lucide-react";
-import Image from "next/image";
+import React, { Fragment, useEffect, useState } from "react";
+import { LoaderPinwheel, Download, X, } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
-import { DocumentField, Recipient } from "@/types/types";
+import { DocumentField, Recipient, ROLES } from "@/types/types";
 import { notFound } from "next/navigation";
 import Brand from "@/components/Brand";
 
@@ -30,6 +29,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [signed, setSigned] = useState(false);
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(1);
+  const [recipientRole, setRecipientRole] = useState<'signer' | 'viewer' | 'approver' | null>(null);
+  const [approvalStatus, setApprovalStatus] = useState<'approved' | 'rejected' | null>(null);
 
   useEffect(() => {
     const fetchPdf = async () => {
@@ -62,7 +63,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     fetchPdf();
   }, [token]);
 
-  const handleSign = async () => {
+  const handleSignOrApprove = async (action: 'signed' | 'approved' | 'rejected') => {
     try {
       const recipientId =
         typeof window !== "undefined"
@@ -72,12 +73,17 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       await fetch("/api/signedDocument", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, recipientId }),
+        body: JSON.stringify({ token, recipientId, action }),
       });
-      setSigned(true);
+
+      if (action === 'signed') {
+        setSigned(true);
+      } else {
+        setApprovalStatus(action);
+      }
     } catch (err) {
       console.error(err);
-      alert("Failed to sign document");
+      alert(`Failed to ${action} document`);
     }
   };
 
@@ -127,16 +133,55 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           />
         )}
       </div>
-      {!signed ? (
-        <button
-          onClick={handleSign}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-4 text-sm"
-        >
-          Sign Document
-        </button>
-      ) : (
-        <p className="text-green-600 font-medium">You have signed this document.</p>
-      )}
+       { doc?.recipients.map((recipient) => {
+            const roleDef = ROLES.find(r => r.value === recipient.role);
+            const Icon = roleDef?.icon;
+           
+            let isNotSigner = doc.fields.filter(item => item.recipientId == recipient.id)
+
+        return(
+          <Fragment key={recipient.id}>
+             {recipient.role === 'signer' && !signed && (
+              <div>
+              <small className="flex justify-center">{recipient.totalFields} Fields assigned</small>
+                <button
+                  onClick={() => handleSignOrApprove('signed')}
+                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
+                  style={{backgroundColor: recipient.color}}
+                >
+                {Icon && <Icon size={12} />}
+                Sign Document
+              </button>
+               {signed && <p className="text-green-600 font-medium">You have signed this document.</p>}
+               </div>
+            )}
+            {recipient.role === 'approver' && isNotSigner.length && !approvalStatus && (
+            <div className="flex gap-4 items-center">
+              <small className="flex justify-center">{recipient.totalFields} Fields assigned</small>
+              <button
+                onClick={() => handleSignOrApprove('approved')}
+                className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
+                style={{backgroundColor: recipient.color}}
+                >
+                {Icon && <Icon size={12} />} 
+                Approve Document
+              </button>
+              <button
+                  onClick={() => handleSignOrApprove('rejected')}
+                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
+                >
+                <X size={12} /> Reject
+              </button>
+              {approvalStatus === 'approved' && <p className="text-green-600 font-medium">You have approved this document.</p>}
+              {approvalStatus === 'rejected' && <p className="text-red-600 font-medium">You have rejected this document.</p>}
+            </div>
+            )}
+            {recipient.role === 'viewer' && (
+                <p className="text-gray-600 font-medium">You are a viewer for this document.</p>
+              )}
+           </Fragment>
+      )})
+      }
     </div>
   );
 };
