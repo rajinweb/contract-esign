@@ -72,7 +72,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
-
+  const handleAddRecipients = useCallback(() => {
+    setShowAddRecipients(true);
+  }, []);
   // ========= Refs =========
   const documentRef = useRef<HTMLDivElement | null>(null);
   const draggingEle = useRef<HTMLDivElement | null>(null);
@@ -371,7 +373,7 @@ useEffect(() => {
       id: elementId,
       x: item.x + 20,
       y: item.y + 20,
-      assignedRecipientId: undefined, // Reset assignment for duplicate
+      assignedRecipientId: item.assignedRecipientId
     };
 
     setDroppedComponents((prev) => [...prev, newComponent]);
@@ -380,15 +382,29 @@ useEffect(() => {
     setSelectedFieldId(newComponent.id);
   };
 
-  const handleAssignRecipient = (fieldId: number, recipientId: string | null) => {
-    setDroppedComponents((prev) => {
-      const newComponents = prev.map((c) =>
+ const handleAssignRecipient = useCallback((fieldId: number, recipientId: string | null) => {
+    // Update dropped components first
+    setDroppedComponents((prevComponents) => {
+      const newComponents = prevComponents.map((c) =>
         c.id === fieldId ? { ...c, assignedRecipientId: recipientId } : c
       );
       saveToHistory(newComponents);
+
+      // 🔑 Recalculate recipients totalFields based on updated components
+      setRecipients((prevRecipients) =>
+        prevRecipients.map((r) => {
+          const assignedCount = newComponents.filter(
+            (c) => c.assignedRecipientId === r.id
+          ).length;
+          return { ...r, totalFields: assignedCount };
+        })
+      );
+
       return newComponents;
     });
-  };
+  },
+  [saveToHistory] // dependencies (no need for recipients/droppedComponents here, they’re handled inside updater functions)
+);
 
   const handleDragStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => {
     document.body.classList.remove('dragging-no-select');
@@ -822,7 +838,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
          {!isSigningMode &&
          <>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
-        <RecipientsList recipients={recipients} onAddRecipients={() => setShowAddRecipients(true)} />
+        <RecipientsList recipients={recipients} onAddRecipients={handleAddRecipients} />
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}

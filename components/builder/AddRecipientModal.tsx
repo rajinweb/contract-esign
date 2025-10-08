@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { X, UserPlus, Users, PenTool, CheckCircle, Eye, Trash2, Edit, CircleQuestionMark } from 'lucide-react';
-import { Contact, Recipient } from '@/types/types';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, UserPlus, Users, CheckCircle, Trash2, Edit, CircleQuestionMark } from 'lucide-react';
+import { Contact, Recipient, ROLES } from '@/types/types';
 import toast from 'react-hot-toast';
 import DropdownPortal from '../DropdownPortal';
 
@@ -22,12 +22,6 @@ const RECIPIENT_COLORS = [
   '#06B6D4', // Cyan
   '#84CC16', // Lime
 ];
-
-const ROLES = [
-  { value: 'signer', label: 'Signer', icon: PenTool, description: 'Can sign and fill out the document', color: '#3B82F6', isNew: false },
-  { value: 'approver', label: 'Approver', icon: CheckCircle, description: 'Can approve or reject the document', color: '#10B981', isNew: true },
-  { value: 'viewer', label: 'Viewer', icon: Eye, description: 'Can only view the document', color: '#6B7280', isNew: false },
-] as const;
 
 const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
   isOpen,
@@ -81,6 +75,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
             color: getNextColor([]),
             order: 1,
             isCC: false,
+            totalFields:0
           }]
         : recipients;
       setDraftRecipients(initialRecipients);
@@ -165,7 +160,8 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
         role: 'signer',
         color: getNextColor(prev),
         order: prev.length + 1,
-        isCC
+        isCC,
+        totalFields:0
       };
       return [...prev, newRecipient];
     });
