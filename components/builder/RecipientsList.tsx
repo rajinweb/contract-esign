@@ -25,19 +25,16 @@ const RecipientsList = React.memo(function RecipientsList({ recipients = [], onA
                    const roleDef = ROLES.find(r => r.value === recipient.role);
                    const Icon = roleDef?.icon;
                 return(
-                <div key={recipient.id} className="flex items-center bg-blue-50 rounded-md shadow-sm text-xs p-1 w-full">
-                  <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-white mx-2" style={{backgroundColor: recipient.color}}>
+                <div key={recipient.id} className="flex items-center bg-blue-50 gap-2 rounded-md shadow-sm text-xs p-1 w-full" title={`${recipient.email}, ${recipient.role}`} >
+                  <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-white" style={{backgroundColor: recipient.color}}>
                     {recipient.name ? recipient.name.charAt(0).toUpperCase() : 'R'}
                   </div>
-                  <div className="text-gray-800 flex-1 relative" title={recipient.role}>                    
-                    <div className="text-xs text-gray-500">{recipient.email}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                        {Icon && <Icon size={12} />}
-                        {recipient.totalFields} fields
-                    </div>
-                      <span className="text-xs w-4 h-4 flex items-center justify-center rounded-full bg-blue-100 text-white absolute right-1 top-1/2 -translate-y-1/2" style={{backgroundColor: recipient.color}}>                       
+                  <div className="text-gray-800 flex-1 text-overflow overflow-hidden text-ellipsis">                    
+                    <span className="w-[82%] text-gray-500 ">{recipient.email}</span>
+                    <span className="flex items-center gap-1"> {Icon && <Icon size={12} />} {recipient.totalFields} fields </span>                      
+                  </div>
+                   <div className="w-4 h-4 flex items-center justify-center rounded-full text-white" style={{backgroundColor: recipient.color}}>                       
                       {recipient.order}
-                    </span>
                   </div>
                 </div>
               )})
