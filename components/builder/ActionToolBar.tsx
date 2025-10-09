@@ -1,3 +1,4 @@
+'use client';
 import React, {useEffect, useRef, useState } from "react";
 import { FileText, Settings, PenLine, CheckLine,
   Undo,
@@ -21,8 +22,10 @@ import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
-import { HandleSavePDFOptions, Recipient } from "@/types/types";
-import { downloadPdf, loadPdf, savePdfBlob} from '@/utils/handleSavePDF';
+import { HandleSavePDFOptions, Recipient, DroppedComponent } from "@/types/types";
+import { downloadPdf, loadPdf, savePdfBlob } from '@/utils/handleSavePDF';
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
+
 interface ActionToolBarProps {
   documentName: string;
   setDocumentName: React.Dispatch<React.SetStateAction<string>>;
@@ -35,6 +38,8 @@ interface ActionToolBarProps {
   onRedo: () => void;
   recipients: Recipient[];
   onSendDocument: () => void;
+  hasUnsavedChanges: boolean;
+  droppedItems: DroppedComponent[];
 }
 
 const menuItems = [
@@ -66,9 +71,16 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   onUndo,
   onRedo,
   recipients,
-  onSendDocument
+  onSendDocument,
+  hasUnsavedChanges,
+  droppedItems = []
 }) => {
   const { selectedFile } = useContextStore();
+  const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
+
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   const downloadDoc=async () => {
       if (!selectedFile) return;
       const pdfDoc = await loadPdf(selectedFile as File | string );
@@ -82,12 +94,6 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     fileSize?: string;
     lastModified?: string;
   } | null>(null);
-  
-  const router = useRouter();
-  const onBackClick = () => {
-    router.back();
-  };
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditingFileName && inputRef.current) {
@@ -144,9 +150,50 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   }, [selectedFile]);
 
 
+  const validateAndSend = () => {
+    const unassignedField = droppedItems.find(
+      (item) => !item.assignedRecipientId || item.assignedRecipientId.trim() === ''
+    );
+
+    console.log("Validation: Dropped Items", droppedItems);
+    if (unassignedField) {
+      alert("All fields must be assigned to a signer before sending.");
+      return;
+    }
+
+    onSendDocument();
+  };
+
+  const handleSendClick = () => {
+    debugger
+    console.log("Send clicked. Unsaved changes?", hasUnsavedChanges);
+    if (hasUnsavedChanges) {
+      setIsUnsavedChangesDialogVisible(true);
+    } else {
+      validateAndSend();
+    }
+  };
+
+  const handleSaveAndContinue = async () => {
+    const success = await handleSavePDF({ isServerSave: true });
+    if (success) {
+      validateAndSend();
+    } else {
+      console.warn("PDF save failed, skipping send.");
+    }
+    setIsUnsavedChangesDialogVisible(false);
+  };
+
+  const onBackClick = () => router.back();
 
   return (
     <>
+      <UnsavedChangesDialog
+        isVisible={isUnsavedChangesDialogVisible}
+        onCancel={() => setIsUnsavedChangesDialogVisible(false)}
+        onSaveAndContinue={handleSaveAndContinue}
+      />
+
     <div className="h-16 bg-white border border-gray-300 px-3 py-3 flex items-center" data-redesign="true">
       <div className="flex flex-1 items-center">
         {/* Left main section */}
@@ -177,27 +224,24 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                       value={documentName}
                       onChange={(e) => setDocumentName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          setIsEditingFileName(false);                         
-                        }
+                        if (e.key === 'Enter') setIsEditingFileName(false);
                       }}
-                      data-testid="pdf-name"
-                      className="truncate text-xs focus:outline-0 w-[80%] p-1 flex-shrink-0"
+                        className="truncate text-xs focus:outline-0 w-[80%] p-1"
                     />
                     <CheckLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => { setIsEditingFileName(false);                           
-                         }} />
+                        onClick={() => setIsEditingFileName(false)}
+                      />
                     </>
                   ) : (
                     <>
-                      <span className="truncate text-xs focus:outline-0 w-[80%] p-1">{documentName || 'Untitled Document'}</span>
+                      <span className="truncate text-xs w-[80%] p-1">{documentName || 'Untitled Document'}</span>
                       <PenLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => setIsEditingFileName(true)} 
-                      />                        
+                        onClick={() => setIsEditingFileName(true)}
+                      />
                     </>
                   )}
             </div>
@@ -231,47 +275,43 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                         )}
                         {documentMetadata?.fileSize && (
                           <div>
-                           <small className="mb-4 text-gray-500">File size:</small>
-                          <p> {documentMetadata.fileSize}</p>
+                           <small className="text-gray-500">File size:</small>
+                          <p>{documentMetadata.fileSize}</p>
                           </div>
                         )}
                  
                       <div>
                       <small className="text-gray-500">Documents</small>
-                        <p className="flex item-center justify-between">
-                          <span className="flex item-center gap-2"><FolderIcon size={18}/> Main </span> 
+                        <p className="flex items-center justify-between">
+                          <span className="flex items-center gap-2"><FolderIcon size={18} /> Main</span>
                           <a href="#">Move</a>
                         </p>
                       </div>
                       <div className="flex items-center gap-2 pt-2">
-                        <span className="w-6 h-6 rounded-full bg-[#d5dce5] flex items-center justify-center text-xs">
-                          r
-                        </span>
-                        rajesh.chaurasia@gmail.com
-                      </div>
+                        <span className="w-6 h-6 rounded-full bg-[#d5dce5] flex items-center justify-center text-xs">r</span>
+                  rajesh.chaurasia@gmail.com
                 </div>
               </div>
-          </div> 
-          {/* ---end of info --*/}
+          </div>
+          </div>
         </div>
 
-        {/* Right actions */}
+        {/* Right Section */}
         <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
-          {/* Settings Button */}
-            <MoreActions  menuItems={menuItems as []} />    
+          <MoreActions menuItems={menuItems as []} />
+
           <button
             type="button"
             className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200 text-sm"
-            onClick={() => handleSavePDF({ isServerSave: true})}
+            onClick={() => handleSavePDF({ isServerSave: true })}
           >
             Save and Close
           </button>
 
-          {/* Continue Button */}
           <button
             type="button"
-            className={`primary-button ${recipients.length === 0 ? 'px-2 py-1 text-sm opacity-50 cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-700' : ''}`}
-            onClick={onSendDocument}
+            className={`primary-button ${recipients.length === 0 ? 'opacity-50 cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-700' : ''}`}
+            onClick={handleSendClick}
             disabled={recipients.length === 0}
             title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
           >

@@ -211,7 +211,6 @@ export const uploadToServer = async (
     const result = await response.json();
     console.log('Server response:', result);
 
-    // Do not persist to IndexedDB anymore; client should use server fileUrl/localStorage
     if (result.documentId) {
         setDocumentId(result.documentId);
         localStorage.setItem('currentDocumentId', result.documentId);

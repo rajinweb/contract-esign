@@ -23,7 +23,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
   const assignedRecipient = recipients.find(r => r.id === field.assignedRecipientId);
-  const availableRecipients = recipients.filter(r => !r.isCC); // Only signers and approvers
+  // const availableRecipients = recipients.filter(r => !r.isCC); // Only signers and approvers
 
   const handleRecipientSelect = (recipientId: string | null) => {
     onAssignRecipient(field.id, recipientId);
@@ -62,12 +62,15 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
                   </div>
                   <span>Unassigned</span>
                 </button>
-                {availableRecipients.map((recipient) => (
-                  
+                {recipients.map((recipient) => {
+                   const isDisabled = recipient.role === 'viewer' || recipient.role === 'approver';
+                   return(
                   <button
                     key={recipient.id}
-                    onClick={() => handleRecipientSelect(recipient.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2  hover:bg-gray-50 text-left"
+                    onClick={() => !isDisabled && handleRecipientSelect(recipient.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                    disabled={isDisabled}
+                    title={isDisabled ? "Viewers and approvers cannot be assigned fields." : recipient.name}
                   >
                     <span
                       className="w-4 h-4 rounded-full flex items-center justify-center text-white"
@@ -80,7 +83,8 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
                      <p>{recipient.email}</p>
                      </div>
                   </button>
-                ))}
+                )}
+                )}
                 
               </div>
               <button className='flex items-center gap-1 p-2 w-full border-t justify-center hover:text-blue-500' title="Add Recipient" onClick={(e)=>{

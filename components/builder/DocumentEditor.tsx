@@ -1,13 +1,13 @@
 "use client";
-import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback} from 'react';
-// removed IndexedDB usage: files are served from server and referenced by URL
+import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback, useMemo} from 'react';
+
 // Third-party
 import { pdfjs } from "react-pdf";
 import { PDFDocument } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
 
 // Project utils & types
-import { blobToURL } from "@/utils/Utils";
+import { areDroppedComponentsEqual, areRecipientsEqual, blobToURL } from "@/utils/Utils";
 import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentEditorProps } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
@@ -66,7 +66,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [documentName, setDocumentName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
-  
+  const [lastSavedState, setLastSavedState] = useState<{
+  components: DroppedComponent[];
+  name: string;
+  recipients: Recipient[];
+} | null>(null);
   // ========= Recipients State =========
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
@@ -520,6 +524,11 @@ useEffect(() => {
     if (result && result.documentId) {
       setDocumentId(result.documentId);
     }
+    setLastSavedState({
+      components: droppedComponents,
+      name: documentName,
+      recipients: recipients,
+    });
   }
 
   //File Handling
@@ -700,9 +709,23 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       });
     }
   }, [currentPage]);
-  // ==========================================================
-  // Render
-  // ==========================================================
+// unsave changes alert 
+useEffect(() => {
+  if (
+    droppedComponents.length &&
+    documentName &&
+    recipients.length &&
+    !lastSavedState
+  ) {
+    setLastSavedState({
+      components: droppedComponents,
+      recipients,
+      name: documentName,
+    });
+  }
+}, [droppedComponents, recipients, documentName, lastSavedState]);
+
+
 
   // Finalize session when user leaves the editor: persist last editHistory as metadata-only and clear session
   useEffect(() => {
@@ -811,11 +834,35 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditingFileName]);
+
   const containerHeight = pageRefs.current.reduce((acc, page) => {
     if (!page) return acc;
     const rect = page.getBoundingClientRect();
     return acc + rect.height + 40; // 40 for margin/padding between pages
   }, 0);
+
+ const hasUnsavedChanges = useMemo(() => {
+  if (!lastSavedState) return false; // Don't flag changes if nothing to compare with yet
+
+  const fieldsChanged = !areDroppedComponentsEqual(droppedComponents, lastSavedState.components);
+  const recipientsChanged = !areRecipientsEqual(recipients, lastSavedState.recipients);
+  const nameChanged = documentName.trim() !== lastSavedState.name.trim();
+
+  return fieldsChanged || recipientsChanged || nameChanged;
+}, [droppedComponents, recipients, documentName, lastSavedState]);
+
+// const hasUnsavedChanges = useMemo(() => {
+//   const componentsChanged = !areDroppedComponentsEqual(droppedComponents, droppedComponents);
+//   const recipientsChanged = !areRecipientsEqual(recipients, recipients);
+//   const nameChanged = documentName.trim() !== documentName.trim();
+
+//   return componentsChanged || recipientsChanged || nameChanged;
+// }, [droppedComponents, recipients, documentName, droppedComponents, recipients, documentName]);
+
+
+  // ==========================================================
+  // Render
+  // ==========================================================
   return (
     <>
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
@@ -833,6 +880,8 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         onRedo={handleRedo}
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
+        hasUnsavedChanges={hasUnsavedChanges}
+        droppedItems={droppedComponents}
       />}
       <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
          {!isSigningMode &&
