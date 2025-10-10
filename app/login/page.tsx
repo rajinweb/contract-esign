@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
@@ -7,6 +7,8 @@ import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import Input from '@/components/forms/Input';
 import toast from 'react-hot-toast';
+import { Eye, EyeOff} from 'lucide-react';
+import Link from 'next/link';
 
 type FormValues = {
   email: string;
@@ -19,6 +21,7 @@ const LoginPage: React.FC = () => {
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams.get("email") || ""; 
   const { register, handleSubmit, formState } = useForm<FormValues>({ defaultValues: { email: emailFromUrl ? emailFromUrl : '', password: '' } });
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -48,43 +51,128 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    
-      <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md  m-auto mt-20">
-        <h3 className="text-2xl font-bold text-center">Login to SecureSign</h3>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="mt-4">
-            <div>
-              <Input label="Email" type="email" {...register('email', { required: 'Email required' })} error={formState.errors.email?.message} />
-            </div>
-            <div className="mt-4">
-              <Input label="Password" type="password" {...register('password', { required: 'Password required' })} error={formState.errors.password?.message} />
-            </div>
-              <button type="submit" className="w-full px-6 py-2 mt-4 text-white bg-blue-600 rounded-md hover:bg-blue-900">
-                {formState.isSubmitting ? 'Signing in...' : 'Sign in'}
-              </button>
-              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</a>
-          
-          </div>
-        </form>
-        <div className="mt-6 text-center text-sm text-gray-600">
-        
-          <p className="relative after:content-[''] my-4 text-sm after:border-b after:block after:absolute after:w-full after:-mt-[10px] after:z-2">
-            <span className='bg-white relative z-20 '>or sign up with</span>
+    <div className="w-full  px-4">
+      {/* Login Card */}
+      <div className="relative max-w-[500px]  mx-auto">
+        <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-6">
+          {/* Heading */}
+          <h3 className="text-lg font-medium text-[#020817] text-center mb-2 font-poppins">
+            Log in with ease
+          </h3>
+          <p className="text-xs text-[#64748B] text-center mb-6 font-poppins">
+            You can log in with your SecureSign or Social Media Accounts
           </p>
-       
+
+          {/* Social Login Buttons */}
+          <div className="flex gap-3 mb-4 text-sm">
+            <button 
+              type="button"
+              className="flex-1 h-10 rounded-md border border-[#E2E8F0] bg-white flex items-center justify-center gap-2 hover:bg-gray-50 transition"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.5 9.0525C16.5 4.86 13.14 1.5 8.9475 1.5C4.755 1.5 1.5 4.86 1.5 9.0525C1.5 12.8175 4.245 15.945 7.83 16.5375V11.25H5.925V9.0525H7.83V7.35C7.83 5.475 8.9475 4.44 10.6575 4.44C11.475 4.44 12.33 4.59 12.33 4.59V6.4275H11.385C10.455 6.4275 10.1625 7.005 10.1625 7.5975V9.015H12.2475L11.9175 11.2125H10.1625V16.5C13.755 15.945 16.5 12.8175 16.5 9.0525Z" fill="#1877F2"/>
+              </svg>
+              <span>Facebook</span>
+            </button>
           {/* Include the Google Sign-In button */}
-          <div className="flex justify-center mt-4">
+          <div className="flex-1 justify-center">
             <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
               <GoogleSignInButton />
             </GoogleOAuthProvider>
             {/* Add other social login buttons here */}
           </div>
-          <p className="mt-4 text-center text-gray-600 text-sm">
-            Don&apos;t have an account? <a href="/register" className="text-blue-600 hover:underline">Register here.</a>
-          </p>
+            <button 
+              type="button"
+              className="flex-1 h-10 rounded-md border border-[#E2E8F0] bg-white flex items-center justify-center gap-2 hover:bg-gray-50 transition"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 1.5H1.5V9H9V1.5Z" fill="#F25022"/>
+                <path d="M16.5 1.5H9V9H16.5V1.5Z" fill="#7FBA00"/>
+                <path d="M9 9H1.5V16.5H9V9Z" fill="#00A4EF"/>
+                <path d="M16.5 9H9V16.5H16.5V9Z" fill="#FFB900"/>
+              </svg>
+              <span>Microsoft</span>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="text-center mb-4">
+            <span className="text-xs text-[#64748B] uppercase font-poppins">or</span>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {/* Email Input */}
+            <div className="mb-3">
+              <Input
+                type="email"
+                placeholder="name@example.com"
+                {...register('email', { required: 'Email required' })}
+                className="w-full h-[38px] px-3 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {formState.errors.email && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Password Input */}
+            <div className="mb-3 relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter password"
+                {...register('password', { required: 'Password required' })}
+                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+              {formState.errors.password && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.password.message}</p>
+              )}
+            </div>
+
+            {/* Forgot Password */}
+            <div className="mb-4">
+              <Link href="/forgot-password" className="text-xs text-blue-500 hover:underline">
+                Forgot Password?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <button 
+              type="submit" 
+              disabled={formState.isSubmitting}
+              className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {formState.isSubmitting ? 'Logging in...' : 'Log in'}
+            </button>
+
+            {/* Sign Up Link */}
+            <p className="text-xs text-center mt-4 font-poppins">
+              <span className="text-[#64748B]">No account? </span>
+              <Link href="/register" className="text-blue-500 hover:underline">Sign up</Link>
+              <span className="text-[#64748B]"> for SecureSign for free</span>
+            </p>
+          </form>
         </div>
       </div>
-   
+        {/* Terms and Privacy */}
+        <p className="text-xs text-center mt-4 font-poppins leading-4">
+          <span className="text-[#64748B]">By clicking Log in or Sign up, you agree to the </span>
+          <Link href="/terms" className="text-blue-500 hover:underline">Terms of Service</Link>
+          <span className="text-[#64748B]"> and </span>
+          <Link href="/privacy" className="text-blue-500 hover:underline">Privacy Notice</Link>
+        </p>
+      
+    </div>
   );
 };
 
