@@ -165,7 +165,6 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   };
 
   const handleSendClick = () => {
-    debugger
     console.log("Send clicked. Unsaved changes?", hasUnsavedChanges);
     if (hasUnsavedChanges) {
       setIsUnsavedChangesDialogVisible(true);

@@ -28,7 +28,7 @@ export interface IDocumentVersion {
 
 export interface IDocumentField {
   id: string;
-  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials' | 'realtime_photo';
+  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials' | 'realtime_photo' | 'stamp';
   x: number;
   y: number;
   width: number;

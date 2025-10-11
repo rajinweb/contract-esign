@@ -1,6 +1,6 @@
 import React from "react";
 import { Recipient, ROLES } from "@/types/types";
-import { Link, Plus } from "lucide-react";
+import {Plus} from "lucide-react";
 
 
 const RecipientsList = React.memo(function RecipientsList({ recipients = [], onAddRecipients }: { recipients: Recipient[], onAddRecipients: () => void }) {

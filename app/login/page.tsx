@@ -56,11 +56,11 @@ const LoginPage: React.FC = () => {
       <div className="relative max-w-[500px]  mx-auto">
         <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-6">
           {/* Heading */}
-          <h3 className="text-lg font-medium text-[#020817] text-center mb-2 font-poppins">
+          <h3 className="text-lg font-medium text-[#020817] text-center mb-2">
             Log in with ease
           </h3>
-          <p className="text-xs text-[#64748B] text-center mb-6 font-poppins">
-            You can log in with your SecureSign or Social Media Accounts
+          <p className="text-xs text-[#64748B] text-center mb-6">
+            Log in with your Social Media Accounts
           </p>
 
           {/* Social Login Buttons */}
@@ -159,7 +159,6 @@ const LoginPage: React.FC = () => {
             <p className="text-xs text-center mt-4 font-poppins">
               <span className="text-[#64748B]">No account? </span>
               <Link href="/register" className="text-blue-500 hover:underline">Sign up</Link>
-              <span className="text-[#64748B]"> for SecureSign for free</span>
             </p>
           </form>
         </div>
