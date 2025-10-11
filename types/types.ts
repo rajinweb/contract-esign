@@ -227,6 +227,7 @@ export interface DocumentEditorProps {
   isSigningMode?: boolean,
   onPageChange?: (currentPage: number) => void,
   onNumPagesChange?: (pages: number) => void
+  onSignedSaveDocument?: (saveFn: () => Promise<void>) => void;
 }
 
 export interface UploadResult {

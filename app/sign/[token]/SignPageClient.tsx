@@ -1,5 +1,5 @@
 "use client";
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { LoaderPinwheel, Download, X, } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
@@ -19,6 +19,7 @@ interface SignDocumentResponse {
     name: string;
     fields: DocumentField[];
     recipients: Recipient[];
+    status:string;
   };
 }
 
@@ -29,8 +30,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [signed, setSigned] = useState(false);
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(1);
-  const [recipientRole, setRecipientRole] = useState<'signer' | 'viewer' | 'approver' | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<'approved' | 'rejected' | null>(null);
+  const saveRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const fetchPdf = async () => {
@@ -51,6 +52,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         if (!data.success || !data.document) notFound();
 
         setDoc(data.document);
+        setSigned(()=>{
+          return data?.document?.status=="signed"? true : false
+        })
       } catch (err: unknown) {
         console.error(err);
         const msg = err instanceof Error ? err.message : "Failed to fetch document";
@@ -130,6 +134,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
             isSigningMode={true}
             onPageChange={setPage}
             onNumPagesChange={setNumPages}
+            onSignedSaveDocument={(fn) => (saveRef.current = fn)}
           />
         )}
       </div>
@@ -145,7 +150,13 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
               <div>
               <small className="flex justify-center">{recipient.totalFields} Fields assigned</small>
                 <button
-                  onClick={() => handleSignOrApprove('signed')}
+                  onClick={async () => {
+                      if (saveRef.current) {
+                        await saveRef.current();
+                        alert('Document saved to server!');
+                      }
+                      handleSignOrApprove('signed')
+                    }}
                   className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
                   style={{backgroundColor: recipient.color}}
                 >

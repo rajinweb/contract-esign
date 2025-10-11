@@ -235,7 +235,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
                     </>
                   ) : (
                     <>
-                      <span className="truncate text-xs w-[80%] p-1">{documentName || 'Untitled Document'}</span>
+                      <span className="truncate text-xs w-[80%] p-1">{documentName}</span>
                       <PenLine
                       size={18}
                         className="cursor-pointer text-gray-600 hover:text-blue-600"

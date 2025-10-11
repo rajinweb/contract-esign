@@ -3,7 +3,7 @@ import connectDB from '@/utils/db';
 import DocumentModel, { IDocumentVersion, IDocumentRecipient } from '@/models/Document'
 interface IDocument {
     _id: string;
-    name: string;
+    documentName: string;
     status: string;
     recipients: IDocumentRecipient[];
     versions: IDocumentVersion[];
@@ -31,15 +31,15 @@ export async function GET(req: NextRequest) {
         const recipient = document.recipients.find(r => r.id.toString() === recipientId);
         if (!recipient) return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
         const fieldsForRecipient = version.fields.filter(field => field.recipientId === recipientId);
-
         return NextResponse.json({
             success: true,
             document: {
                 id: document._id.toString(),
-                name: document.name || 'Untitled Document',
+                name: document?.documentName || 'Untitled Document',
                 fileUrl: `/api/signing-file?token=${token}`,
                 fields: fieldsForRecipient || [],
                 recipients: document.recipients || [],
+                status: document.status
             },
         });
     } catch (_err) {

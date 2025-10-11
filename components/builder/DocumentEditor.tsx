@@ -32,7 +32,7 @@ import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlo
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange, onSignedSaveDocument }) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -725,7 +725,12 @@ useEffect(() => {
   }
 }, [droppedComponents, recipients, documentName, lastSavedState]);
 
-
+// save signed copy
+useEffect(() => {
+  if (onSignedSaveDocument) {    
+    onSignedSaveDocument(saveToServer);
+  }
+}, [onSignedSaveDocument, saveToServer]);
 
   // Finalize session when user leaves the editor: persist last editHistory as metadata-only and clear session
   useEffect(() => {
