@@ -14,6 +14,7 @@ import {
   Share2,
   MoveRight,
   SendHorizontal,
+  FileCheck,
 } from 'lucide-react';
 import { Doc, statuses} from '@/types/types';
 import PdfThumbnail from '@/components/PdfThumbnails';
@@ -48,6 +49,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
   const [selectedTime, setSelectedTime] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
+  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
  
   const router = useRouter();
   const filteredDocuments = useFilteredDocs(documents, selectedStatus, searchQuery);
@@ -69,6 +71,46 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
       } else {
         toast.error("Cannot delete: Unknown error");
       }
+    }
+  }
+
+  async function handleDownloadSignedCopy(doc: Doc) {
+    try {
+      setDownloadingDoc(doc.id);
+      const token = localStorage.getItem('AccessToken') || '';
+      
+      const res = await fetch(`/api/documents/download-signed?documentId=${encodeURIComponent(doc.documentId || doc.id)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Failed to download signed document');
+      }
+
+      // Download the PDF
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.name}-signed.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Signed document downloaded successfully');
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Failed to download signed document');
+      }
+    } finally {
+      setDownloadingDoc(null);
     }
   }
   
@@ -165,22 +207,60 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                   e.stopPropagation(); 
                   handleDeleteDoc(doc);
                 }}
+                data-testid={`delete-doc-${doc.id}`}
                 >
                 <Trash2 size={26} />
               </button>
-                {/* Add this below */}
+                {/* View/Download Original */}
                 {doc.url && (
                   <a
                     href={doc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 underline"
+                    className="text-blue-600 hover:text-blue-800"
                     onClick={e => e.stopPropagation()}
                     title='View / Download'
+                    data-testid={`view-doc-${doc.id}`}
                   >
                    <View size={26}/> 
                   </a>
                 )}
+                
+                {/* Download Signed Copy Button */}
+                {doc.status === 'signed' ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadSignedCopy(doc);
+                    }}
+                    disabled={downloadingDoc === doc.id}
+                    className="text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                    title="Download Signed Copy"
+                    data-testid={`download-signed-${doc.id}`}
+                  >
+                    {downloadingDoc === doc.id ? (
+                      <div className="animate-spin">
+                        <FileCheck size={26} />
+                      </div>
+                    ) : (
+                      <FileCheck size={26} />
+                    )}
+                  </button>
+                ) : (
+                  <div className="relative group">
+                    <button
+                      disabled
+                      className="text-gray-300 cursor-not-allowed"
+                      data-testid={`download-signed-disabled-${doc.id}`}
+                    >
+                      <FileCheck size={26} />
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
+                      Signed copy will be available once all recipients complete signing.
+                    </div>
+                  </div>
+                )}
+
               {StatusIcon &&  <StatusIcon size={26} className={`ml-2 ${statusColor}`} /> }             
               <span className={`capitalize ${statusColor}`}>
                 {doc.status.replace('_', ' ')}
