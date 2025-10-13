@@ -31,6 +31,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<'approved' | 'rejected' | null>(null);
+  const [currentRecipient, setCurrentRecipient] = useState<Recipient | null>(null);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
@@ -52,6 +53,11 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         if (!data.success || !data.document) notFound();
 
         setDoc(data.document);
+        const recipient = data.document.recipients.find(r => r.id === recipientId);
+        if (recipient) {
+          setCurrentRecipient(recipient);
+        }
+
         setSigned(()=>{
           return data?.document?.status=="signed"? true : false
         })
@@ -138,43 +144,43 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           />
         )}
       </div>
-       { doc?.recipients.map((recipient) => {
-            const roleDef = ROLES.find(r => r.value === recipient.role);
-            const Icon = roleDef?.icon;
-           
-            let isNotSigner = doc.fields.filter(item => item.recipientId == recipient.id)
 
-        return(
-          <Fragment key={recipient.id}>
-             {recipient.role === 'signer' && !signed && (
-              <div>
-              <small className="flex justify-center">{recipient.totalFields} Fields assigned</small>
+      {doc && currentRecipient && (() => {
+        const roleDef = ROLES.find(r => r.value === currentRecipient.role);
+        const Icon = roleDef?.icon;
+        const assignedFields = doc.fields.filter(item => item.recipientId === currentRecipient.id);
+
+        if (currentRecipient.role === 'signer' && !signed) {
+            return (
+              <div className="mt-4 text-center">
+                <small>{assignedFields.length} Fields assigned</small>
                 <button
                   onClick={async () => {
-                      if (saveRef.current) {
-                        await saveRef.current();
-                        alert('Document saved to server!');
-                      }
-                      handleSignOrApprove('signed')
-                    }}
-                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
-                  style={{backgroundColor: recipient.color}}
+                    if (saveRef.current) {
+                      await saveRef.current();
+                    }
+                    handleSignOrApprove('signed');
+                  }}
+                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs mt-2"
+                  style={{ backgroundColor: currentRecipient.color }}
                 >
                 {Icon && <Icon size={12} />}
                 Sign Document
               </button>
-               {signed && <p className="text-green-600 font-medium">You have signed this document.</p>}
-               </div>
-            )}
-            {recipient.role === 'approver' && isNotSigner.length && !approvalStatus && (
-            <div className="flex gap-4 items-center">
-              <small className="flex justify-center">{recipient.totalFields} Fields assigned</small>
+            </div>
+          );
+        }
+
+        if (currentRecipient.role === 'approver' && !approvalStatus) {
+          return (
+            <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="flex gap-4">
               <button
                 onClick={() => handleSignOrApprove('approved')}
                 className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
-                style={{backgroundColor: recipient.color}}
-                >
-                {Icon && <Icon size={12} />} 
+                style={{backgroundColor: currentRecipient.color}}
+              >
+                {Icon && <Icon size={12} />}
                 Approve Document
               </button>
               <button
@@ -183,21 +189,25 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                 >
                 <X size={12} /> Reject
               </button>
+              </div>
               {approvalStatus === 'approved' && <p className="text-green-600 font-medium">You have approved this document.</p>}
               {approvalStatus === 'rejected' && <p className="text-red-600 font-medium">You have rejected this document.</p>}
             </div>
-            )}
-            {recipient.role === 'viewer' && (
-                <p className="text-gray-600 font-medium">You are a viewer for this document.</p>
-              )}
-           </Fragment>
-      )})
-      }
+          );
+        }
+
+        if (currentRecipient.role === 'viewer') {
+          return <p className="mt-4 text-gray-600 font-medium">You are a viewer for this document.</p>;
+        }
+
+        if (signed && currentRecipient.role === 'signer') {
+          return <p className="mt-4 text-green-600 font-medium">You have signed this document.</p>;
+        }
+
+        return null;
+      })()}
     </div>
   );
 };
 
 export default SignPageClient;
-
-
-
