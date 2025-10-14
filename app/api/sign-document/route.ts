@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
                 id: document._id.toString(),
                 name: document?.documentName || 'Untitled Document',
                 fileUrl: `/api/signing-file?token=${token}`,
-                fields: fieldsForRecipient || [],
+                fields: version.fields || [],
                 recipients: document.recipients || [],
                 status: document.status
             },

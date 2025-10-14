@@ -29,7 +29,8 @@ interface DroppedComponentsProps {
   recipients?: Recipient[];
   onAddRecipients: () => void;
   onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent) => void;
-  isSigningMode:boolean
+  isSigningMode:boolean;
+  currentRecipientId?: string;
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
@@ -47,7 +48,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   recipients = [],
   onAddRecipients,
   onClickField,
-  isSigningMode
+  isSigningMode,
+  currentRecipientId
 }) => {
   const rndFields=useRef<Rnd>(null);
   const getAssignedRecipient = (recipientId?: string) => {
@@ -73,6 +75,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
       {droppedComponents.map((item) => {
         const assignedRecipient = getAssignedRecipient(item.assignedRecipientId || undefined);
         const isSelected = selectedFieldId === item.id;
+        const isCurrentUserField = isSigningMode ? item.assignedRecipientId === currentRecipientId : true;
+
         return (
           <Rnd
             key={item.id}
@@ -83,6 +87,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               assignedRecipient  ? 'border-2 '  : 'bg-[#1ca4ff33]'
             } ${isSelected ? 'bg-[#1ca4ff66]' : ''}            
             ${ assignedRecipient && assignedLabel}
+            ${!isCurrentUserField ? 'opacity-50' : ''}
             `}
             style={assignedRecipient ? { 
               backgroundColor: `${assignedRecipient.color}33`,
@@ -109,7 +114,11 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 })
               }
             )}
-            onClick={(e: React.MouseEvent) => handleFieldClick(e as unknown as MouseEvent, item)}
+            onClick={(e: React.MouseEvent) => {
+              if (isCurrentUserField) {
+                handleFieldClick(e as unknown as MouseEvent, item);
+              }
+            }}
             disableDragging={isSigningMode}  
             enableResizing={!isSigningMode}  
             data-name={assignedRecipient?.name}
@@ -130,7 +139,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             }`}>
             {item.data &&
               (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime photo') ? <ImageField image={item.data} /> :
-              item.component == "Text" ? <MultilineTextField textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
+              item.component == "Text" ? <MultilineTextField value={item.data || ''} readOnly={!isCurrentUserField} textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
               item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime photo' ? "Click to capture " : '') + item.component.toLowerCase()
             }
             </div>

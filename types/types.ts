@@ -118,6 +118,7 @@ export interface Recipient {
   order: number;
   isCC?: boolean;
   totalFields: number
+  status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending' 
 }
 /* send email */
 export interface SendDocumentRequest {
@@ -227,7 +228,9 @@ export interface DocumentEditorProps {
   isSigningMode?: boolean,
   onPageChange?: (currentPage: number) => void,
   onNumPagesChange?: (pages: number) => void
-  onSignedSaveDocument?: (saveFn: () => Promise<void>) => void;
+  onSignedSaveDocument?: (saveFn: () => Promise<void>) => void,
+  signingToken?: string;
+  currentRecipientId?: string;
 }
 
 export interface UploadResult {

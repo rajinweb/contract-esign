@@ -9,9 +9,27 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const userId = await getUserIdFromReq(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    const signingToken = req.headers.get('X-Signing-Token');
+    const recipientIdHeader = req.headers.get('X-Recipient-Id');
+    let userId: string | null = null;
+
+    if (signingToken) {
+        if (!recipientIdHeader) {
+            return NextResponse.json({ message: 'Recipient ID is missing' }, { status: 400 });
+        }
+        const doc = await DocumentModel.findOne({ 
+            "versions.signingToken": signingToken,
+            "recipients.id": recipientIdHeader 
+        });
+        if (!doc) {
+            return NextResponse.json({ message: 'Unauthorized: Invalid signing token' }, { status: 401 });
+        }
+        userId = doc.userId.toString();
+    } else {
+        userId = await getUserIdFromReq(req);
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
     }
 
     const { searchParams } = new URL(req.url);

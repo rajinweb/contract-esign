@@ -30,14 +30,16 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [signed, setSigned] = useState(false);
   const [page, setPage] = useState(1);
   const [numPages, setNumPages] = useState(1);
-  const [approvalStatus, setApprovalStatus] = useState<'approved' | 'rejected' | null>(null);
+  const [approvalStatus, setApprovalStatus] = useState<Recipient["status"] | null>(null);
   const [currentRecipient, setCurrentRecipient] = useState<Recipient | null>(null);
+  const [currentRecipientId, setCurrentRecipientId] = useState<string>();
   const saveRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const fetchPdf = async () => {
       try {
         const recipientId = new URLSearchParams(window.location.search).get("recipient");
+        setCurrentRecipientId(recipientId ?? undefined);
         if (!recipientId) {
             setError("Recipient not specified.");
             setLoading(false);
@@ -54,13 +56,20 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
         setDoc(data.document);
         const recipient = data.document.recipients.find(r => r.id === recipientId);
+        
         if (recipient) {
           setCurrentRecipient(recipient);
-        }
+          const hasSigned = recipient.status === 'signed';
+          const hasApproved = recipient.status === 'approved';
 
-        setSigned(()=>{
-          return data?.document?.status=="signed"? true : false
-        })
+          setSigned(hasSigned || hasApproved);
+
+          if (recipient.role === 'approver') {
+            if (hasApproved || recipient.status === 'rejected') {
+              setApprovalStatus(recipient.status);
+            }
+          }
+        }
       } catch (err: unknown) {
         console.error(err);
         const msg = err instanceof Error ? err.message : "Failed to fetch document";
@@ -73,22 +82,27 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     fetchPdf();
   }, [token]);
 
-  const handleSignOrApprove = async (action: 'signed' | 'approved' | 'rejected') => {
+  const handleSignOrApprove = async (action: Recipient["status"]) => {
     try {
       const recipientId =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("recipient")
           : null;
 
-      await fetch("/api/signedDocument", {
+      const response = await fetch("/api/signedDocument", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, recipientId, action }),
       });
 
-      if (action === 'signed') {
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} document`);
+      }
+
+      if (action === 'signed' || action === 'approved') {
         setSigned(true);
-      } else {
+      }
+      if (action === 'approved' || action === 'rejected') {
         setApprovalStatus(action);
       }
     } catch (err) {
@@ -140,7 +154,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
             isSigningMode={true}
             onPageChange={setPage}
             onNumPagesChange={setNumPages}
+            signingToken={token}
             onSignedSaveDocument={(fn) => (saveRef.current = fn)}
+            currentRecipientId={currentRecipientId}
           />
         )}
       </div>
@@ -150,58 +166,61 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         const Icon = roleDef?.icon;
         const assignedFields = doc.fields.filter(item => item.recipientId === currentRecipient.id);
 
-        if (currentRecipient.role === 'signer' && !signed) {
-            return (
-              <div className="mt-4 text-center">
-                <small>{assignedFields.length} Fields assigned</small>
-                <button
-                  onClick={async () => {
-                    if (saveRef.current) {
-                      await saveRef.current();
-                    }
-                    handleSignOrApprove('signed');
-                  }}
-                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs mt-2"
-                  style={{ backgroundColor: currentRecipient.color }}
-                >
-                {Icon && <Icon size={12} />}
-                Sign Document
-              </button>
-            </div>
-          );
+        if (currentRecipient.role === 'signer') {
+          if (signed) {
+            return <p className="mt-4 text-green-600 font-medium">You have signed this document.</p>;
+          }
+          return (
+            <div className="mt-4 text-center">
+              <small>{assignedFields.length} Fields assigned</small>
+              <button
+                onClick={async () => {
+                  if (saveRef.current) {
+                    await saveRef.current();
+                  }
+                  handleSignOrApprove('signed');
+                }}
+                className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs mt-2"
+                style={{ backgroundColor: currentRecipient.color }}
+              >
+              {Icon && <Icon size={12} />}
+              Sign Document
+            </button>
+          </div>
+        );
         }
 
-        if (currentRecipient.role === 'approver' && !approvalStatus) {
+        if (currentRecipient.role === 'approver') {
+          if (approvalStatus === 'approved') {
+            return <p className="mt-4 text-green-600 font-medium">You have approved this document.</p>;
+          }
+          if (approvalStatus === 'rejected') {
+            return <p className="mt-4 text-red-600 font-medium">You have rejected this document.</p>;
+          }
           return (
             <div className="mt-4 flex flex-col items-center gap-2">
-            <div className="flex gap-4">
-              <button
-                onClick={() => handleSignOrApprove('approved')}
-                className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
-                style={{backgroundColor: currentRecipient.color}}
-              >
-                {Icon && <Icon size={12} />}
-                Approve Document
-              </button>
-              <button
-                  onClick={() => handleSignOrApprove('rejected')}
-                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
+              <div className="flex gap-4">
+                <button
+                  onClick={() => handleSignOrApprove('approved')}
+                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
+                  style={{backgroundColor: currentRecipient.color}}
                 >
-                <X size={12} /> Reject
-              </button>
+                  {Icon && <Icon size={12} />}
+                  Approve Document
+                </button>
+                <button
+                    onClick={() => handleSignOrApprove('rejected')}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
+                  >
+                  <X size={12} /> Reject
+                </button>
               </div>
-              {approvalStatus === 'approved' && <p className="text-green-600 font-medium">You have approved this document.</p>}
-              {approvalStatus === 'rejected' && <p className="text-red-600 font-medium">You have rejected this document.</p>}
             </div>
           );
         }
 
         if (currentRecipient.role === 'viewer') {
           return <p className="mt-4 text-gray-600 font-medium">You are a viewer for this document.</p>;
-        }
-
-        if (signed && currentRecipient.role === 'signer') {
-          return <p className="mt-4 text-green-600 font-medium">You have signed this document.</p>;
         }
 
         return null;

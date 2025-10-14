@@ -32,7 +32,7 @@ import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlo
 // PDF.js worker setup
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange, onSignedSaveDocument }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange, onSignedSaveDocument, signingToken, currentRecipientId}) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -510,7 +510,7 @@ useEffect(() => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  const saveToServer = async (): Promise<void> => {
+  const saveToServer = useCallback(async (): Promise<void> => {
     if (!selectedFile) return;
     // Save as blob
     const pdfDoc = await loadPdf(selectedFile as File | string );
@@ -520,7 +520,7 @@ useEffect(() => {
     const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
     const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
     // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
-    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, false);
+    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
     if (result && result.documentId) {
       setDocumentId(result.documentId);
     }
@@ -529,7 +529,7 @@ useEffect(() => {
       name: documentName,
       recipients: recipients,
     });
-  }
+  }, [selectedFile, documentName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setDocumentName, setSelectedFile, signingToken, setLastSavedState]);
 
   //File Handling
   const handleSavePDF = async ({
@@ -820,7 +820,7 @@ useEffect(() => {
         try {
           // use uploadToServer with isMetadataOnly = true
           const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
-          const res = await uploadToServer(null, documentName.trim(), currentPage, droppedComponents, recipients, id, setDocumentId, setDocumentName, setSelectedFile, sessionId, true);
+          const res = await uploadToServer(null, documentName.trim(), currentPage, droppedComponents, recipients, id, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, true);
           if (res && res.documentName) {
             setDocumentName(res.documentName as string);
             lastSavedNameRef.current = res.documentName as string;
@@ -856,13 +856,6 @@ useEffect(() => {
   return fieldsChanged || recipientsChanged || nameChanged;
 }, [droppedComponents, recipients, documentName, lastSavedState]);
 
-// const hasUnsavedChanges = useMemo(() => {
-//   const componentsChanged = !areDroppedComponentsEqual(droppedComponents, droppedComponents);
-//   const recipientsChanged = !areRecipientsEqual(recipients, recipients);
-//   const nameChanged = documentName.trim() !== documentName.trim();
-
-//   return componentsChanged || recipientsChanged || nameChanged;
-// }, [droppedComponents, recipients, documentName, droppedComponents, recipients, documentName]);
 
 
   // ==========================================================
@@ -938,8 +931,9 @@ useEffect(() => {
                     onAddRecipients={() => setShowAddRecipients(true)}
                     isSigningMode={isSigningMode}
                     onClickField={clickField}
+                    currentRecipientId={currentRecipientId}
                   />
-              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''}/>
+              <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''} isSigningMode={isSigningMode} signingToken={signingToken}/>
             </div>
             </div>
             {/* Aside Panel for Page Thumbnails */}

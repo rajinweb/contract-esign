@@ -3,7 +3,7 @@ import connectDB, { getUserIdFromReq } from '@/utils/db';
 import DocumentModel from '@/models/Document';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import { SendDocumentRequest } from '@/types/types';
+import { Recipient, SendDocumentRequest } from '@/types/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,6 +59,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Update document status
+    document.recipients.forEach((recipient: Recipient) => {
+      if (recipient.status !== 'signed' && recipient.status !== 'approved' && recipient.status !== 'rejected') {
+        recipient.status = 'sent';
+      }
+    });
+
     document.status = 'sent';
     await document.save();
 

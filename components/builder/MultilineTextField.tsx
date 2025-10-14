@@ -1,43 +1,37 @@
 'use client'
-import { useState, useEffect, forwardRef } from "react";
-import { InputProps } from '@/types/types';
-import { toast } from "react-hot-toast"; // or any toast lib you use
+import { forwardRef } from "react";
+import { toast } from "react-hot-toast";
 
-const MultilineTextField = forwardRef<HTMLTextAreaElement, Omit<InputProps, "ref">>((props, ref) => {
-  const { textInput } = props;
-  const [text, setText] = useState<string>('');
+interface MultilineTextFieldProps {
+  value?: string;
+  textInput: (data: string) => void;
+  readOnly?: boolean;
+}
 
-  
-  // Handle typing and adjusting height
+const MultilineTextField = forwardRef<HTMLTextAreaElement, MultilineTextFieldProps>((props, ref) => {
+  const { value = '', textInput, readOnly = false } = props;
+
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    if (readOnly) return;
 
-    // ✅ English-only check //To-Do
+    const inputValue = e.target.value;
     const englishOnly = /^[\x00-\x7F]*$/;
-    if (!englishOnly.test(value)) {
+    if (!englishOnly.test(inputValue)) {
       toast.error("Only English characters are supported right now.");
-      return; // ignore non-English input
+      return;
     }
-
-    setText(value);
-    textInput(value)
+    textInput(inputValue);
   };
-
-  useEffect(() => {
-    // Focus and select text when the component mounts
-    if (ref && 'current' in ref && ref.current) {
-      ref.current.focus();
-    }
-  }, [ref]);
-  
 
   return (
     <textarea
       ref={ref}
       onChange={handleInput}
-      placeholder="Type here..."
-      className="overflow-auto resize-none p-2 h-full w-full cursor-move overflow-y-auto"
-      value={text}
+      placeholder={readOnly ? '' : "Type here..."}
+      className={`overflow-auto resize-none p-2 h-full w-full ${readOnly ? 'cursor-default bg-transparent' : 'cursor-text bg-white'}`}
+
+      value={value}
+      readOnly={readOnly}
     />
   );
 });

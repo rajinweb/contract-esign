@@ -1,7 +1,7 @@
 'use client';
 import { LoaderPinwheel } from 'lucide-react';
-import React, { Fragment } from 'react';
-import { Document, Page } from "react-pdf";
+import React, { Fragment, useMemo } from 'react';
+import { Document, Page, pdfjs } from "react-pdf";
 
 interface PDFViewerProps {
   selectedFile: File | string;
@@ -12,6 +12,8 @@ interface PDFViewerProps {
   insertBlankPageAt: (index: number) => void;
   toggleMenu: (e: React.MouseEvent, pageIndex?: number) => void;
   error?: string;
+  signingToken?: string;
+  isSigningMode?: boolean;
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({
@@ -22,11 +24,34 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   generateThumbnails,
   insertBlankPageAt,
   toggleMenu,
-  error
+  error,
+  signingToken,
+  isSigningMode,
 }) => {
 const flexBoxcenter='absolute inset-0 flex items-center w-56 justify-center  text-center p-4 left-1/2 transform -translate-x-1/2'
+  
+  const customHeaders = useMemo(() => {
+    if (!isSigningMode) return {};
+
+    const recipientId = typeof window !== 'undefined' 
+      ? new URLSearchParams(window.location.search).get("recipient") 
+      : '';
+
+    return {
+      'X-Signing-Token': signingToken || '',
+      'X-Recipient-Id': recipientId || '',
+    };
+  }, [isSigningMode, signingToken]);
+
   return (
-    <Document file={selectedFile} onLoadSuccess={(data) => generateThumbnails(data.numPages)}  
+    <Document 
+      file={selectedFile} 
+      onLoadSuccess={(data) => generateThumbnails(data.numPages)}  
+      options={{
+        cMapUrl: `//cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
+        cMapPacked: true,
+        httpHeaders: customHeaders,
+      }}
       loading={<div className={`${flexBoxcenter}`}>
         <LoaderPinwheel className="animate-spin left-1/2 top-1/2 mr-2 " size="30" color='#2563eb' />
         Loading PDF...</div>} 

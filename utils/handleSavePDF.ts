@@ -145,6 +145,7 @@ export const uploadToServer = async (
     setDocumentName: (name: string) => void,
     setSelectedFile: (name: string) => void,
     sessionId?: string | null,
+    signingToken?: string,
     isMetadataOnly: boolean = true
 ): Promise<UploadResult | null> => {
 
@@ -194,10 +195,19 @@ export const uploadToServer = async (
             : 'Initial document creation';
     formData.append('changeLog', changeLog);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
     const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (signingToken) {
+        headers['X-Signing-Token'] = signingToken;
+    } else {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    }
 
+    if (typeof window !== 'undefined') {
+        headers['X-Recipient-Id'] = new URLSearchParams(window.location.search).get("recipient") || '';
+    }
     const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: Object.keys(headers).length ? headers : undefined,
@@ -232,7 +242,7 @@ export const uploadToServer = async (
         }
     }
 
-    if (result.fileUrl) setSelectedFile(result.fileUrl);
+    if (result.fileUrl && !signingToken) setSelectedFile(result.fileUrl);
     return result;
 };
 
@@ -246,4 +256,3 @@ export function downloadPdf(blob: Blob, documentName: string) {
     a.remove();
     URL.revokeObjectURL(url);
 }
-
