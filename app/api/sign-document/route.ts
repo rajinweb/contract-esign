@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         }
         const recipient = document.recipients.find(r => r.id.toString() === recipientId);
         if (!recipient) return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
-        const fieldsForRecipient = version.fields.filter(field => field.recipientId === recipientId);
+
         return NextResponse.json({
             success: true,
             document: {

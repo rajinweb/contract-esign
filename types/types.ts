@@ -117,8 +117,8 @@ export interface Recipient {
   color: string;
   order: number;
   isCC?: boolean;
-  totalFields: number
-  status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending' 
+  totalFields: number;
+  status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending'
 }
 /* send email */
 export interface SendDocumentRequest {

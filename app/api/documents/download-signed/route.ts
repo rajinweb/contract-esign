@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB, { getUserIdFromReq } from '@/utils/db';
-import DocumentModel, { IDocumentVersion, IDocumentRecipient, IDocumentField } from '@/models/Document';
+import DocumentModel, { IDocumentRecipient, IDocumentField } from '@/models/Document';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export const runtime = 'nodejs';
@@ -231,7 +231,7 @@ export async function GET(req: NextRequest) {
         yPosition -= 20;
 
         // Field summary
-        const fieldTypeCounts = version.fields.reduce((acc: any, field: any) => {
+        const fieldTypeCounts = (version.fields as IDocumentField[]).reduce((acc: Record<IDocumentField['type'], number>, field) => {
             acc[field.type] = (acc[field.type] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);

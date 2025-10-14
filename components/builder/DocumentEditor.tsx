@@ -199,7 +199,9 @@ useEffect(() => {
   };
 
   loadDocument();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [propDocumentId, isSigningMode]);
+
 useEffect(() => {
   if (!documentId) return;
 
@@ -697,6 +699,7 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       onNumPagesChange(pages.length);
     }
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages]);
 
   // Auto-scroll active thumbnail into view

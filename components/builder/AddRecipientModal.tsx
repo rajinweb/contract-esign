@@ -75,7 +75,8 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
             color: getNextColor([]),
             order: 1,
             isCC: false,
-            totalFields:0
+            totalFields:0,
+            status: 'pending' as Recipient['status']
           }]
         : recipients;
       setDraftRecipients(initialRecipients);
@@ -161,7 +162,8 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
         color: getNextColor(prev),
         order: prev.length + 1,
         isCC,
-        totalFields:0
+        totalFields:0,
+        status: 'pending' as Recipient['status']
       };
       return [...prev, newRecipient];
     });

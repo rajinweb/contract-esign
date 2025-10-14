@@ -1,5 +1,5 @@
 "use client";
-import React, { Fragment, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { LoaderPinwheel, Download, X, } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
