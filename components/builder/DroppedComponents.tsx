@@ -30,6 +30,7 @@ interface DroppedComponentsProps {
   onAddRecipients: () => void;
   onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent) => void;
   isSigningMode:boolean;
+  isSigned?:boolean;
   currentRecipientId?: string;
 }
 
@@ -49,6 +50,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   onAddRecipients,
   onClickField,
   isSigningMode,
+  isSigned,
   currentRecipientId
 }) => {
   const rndFields=useRef<Rnd>(null);
@@ -76,7 +78,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const assignedRecipient = getAssignedRecipient(item.assignedRecipientId || undefined);
         const isSelected = selectedFieldId === item.id;
         const isCurrentUserField = isSigningMode ? item.assignedRecipientId === currentRecipientId : true;
-
+        const isFieldReadOnly = (isSigningMode && (!isCurrentUserField || isSigned));
+        
         return (
           <Rnd
             key={item.id}
@@ -115,7 +118,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }
             )}
             onClick={(e: React.MouseEvent) => {
-              if (isCurrentUserField) {
+              if (isCurrentUserField && !isFieldReadOnly) {
                 handleFieldClick(e as unknown as MouseEvent, item);
               }
             }}
@@ -139,8 +142,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             }`}>
             {item.data &&
               (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime photo') ? <ImageField image={item.data} /> :
-              item.component == "Text" ? <MultilineTextField value={item.data || ''} readOnly={!isCurrentUserField} textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null}/> : (item.component === 'Realtime photo' ? "Click to capture " : '') + item.component.toLowerCase()
+              item.component == "Text" ? <MultilineTextField value={item.data || ''} readOnly={isFieldReadOnly} textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
+              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} readOnly={isFieldReadOnly}/> : (item.component === 'Realtime photo' ? "Click to capture " : '') + item.component.toLowerCase()
             }
             </div>
           </Rnd>

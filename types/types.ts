@@ -14,7 +14,7 @@ export interface Doc {
   | 'signed'
   | 'pending'
   | 'draft'
-  | 'declined'
+  | 'rejected'
   | 'expired'
   | 'delivery_failed'
   | 'saved'
@@ -32,7 +32,7 @@ export const statuses = [
   { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
   { value: "pending", label: "Pending", color: "text-amber-600", dot: "bg-amber-600" },
   { value: "draft", label: "Draft", color: "text-gray-400", dot: "bg-gray-400" },
-  { value: "declined", label: "Declined", color: "text-rose-400", dot: "bg-rose-400" },
+  { value: "rejected", label: "Rejected", color: "text-rose-400", dot: "bg-rose-400" },
   { value: "expired", label: "Expired", color: "text-zinc-300", dot: "bg-zinc-300" },
   { value: "delivery_failed", label: "Delivery Failed", color: "text-red-500", dot: "bg-red-500" },
   { value: "saved", label: "Saved", color: "text-purple-400", dot: "bg-purple-400" },
@@ -68,6 +68,7 @@ export interface ImageFieldProps {
 export interface InputProps {
   textInput: (data: string) => void;
   defaultDate?: string | null;
+  readOnly?: boolean
 }
 
 
@@ -117,10 +118,10 @@ export interface Recipient {
   color: string;
   order: number;
   isCC?: boolean;
-  totalFields: number;
+  totalFields?: number;
   status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending'
 }
-/* send email */
+/* send email 
 export interface SendDocumentRequest {
   recipients: Recipient[];
   documentName?: string;
@@ -130,7 +131,7 @@ export interface SendDocumentRequest {
   sendReminders: boolean;
   reminderDays: number;
   expiryDays: number;
-}
+}*/
 /* contacts  */
 export interface Contact {
   _id?: string;
@@ -153,20 +154,30 @@ export interface Contact {
   createdAt?: Date;
   updatedAt?: Date;
 }
-
+// Type of all supported field kinds
+export type DocumentFieldType =
+  | 'signature'
+  | 'text'
+  | 'date'
+  | 'checkbox'
+  | 'image'
+  | 'initials'
+  | 'realtime_photo'
+  | 'stamp';
 /* Document Management */
 export interface DocumentField {
   id: string;
-  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials';
+  type: DocumentFieldType;
   x: number;
   y: number;
   width: number;
   height: number;
-  pageNumber: number;
-  recipientId?: string;
+  pageNumber?: number;
+  recipientId?: string | null | undefined;
   required: boolean;
   value?: string;
   placeholder?: string;
+  mimeType?: string;
 }
 
 export interface DocumentVersion {
@@ -226,11 +237,13 @@ export interface DocumentEditorProps {
   initialFields?: DocumentField[] | null;
   initialRecipients?: Recipient[] | null;
   isSigningMode?: boolean,
+  isSigned?: boolean,
   onPageChange?: (currentPage: number) => void,
   onNumPagesChange?: (pages: number) => void
   onSignedSaveDocument?: (saveFn: () => Promise<void>) => void,
   signingToken?: string;
   currentRecipientId?: string;
+  onFieldsChange?: (fields: DocumentField[]) => void;
 }
 
 export interface UploadResult {

@@ -45,16 +45,22 @@ function Dashboard() {
           return;
         }
 
-        const mappedDocs: Doc[] = (data.documents as Record<string, unknown>[]).map((doc) => ({
-          id: String(doc.id || ''),
-          name: String(doc.name || doc.originalFileName || 'Untitled'),
-          folder: '',
-          status: String(doc.status || 'saved') as Doc['status'],
-          createdAt: new Date(doc.createdAt as string),
-          file: undefined,
-          url: `/api/documents/get?folder=${doc.userId || ''}&name=${doc.originalFileName}`,
-          documentId: String(doc.id || ''),
-        }));
+        const mappedDocs: Doc[] = (data.documents as Record<string, unknown>[]).map((doc) => {
+          const documentId = String(doc.id || '');
+          const fileUrl = documentId ? `/api/documents/${encodeURIComponent(documentId)}` : undefined;
+
+          return {
+            id: documentId,
+            name: String(doc.name || doc.originalFileName || 'Untitled'),
+            folder: '',
+            status: String(doc.status || 'saved') as Doc['status'],
+            createdAt: new Date(doc.createdAt as string),
+            file: undefined,
+            url: fileUrl,
+            fileUrl,
+            documentId,
+          };
+        });
 
         setDocuments(mappedDocs);
       } catch (err) {

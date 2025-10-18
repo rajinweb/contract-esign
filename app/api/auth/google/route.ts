@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
     });
 
     const payload = ticket.getPayload();
-    console.log('Google payload:', payload);
 
     if (!payload?.email) {
       return NextResponse.json({ message: 'Invalid Google token' }, { status: 401 });
@@ -58,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      user: { email: user.email, name: user.name , picture: user.picture },
+      user: { email: user.email, name: user.name, picture: user.picture },
       token: appToken,
     });
 

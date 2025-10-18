@@ -1,9 +1,9 @@
 import mongoose, { Schema } from 'mongoose';
-import { IDocument } from '@/types/types';
+import { DocumentField, IDocument, Recipient } from '@/types/types';
 
 export interface IEditHistory {
   sessionId: string;
-  fields: IDocumentField[];
+  fields: DocumentField[];
   documentName?: string;
   timestamp: Date;
   changeLog: string;
@@ -13,7 +13,7 @@ export interface IDocumentVersion {
   version: number;
   fileUrl?: string;
   pdfData?: Buffer;
-  fields: IDocumentField[];
+  fields: DocumentField[];
   documentName: string;
   filePath: string;
   sentAt?: Date;
@@ -26,35 +26,15 @@ export interface IDocumentVersion {
   updatedAt: Date;
 }
 
-export interface IDocumentField {
-  id: string;
-  type: 'signature' | 'text' | 'date' | 'checkbox' | 'image' | 'initials' | 'realtime_photo' | 'stamp';
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  pageNumber: number;
-  recipientId?: string;
-  required: boolean;
-  value?: string;
-  placeholder?: string;
-  mimeType?: string;
-}
-
-export interface IDocumentRecipient {
-  id: string;
-  email: string;
-  name: string;
-  role: 'signer' | 'approver' | 'viewer';
-  order: number;
-  isCC?: boolean;
-  color: string;
-  status: 'pending' | 'viewed' | 'signed' | 'approved' | 'declined';
+export interface IDocumentRecipient extends Recipient {
+  sendReminders: boolean;
+  reminderDays: number;
+  expiresAt: Date | null;
   signedAt?: Date;
   ipAddress?: string;
 }
 
-const DocumentFieldSchema = new Schema<IDocumentField>({
+const DocumentFieldSchema = new Schema<DocumentField>({
   id: { type: String, required: true },
   type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials', 'realtime_photo', 'stamp'] },
   x: { type: Number, required: true },
@@ -77,9 +57,12 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   order: { type: Number, required: true },
   isCC: { type: Boolean, default: false },
   color: { type: String, required: true },
-  status: { type: String, default: 'pending', enum: ['pending', 'viewed', 'signed', 'approved', 'declined'] },
+  status: { type: String, default: 'pending', enum: ['pending', 'viewed', 'signed', 'approved', 'rejected', 'sent'] },
   signedAt: { type: Date },
   ipAddress: { type: String },
+  sendReminders: { type: Boolean, default: false },
+  reminderDays: { type: Number },
+  expiresAt: { type: Date },
 });
 
 const EditHistorySchema = new Schema<IEditHistory>({

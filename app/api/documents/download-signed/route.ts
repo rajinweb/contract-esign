@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
-import DocumentModel, { IDocumentRecipient, IDocumentField } from '@/models/Document';
+import connectDB from '@/utils/db';
+import DocumentModel, { IDocumentRecipient } from '@/models/Document';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { getUserIdFromReq } from '@/lib/auth';
+import { DocumentField } from '@/types/types';
 
 export const runtime = 'nodejs';
 
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
         // Overlay field values onto the PDF
         console.log(`Processing ${version.fields.length} fields for document ${documentId}`);
 
-        for (const field of version.fields as IDocumentField[]) {
+        for (const field of version.fields as DocumentField[]) {
             // Skip fields without values (except checkbox which can be unchecked)
             if (!field.value && field.type !== 'checkbox') {
                 console.log(`Skipping field ${field.id} (${field.type}) - no value`);
@@ -231,7 +233,7 @@ export async function GET(req: NextRequest) {
         yPosition -= 20;
 
         // Field summary
-        const fieldTypeCounts = (version.fields as IDocumentField[]).reduce((acc: Record<IDocumentField['type'], number>, field) => {
+        const fieldTypeCounts = (version.fields as DocumentField[]).reduce((acc: Record<DocumentField['type'], number>, field) => {
             acc[field.type] = (acc[field.type] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);

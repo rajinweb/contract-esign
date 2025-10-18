@@ -1,51 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import { getAuthSession } from '@/lib/api-helpers';
 import Contact from '@/models/Contact';
 
-// Utility to extract contact ID from the request URL
-function getContactIdFromUrl(req: NextRequest): string | null {
-  const url = new URL(req.url);
-  const parts = url.pathname.split('/');
-  const id = parts[parts.length - 1];
-  return id || null;
-}
-
 // GET - Fetch a specific contact
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    const userId = await getUserIdFromReq(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const userId = await getAuthSession(req);
+    const contactId = (await context.params).id;
 
-    const contactId = getContactIdFromUrl(req);
     if (!contactId) {
       return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
     }
 
     const contact = await Contact.findOne({ _id: contactId, userId });
+
     if (!contact) {
       return NextResponse.json({ message: 'Contact not found' }, { status: 404 });
     }
 
     return NextResponse.json({ contact });
   } catch (error) {
-    console.error('Error fetching contact:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    console.error('API Error in GET /api/contacts/[id]', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // PUT - Update a contact
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    const userId = await getUserIdFromReq(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const userId = await getAuthSession(req);
+    const contactId = (await context.params).id;
 
-    const contactId = getContactIdFromUrl(req);
     if (!contactId) {
       return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
     }
@@ -62,7 +47,6 @@ export async function PUT(req: NextRequest) {
       description,
     } = body;
 
-    // Validate required fields
     if (!firstName || !lastName || !email) {
       return NextResponse.json(
         { message: 'First name, last name, and email are required' },
@@ -92,33 +76,30 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ contact });
   } catch (error) {
-    console.error('Error updating contact:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    console.error('API Error in PUT /api/contacts/[id]', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // DELETE - Delete a contact
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    const userId = await getUserIdFromReq(req);
-    if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const userId = await getAuthSession(req);
+    const contactId = (await context.params).id;
 
-    const contactId = getContactIdFromUrl(req);
     if (!contactId) {
       return NextResponse.json({ message: 'Contact ID missing' }, { status: 400 });
     }
 
     const contact = await Contact.findOneAndDelete({ _id: contactId, userId });
+
     if (!contact) {
       return NextResponse.json({ message: 'Contact not found' }, { status: 404 });
     }
 
     return NextResponse.json({ message: 'Contact deleted successfully' });
   } catch (error) {
-    console.error('Error deleting contact:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    console.error('API Error in DELETE /api/contacts/[id]', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

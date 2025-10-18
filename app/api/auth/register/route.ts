@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import Users from '@/models/Users';
 import bcrypt from 'bcryptjs';
+import connectDB from '@/utils/db';
 
 export async function POST(req: Request) {
   try {
+    await connectDB();
     const body = await req.json();
     const { email, password, name, picture } = body;
 
@@ -29,14 +31,14 @@ async function hashPasswords() {
   const users = await Users.find({});
   for (const user of users) {
     if (!user.password) {
-    console.warn(`User ${user.email} has no password set. Skipping.`);
-    continue;
-  }
-  if (!user.password.startsWith('$2')) {
-    const hashed = await bcrypt.hash(user.password, 10);
-    user.password = hashed;
-    await user.save();
-  }
+      console.warn(`User ${user.email} has no password set. Skipping.`);
+      continue;
+    }
+    if (!user.password.startsWith('$2')) {
+      const hashed = await bcrypt.hash(user.password, 10);
+      user.password = hashed;
+      await user.save();
+    }
   }
 }
 

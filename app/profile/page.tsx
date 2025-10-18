@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
-import { blobToURL } from '@/utils/Utils';
+
 import Image from 'next/image';
+import { blobToURL } from '@/lib/pdf';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();

@@ -37,7 +37,6 @@ export default function useDropZone() {
           const errorData = await res.json().catch(() => ({ message: 'Failed to upload document' }));
 
           if (res.status === 401) {
-            console.error('Unauthorized: Please log in');
             router.push('/login');
             return null;
           }

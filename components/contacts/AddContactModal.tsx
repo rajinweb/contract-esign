@@ -88,9 +88,12 @@ const AddContactModal: React.FC<AddContactModalProps> = ({
       const url = editContact ? `/api/contacts/${editContact._id}` : '/api/contacts';
       const method = editContact ? 'PUT' : 'POST';
 
+      const token = localStorage.getItem('AccessToken');
+
       const response = await fetch(url, {
         method,
         headers: {
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(contactData),

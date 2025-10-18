@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+
 import DocumentEditor from "@/components/builder/DocumentEditor";
 
 interface Props {
@@ -12,7 +13,7 @@ async function fetchDocumentData(documentId: string) {
 
   try {
     const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
+    const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
 
     const url = `${baseUrl}/api/documents/load?id=${encodeURIComponent(documentId)}`;
     console.log("Fetching document from:", url);
@@ -31,7 +32,7 @@ async function fetchDocumentData(documentId: string) {
     const data = await res.json();
 
     if (data.success && data.document) {
-      const fileUrl = `${baseUrl}/api/documents/file?documentId=${encodeURIComponent(documentId)}`;
+      const fileUrl = `${baseUrl}/api/documents/${encodeURIComponent(documentId)}`;
 
       return {
         fileUrl,
@@ -49,7 +50,7 @@ async function fetchDocumentData(documentId: string) {
 }
 
 export default async function BuilderDoc({ params }: Props) {
-  const { documentId } = await params; 
+  const { documentId } = await params;
   console.log("Resolved documentId:", documentId);
 
   const initialData = await fetchDocumentData(documentId);

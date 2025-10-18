@@ -17,6 +17,7 @@ import {
 import useDropZone from '@/hooks/useDropZone'
 import useContextStore from '@/hooks/useContextStore';
 import BulkImportModal from '../contacts/BulkImportModal';
+import { useContactsStore } from '@/hooks/useContactsStore';
 
 type SidebarType = 'documents' | 'contacts' | 'reports';
 export const PrimarySidebar = ({
@@ -171,6 +172,7 @@ export const DocumentsMenu = () => {
 };
 
 export function ContactsSidebar() {
+  const { contacts } = useContactsStore();
   const [open, setOpen] = useState(false);
   const {setShowModal} = useContextStore();
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -223,10 +225,13 @@ export function ContactsSidebar() {
       {/* Side Nav */}
       <nav className="mt-6 space-y-2 text-sm">
         <button 
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 text-slate-800"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-slate-100 text-slate-800"
         >
-          <Users className="w-4 h-4" />
-          All Contacts
+          <span className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            All Contacts
+          </span>
+          <span className="text-slate-500">{contacts.length}</span>
         </button>
         {/*
         <div className="flex justify-between items-center px-3 py-2 rounded-md hover:bg-slate-50 text-slate-700">

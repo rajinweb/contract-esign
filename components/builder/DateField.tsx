@@ -4,7 +4,7 @@ import { InputProps } from '@/types/types';
 
 
 const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, ref) => {
-  const {textInput, defaultDate} = props;
+  const {textInput, defaultDate, readOnly} = props;
   const [text, setText] = useState<string>(defaultDate ? defaultDate : '');
   
   useEffect(() => {
@@ -32,7 +32,8 @@ const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, 
           value={text}
           onChange={handleChange}
           type="date"
-          className="text-xs text-center"           
+          className="text-xs text-center"
+          readOnly={readOnly}
         />
 
   );

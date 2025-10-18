@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
 import Users from '@/models/Users';
 import mongoose from 'mongoose';
+import { getUserIdFromReq } from '@/lib/auth';
+import connectDB from '@/utils/db';
 
 // Define the structure of the update object
 interface UpdateUser {

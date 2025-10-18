@@ -3,13 +3,14 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
-import usePasswordToggle from '@/utils/usePasswordToggle';
+import usePasswordToggle from '@/hooks/usePasswordToggle';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LockKeyhole } from 'lucide-react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import zxcvbn from 'zxcvbn';
 
 import toast from 'react-hot-toast';
+
 
 type FormValues = {
   name: string;

@@ -1,26 +1,13 @@
 import { DroppedComponent, Recipient } from '@/types/types';
 
-export function blobToURL(blob) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = function () {
-      const base64data = reader.result;
-      resolve(base64data);
-    };
-  });
-}
-
-
-
 export function areDroppedComponentsEqual(
-  a,
-  b
-) {
+  a: DroppedComponent[],
+  b: DroppedComponent[]
+): boolean {
   if (a.length !== b.length) return false;
 
-  const sortById = (arr) =>
-    [...arr].sort((x, y) => x.id - y.id);
+  const sortById = (arr: DroppedComponent[]) =>
+    [...arr].sort((x, y) => (x.id && y.id ? (x.id as number) - (y.id as number) : 0));
 
   const sortedA = sortById(a);
   const sortedB = sortById(b);
@@ -43,11 +30,10 @@ export function areDroppedComponentsEqual(
   });
 }
 
-
-export function areRecipientsEqual(a, b) {
+export function areRecipientsEqual(a: Recipient[], b: Recipient[]): boolean {
   if (a.length !== b.length) return false;
 
-  const sortById = (arr) =>
+  const sortById = (arr: Recipient[]) =>
     [...arr].sort((x, y) => x.id.localeCompare(y.id));
 
   const sortedA = sortById(a);

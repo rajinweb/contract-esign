@@ -23,6 +23,7 @@ import useContextStore from '@/hooks/useContextStore';
 import toast from 'react-hot-toast';
 import Filters from './dashboard/Filters';
 import { useFilteredDocs } from '@/hooks/useFilteredDocs';
+import BulkDeleteModal from './documents/BulkDeleteModal';
 interface DocumentListProps {
     searchQuery: string;
 }
@@ -34,7 +35,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   signed: CheckCircle,
   pending: Clock,
   draft: FileText,
-  declined: XCircle,
+  rejected: XCircle,
   expired: Clock,
   delivery_failed: AlertTriangle,
   saved:Save,
@@ -42,7 +43,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
 }
 
 export default function DocumentList({searchQuery}: DocumentListProps) {
-  const { setSelectedFile, documents, setDocuments } = useContextStore();
+  const {  documents, setDocuments } = useContextStore();
   // 🔑 States for filters & view
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -50,12 +51,13 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
  
   const router = useRouter();
   const filteredDocuments = useFilteredDocs(documents, selectedStatus, searchQuery);
   async function handleDeleteDoc(doc: Doc) {
     try {
-      const res = await fetch(`/api/documents/delete?documentId=${encodeURIComponent(doc.id)}&name=${encodeURIComponent(doc.name)}`, {
+      const res = await fetch(`/api/documents/delete?id=${encodeURIComponent(doc.documentId || doc.id)}`, {
         method: 'DELETE',
       });
       
@@ -128,6 +130,13 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
       setSelectedIds(documents.map((d) => d.id));
     }
   };
+
+  const handleBulkDeleteComplete = (deletedIds: string[]) => {
+    setDocuments(prev => prev.filter(d => !deletedIds.includes(d.id)));
+    setSelectedIds([]);
+    setIsBulkDeleteModalOpen(false);
+  };
+
   const hasSelection = selectedIds.length > 0;
   return ( 
     <div className='relative'>
@@ -144,7 +153,9 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
           <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
             <Share2 size={16} /> Share
           </button>
-          <button className="flex items-center gap-1 px-3 py-1 border rounded text-red-600 hover:bg-red-50">
+          <button
+            onClick={() => setIsBulkDeleteModalOpen(true)}
+            className="flex items-center gap-1 px-3 py-1 border rounded text-red-600 hover:bg-red-50">
             <Trash2 size={16} /> Delete
           </button>
         </div>
@@ -169,6 +180,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         const statusObj=statuses.find(item => item?.value == doc.status)
         const StatusIcon = statusIcons[doc.status];
         const statusColor = statusObj?.color;
+        const docFileUrl = doc.fileUrl || doc.url;
         return (
           <div
             key={doc.id}
@@ -181,10 +193,9 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                 onChange={() => toggleSelect(doc.id)}
                 className="h-4 w-4 accent-blue-600"
               />
-              <PdfThumbnail fileUrl={doc.url} width={40} height={50} />
+              <PdfThumbnail fileUrl={docFileUrl} width={40} height={50} />
               <div className="font-medium text-gray-900"  onClick={() => {
-                  if (doc.url && doc.documentId) {
-                    setSelectedFile(doc.url);
+                  if (docFileUrl && doc.documentId) {
                     localStorage.setItem('currentDocumentId', doc.documentId);
                     // clear any previous session id so a new session will start when editor opens
                     localStorage.removeItem('currentSessionId');
@@ -212,9 +223,9 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                 <Trash2 size={26} />
               </button>
                 {/* View/Download Original */}
-                {doc.url && (
+                {docFileUrl && (
                   <a
-                    href={doc.url}
+                    href={docFileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-800"
@@ -270,6 +281,12 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         );
       })}
     </div>
+    <BulkDeleteModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        selectedDocs={documents.filter(doc => selectedIds.includes(doc.id))}
+        onDeleteComplete={handleBulkDeleteComplete}
+      />
   </div>
   );
 }

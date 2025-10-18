@@ -1,8 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { pdfjs } from "react-pdf";
 import Image from "next/image";
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
 interface PdfThumbnailProps {
   fileUrl: string;
@@ -10,6 +8,7 @@ interface PdfThumbnailProps {
   height?: number;
   className?:string;
 }
+import { pdfjs } from "react-pdf";
 
 const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height = 10, className }) => {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
@@ -22,7 +21,14 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
       }
 
       try {
-        const pdf = await pdfjs.getDocument(fileUrl).promise;
+        const absoluteUrl = new URL(fileUrl, window.location.origin).href;
+        const token = localStorage.getItem('AccessToken') || '';
+        const pdf = await pdfjs.getDocument({
+          url: absoluteUrl,
+          httpHeaders: {
+            'Authorization': `Bearer ${token}`,
+          }
+        }).promise;
         const page = await pdf.getPage(1);
 
         const viewport = page.getViewport({ scale: 0.2 });

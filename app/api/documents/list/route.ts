@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel, { IDocumentVersion } from '@/models/Document';
 
 export async function GET(req: NextRequest) {
   try {
-    await connectDB();
-    const userId = await getUserIdFromReq(req);
+    const userId = await getAuthSession(req);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
@@ -30,6 +29,7 @@ export async function GET(req: NextRequest) {
 
     const documentsWithMetadata = documents.map(doc => ({
       id: doc._id,
+      userId: doc.userId,
       name: doc.documentName,
       originalFileName: doc.originalFileName,
       currentVersion: doc.currentVersion,
@@ -52,9 +52,8 @@ export async function GET(req: NextRequest) {
         pages: Math.ceil(total / limit),
       }
     });
-
   } catch (error) {
-    console.error('Error fetching documents:', error);
-    return NextResponse.json({ message: 'Failed to fetch documents' }, { status: 500 });
+    console.error('API Error in GET /api/documents/list', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

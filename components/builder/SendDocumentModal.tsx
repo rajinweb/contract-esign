@@ -22,8 +22,8 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   onSendComplete,
 }) => {
   const [isSending, setIsSending] = useState(false);
-  const [subject, setSubject] = useState(`Please sign: ${documentName}`);
-  const [message, setMessage] = useState(`Hi,\n\nPlease review and sign the attached document: ${documentName}\n\nThank you!`);
+  const [subject, setSubject] = useState(`Signature Request – ${documentName}`);
+  const [message, setMessage] = useState(`You have been requested to review and sign the following document:\n\n ${documentName}`);
   const [sendReminders, setSendReminders] = useState(true);
   const [reminderDays, setReminderDays] = useState(3);
   const [expiryDays, setExpiryDays] = useState(30);
@@ -42,6 +42,13 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
 
     setIsSending(true);
     try {
+      const recipientsWithSettings = recipients.map((r) => ({
+        ...r,
+        sendReminders: sendReminders,
+        reminderDays: sendReminders ? reminderDays : undefined,
+        expiresAt: hasExpiry ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined,
+      }));
+
       const response = await fetch('/api/documents/send-for-signing', {
         method: 'POST',
         headers: {
@@ -50,12 +57,9 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
         body: JSON.stringify({
           documentId,
           documentName,
-          recipients,
+          recipients: recipientsWithSettings,
           subject,
           message,
-          expiryDays: hasExpiry ? expiryDays : null,
-          sendReminders,
-          reminderDays,
         }),
       });
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import connectDB from '@/utils/db';
 import Users from '@/models/Users';
+import { getUserIdFromReq } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {

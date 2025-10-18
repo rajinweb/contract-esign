@@ -7,7 +7,7 @@ import { PDFDocument } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
 
 // Project utils & types
-import { areDroppedComponentsEqual, areRecipientsEqual, blobToURL } from "@/utils/Utils";
+import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
 import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentEditorProps } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
@@ -28,11 +28,31 @@ import DroppedComponents from './DroppedComponents';
 import Footer from './Footer';
 import RecipientsList from './RecipientsList';
 import toast from 'react-hot-toast';
-import {loadPdf, sanitizeFileName, createBlobUrl, mergeFieldsIntoPdf, savePdfBlob, uploadToServer, downloadPdf} from '@/utils/handleSavePDF';
+import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, downloadPdf} from '@/lib/pdf';
+import {uploadToServer} from '@/lib/api';
+import DeletedDocumentDialog from './DeletedDocumentDialog';
 // PDF.js worker setup
+
+const getFieldTypeFromComponentLabel = (label: string): DocumentField['type'] => {
+  const mapping: { [key: string]: DocumentField['type'] } = {
+    'signature': 'signature',
+    'image': 'image',
+    'text': 'text',
+    'date': 'date',
+    'initials': 'initials',
+    'full name': 'text',
+    'email': 'text',
+    'checkbox': 'checkbox',
+    'stamp': 'stamp',
+    'realtime photo': 'realtime_photo',
+  };
+  const lowerCaseLabel = label.toLowerCase();
+  return mapping[lowerCaseLabel] || 'text'; // default to text for safety
+};
+
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, onPageChange, onNumPagesChange, onSignedSaveDocument, signingToken, currentRecipientId}) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, isSigned=false, onPageChange, onNumPagesChange, onSignedSaveDocument, signingToken, currentRecipientId, onFieldsChange}) => {
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -50,17 +70,15 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   // ========= Drag & Drop =========
   const [isDragging, setIsDragging] = useState(false);
   const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
-  const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
+  const [internalDroppedComponents, setInternalDroppedComponents] = useState<DroppedComponent[]>([]);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [elementId, setElementId] = useState(0);
-
-  // ========= Undo/Redo =========
-  const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(droppedComponents);
 
   // ========= UI State =========
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<boolean>(false);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
+  const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
   const [autoDate, setAutoDate] = useState<boolean>(true);
@@ -87,10 +105,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   const thumbRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
 
-  // If the route passed initial props (prefetch), seed state from them on mount
-  useEffect(() => {
-    if (initialFields && Array.isArray(initialFields) && initialFields.length) {
-      const restored = initialFields.map((field: DocumentField) => ({
+  // In signing mode, DocumentEditor is a controlled component.
+  // It gets its fields from props and calls `onFieldsChange` to update them.
+  const droppedComponents: DroppedComponent[] = useMemo(() => {
+    if (isSigningMode && initialFields) {
+      return initialFields.map((field: DocumentField) => ({
         id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
         component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
         x: field.x,
@@ -103,11 +122,26 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
         required: field.required !== false,
         placeholder: field.placeholder,
       } as DroppedComponent));
-      setDroppedComponents(restored);
-      const maxId = Math.max(0, ...restored.map(c => c.id));
-      setElementId(maxId + 1);
-      resetHistory(restored);
     }
+    return internalDroppedComponents;
+  }, [isSigningMode, initialFields, internalDroppedComponents]);
+
+  const setDroppedComponents = useCallback((updater: React.SetStateAction<DroppedComponent[]>) => {
+    if (isSigningMode && onFieldsChange) {
+      const newFields = typeof updater === 'function' ? updater(droppedComponents) : updater;
+      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component), x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType })));
+    } else {
+      setInternalDroppedComponents(updater);
+    }
+  }, [isSigningMode, onFieldsChange, droppedComponents]);
+
+  // ========= Undo/Redo =========
+  const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(internalDroppedComponents);
+
+
+
+  // If the route passed initial props (prefetch), seed state from them on mount
+  useEffect(() => {
     if (initialRecipients && Array.isArray(initialRecipients) && initialRecipients.length) {
       setRecipients(initialRecipients);
     }
@@ -116,91 +150,99 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     }
     if (initialDocumentName) setDocumentName(initialDocumentName);
     if (propDocumentId) setDocumentId(propDocumentId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propDocumentId, initialFileUrl, initialDocumentName, initialRecipients, setSelectedFile]);
 
   // --- Draft autosave (sessionStorage) ---
   const draftKey = (id: string | null | undefined) => `doc-draft:${id || 'unknown'}`;
 
-useEffect(() => {
-  const currentDocId = propDocumentId || localStorage.getItem('currentDocumentId');
-  if (!currentDocId) return;
-
-  const loadDocument = async () => {
-    if (isSigningMode) {
-      return;
-    }
-    try {
-      // Load server document
-      const token = localStorage.getItem('AccessToken');
-      const headers: Record<string, string> = {};
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const response = await fetch(`/api/documents/load?id=${currentDocId}`, {
-        headers: Object.keys(headers).length ? headers : undefined,
-        credentials: 'include',
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch document');
-
-      const data = await response.json();
-      const doc = data.document;
-
-      // Server fields
-      const serverFields: DroppedComponent[] = (doc?.fields || []).map((field:DocumentField) => ({
-        id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-        component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
-        x: field.x,
-        y: field.y,
-        width: field.width,
-        height: field.height,
-        pageNumber: field.pageNumber,
-        data: field.value,
-        assignedRecipientId: field.recipientId,
-        required: field.required !== false,
-        placeholder: field.placeholder,
-      }));
-
-      // Restore draft if exists
-      const rawDraft = sessionStorage.getItem(draftKey(currentDocId));
-      const draftFields: DroppedComponent[] = rawDraft
-        ? JSON.parse(rawDraft).fields.map((field:DocumentField) => ({
-            id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-            component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
-            x: field.x,
-            y: field.y,
-            width: field.width,
-            height: field.height,
-            pageNumber: field.pageNumber,
-            data: field.value,
-            assignedRecipientId: field.recipientId,
-            required: field.required !== false,
-            placeholder: field.placeholder,
-          }))
-        : [];
-
-      // Merge draft on top of server fields
-      const restoredFields = draftFields.length ? draftFields : serverFields;
-
-      setDroppedComponents(restoredFields);
-      setRecipients(doc?.recipients || []);
-      setDocumentName(doc?.documentName || doc?.originalFileName || '');
-      const maxId = Math.max(0, ...restoredFields.map(c => c.id));
-      setElementId(maxId + 1);
-      resetHistory(restoredFields);
-
-      if (doc?.documentId) {
-        const fileUrl = `/api/documents/file?documentId=${encodeURIComponent(doc.documentId)}`;
-        setSelectedFile(fileUrl);
+  useEffect(() => {
+    const currentDocId = propDocumentId || localStorage.getItem('currentDocumentId');
+    if (!currentDocId) return;
+  
+    const loadDocument = async () => {
+      if (isSigningMode) {
+        return;
       }
-    } catch (err) {
-      console.error('Failed to load document:', err);
-    }
-  };
-
-  loadDocument();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [propDocumentId, isSigningMode]);
+      try {
+        // Load server document
+        const token = localStorage.getItem('AccessToken');
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+  
+        const response = await fetch(`/api/documents/load?id=${currentDocId}`, {
+          headers: Object.keys(headers).length ? headers : undefined,
+          cache: 'no-store',
+        });
+  
+        if (!response.ok) throw new Error('Failed to fetch document');
+  
+        const data = await response.json();
+        const doc = data.document;
+  
+        // Server fields
+        const serverFields: DroppedComponent[] = (doc?.fields || []).map((field:DocumentField) => ({
+          id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+          component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          height: field.height,
+          pageNumber: field.pageNumber,
+          data: field.value,
+          assignedRecipientId: field.recipientId,
+          required: field.required !== false,
+          placeholder: field.placeholder,
+        }));
+  
+        // Restore draft if exists
+        const rawDraft = sessionStorage.getItem(draftKey(currentDocId));
+        const draftFields: DroppedComponent[] = rawDraft
+          ? JSON.parse(rawDraft).fields.map((field:DocumentField) => ({
+              id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
+              component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
+              x: field.x,
+              y: field.y,
+              width: field.width,
+              height: field.height,
+              pageNumber: field.pageNumber,
+              data: field.value,
+              assignedRecipientId: field.recipientId,
+              required: field.required !== false,
+              placeholder: field.placeholder,
+            }))
+          : [];
+  
+        // Merge draft on top of server fields
+        const restoredFields = [...serverFields];
+        draftFields.forEach(draftField => {
+          const index = restoredFields.findIndex(serverField => serverField.id === draftField.id);
+          if (index !== -1) {
+            restoredFields[index] = draftField;
+          } else {
+            restoredFields.push(draftField);
+          }
+        });
+  
+        setDroppedComponents(restoredFields);
+        setRecipients(doc?.recipients || []);
+        setDocumentName(doc?.documentName || doc?.originalFileName || '');
+        const maxId = Math.max(0, ...restoredFields.map(c => c.id));
+        setElementId(maxId + 1);
+        resetHistory(restoredFields);
+  
+        if (doc?.documentId) {
+          const fileUrl = `/api/documents/${encodeURIComponent(doc.documentId)}`;
+          setSelectedFile(fileUrl);
+        }
+      } catch (err) {
+        console.error('Failed to load document:', err);
+      }
+    };
+  
+    loadDocument();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propDocumentId, isSigningMode]);
 
 useEffect(() => {
   if (!documentId) return;
@@ -209,7 +251,7 @@ useEffect(() => {
     const payload = {
       fields: droppedComponents.map(c => ({
         id: c.id?.toString(),
-        type: (c.component || '').toLowerCase().replace(' ', '_'),
+        type: getFieldTypeFromComponentLabel(c.component || ''),
         x: c.x,
         y: c.y,
         width: c.width,
@@ -234,29 +276,19 @@ useEffect(() => {
   // ==========================================================
   // Undo/Redo Functions
   // ==========================================================
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback((): void => {
     const previousState = undo();
     if (previousState) {
       setDroppedComponents(previousState);
     }
-  }, [undo]);
+  }, [undo, setDroppedComponents]);
 
-  const handleRedo = useCallback(() => {
+  const handleRedo = useCallback((): void => {
     const nextState = redo();
     if (nextState) {
       setDroppedComponents(nextState);
     }
-  }, [redo]);
-
-  /* Save state to history when components change (with debouncing)*/
-  const saveToHistory = useCallback((components: DroppedComponent[]) => {
-    // Debounce to avoid saving too frequently during drag operations
-    const timeoutId = setTimeout(() => {
-      saveState(components);
-    }, 300);
-    
-    return () => clearTimeout(timeoutId);
-  }, [saveState]);
+  }, [redo, setDroppedComponents]);
 
   // ==========================================================
   // PDF & Page Handling
@@ -273,12 +305,8 @@ useEffect(() => {
 
   const insertBlankPageAt = async (index: number) => {
     if (!selectedFile) return;
-    const arrayBuffer = typeof selectedFile === 'string'
-      ? await fetch(selectedFile).then(res => res.arrayBuffer())
-      : await selectedFile.arrayBuffer();
-
-    const pdfDocLocal = await PDFDocument.load(arrayBuffer);
-    pdfDocLocal.insertPage(index, [595.28, 841.89]); // A4 size
+    const pdfDocLocal = await loadPdf(selectedFile as File | string);
+    pdfDocLocal.insertPage(index); // A4 size is default for new pages
 
     await handlePdfUpdated(pdfDocLocal);
     setDroppedComponents([]);
@@ -311,7 +339,7 @@ useEffect(() => {
     setDraggingComponent({ ...draggingComponent, component, ...xy });
     setPosition(xy);
     handleDragStart();
-  };
+  };  
 
   const mouseMoveOnDropArea = (e: MouseEvent<HTMLDivElement>) => {
     if (draggingComponent && draggingEle.current) {
@@ -355,19 +383,27 @@ useEffect(() => {
       pageNumber: targetPageNumber,
     };
 
-    console.log('Adding new component:', newComponent);
-
-    setDroppedComponents((prev) => [...prev, newComponent]);
-    // Save state after adding component
-    saveToHistory([...droppedComponents, newComponent]);
+    setDroppedComponents((prev) => {
+      const newComponents = [...prev, newComponent].map(c => {
+        const recipient = recipients.find(r => r.id === c.assignedRecipientId);
+        if (recipient && recipient.status === 'signed') {
+          const prevComponent = prev.find(pc => pc.id === c.id);
+          if (prevComponent && prevComponent.data) {
+            return { ...c, data: prevComponent.data };
+          }
+        }
+        return c;
+      });
+      saveState(newComponents);
+      return newComponents;
+    });
     setElementId((id) => id + 1);
   };
 
   const handleDeleteField = (item: DroppedComponent) => {
     setDroppedComponents((prev) => {
-      const newComponents = prev.filter((c) => c.id !== item.id);      
-      // Save state after deleting component
-      saveToHistory(newComponents);
+      const newComponents = prev.filter((c) => c.id !== item.id);
+      saveState(newComponents);
       return newComponents;
     });
     setSelectedFieldId(null);
@@ -382,35 +418,80 @@ useEffect(() => {
       assignedRecipientId: item.assignedRecipientId
     };
 
-    setDroppedComponents((prev) => [...prev, newComponent]);
-    saveToHistory([...droppedComponents, newComponent])
+    setDroppedComponents((prev) => {
+      const newComponents = [...prev, newComponent].map(c => {
+        const recipient = recipients.find(r => r.id === c.assignedRecipientId);
+        if (recipient && recipient.status === 'signed') {
+          const prevComponent = prev.find(pc => pc.id === c.id);
+          if (prevComponent && prevComponent.data) {
+            return { ...c, data: prevComponent.data };
+          }
+        }
+        return c;
+      });
+      saveState(newComponents);
+      return newComponents;
+    });
     setElementId((id) => id + 1);
     setSelectedFieldId(newComponent.id);
   };
 
- const handleAssignRecipient = useCallback((fieldId: number, recipientId: string | null) => {
-    // Update dropped components first
+  const handleAssignRecipient = useCallback((fieldId: number, recipientId: string | null) => {
     setDroppedComponents((prevComponents) => {
-      const newComponents = prevComponents.map((c) =>
-        c.id === fieldId ? { ...c, assignedRecipientId: recipientId } : c
-      );
-      saveToHistory(newComponents);
+      let previousRecipientId: string | null | undefined;
+      const newComponents = prevComponents.map((c) => {
+        if (c.id === fieldId) {
+          previousRecipientId = c.assignedRecipientId;
+          return { ...c, assignedRecipientId: recipientId };
+        }
+        return c;
+      });
 
-      // 🔑 Recalculate recipients totalFields based on updated components
       setRecipients((prevRecipients) =>
         prevRecipients.map((r) => {
           const assignedCount = newComponents.filter(
             (c) => c.assignedRecipientId === r.id
           ).length;
-          return { ...r, totalFields: assignedCount };
+
+          const shouldResetStatus =
+            recipientId !== null &&
+            r.id === recipientId &&
+            r.status === 'signed' &&
+            previousRecipientId !== recipientId;
+
+          if (shouldResetStatus) {
+            // If recipient status is reset, preserve existing field data
+            return {
+              ...r,
+              totalFields: assignedCount,
+              status: 'pending',
+            };
+          }
+
+          return {
+            ...r,
+            totalFields: assignedCount,
+            status: r.status,
+          };
         })
       );
 
-      return newComponents;
+      // Preserve data of existing fields when a new field is assigned to a signed recipient
+      const finalComponents = newComponents.map(c => {
+        const recipient = recipients.find(r => r.id === c.assignedRecipientId);
+        if (recipient && recipient.status === 'signed') {
+          const prevComponent = prevComponents.find(pc => pc.id === c.id);
+          if (prevComponent && prevComponent.data) {
+            return { ...c, data: prevComponent.data };
+          }
+        }
+        return c;
+      });
+
+      saveState(finalComponents);
+      return finalComponents;
     });
-  },
-  [saveToHistory] // dependencies (no need for recipients/droppedComponents here, they’re handled inside updater functions)
-);
+  }, [saveState, setDroppedComponents, recipients]);
 
   const handleDragStop = (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => {
     document.body.classList.remove('dragging-no-select');
@@ -472,8 +553,7 @@ useEffect(() => {
         ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
         : c
       );
-      // Save state after drag stop
-     saveToHistory(newComponents);
+      saveState(newComponents);
       return newComponents;
     }
   );
@@ -486,8 +566,7 @@ useEffect(() => {
       const newComponents = prev.map((c) =>
         c.id === item.id ? { ...c, width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos } : c
       );
-      // Save state after resize stop
-     saveToHistory(newComponents);
+      saveState(newComponents);
       return newComponents;
     });
   };
@@ -514,23 +593,37 @@ useEffect(() => {
 
   const saveToServer = useCallback(async (): Promise<void> => {
     if (!selectedFile) return;
-    // Save as blob
-    const pdfDoc = await loadPdf(selectedFile as File | string );
-    const blob = await savePdfBlob(pdfDoc);
-    const safeName = sanitizeFileName(documentName);
-    // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
-    const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
-    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
-    // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
-    const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
-    if (result && result.documentId) {
-      setDocumentId(result.documentId);
+
+    try {
+      // Save as blob
+      const pdfDoc = await loadPdf(selectedFile as File | string);
+      const blob = await savePdfBlob(pdfDoc);
+      const safeName = sanitizeFileName(documentName);
+      // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
+      const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
+      const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+      console.log('droppedComponents before save', droppedComponents);
+      // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
+      const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
+      if (result && result.documentId) {
+        setDocumentId(result.documentId);
+      }
+      setLastSavedState({
+        components: droppedComponents,
+        name: documentName,
+        recipients: recipients,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes("Status: 404")) {
+        setShowDeletedDialog(true);
+      } else if (errorMessage.includes("No PDF header found") || errorMessage.includes("Failed to fetch")) {
+        setShowDeletedDialog(true);
+      } else {
+        toast.error("An error occurred while saving the document.");
+      }
     }
-    setLastSavedState({
-      components: droppedComponents,
-      name: documentName,
-      recipients: recipients,
-    });
   }, [selectedFile, documentName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setDocumentName, setSelectedFile, signingToken, setLastSavedState]);
 
   //File Handling
@@ -563,7 +656,7 @@ useEffect(() => {
         const pdfDoc = await loadPdf(selectedFile as File | string );
         const blob = await savePdfBlob(pdfDoc);
         const safeName = sanitizeFileName(documentName);
-        const pdfUrl = await createBlobUrl(blob); 
+        const pdfUrl = await blobToURL(blob); 
          
         if (isMergeFields) {
           await mergeFieldsIntoPdf(pdfDoc, droppedComponents, pageRefs, canvasRect, currentPage, { autoDate });
@@ -580,8 +673,12 @@ useEffect(() => {
         }        
         return true; 
     } catch (err) {
-        console.error("Save error:", err);
-        setError("Failed to save document.");
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (errorMessage.includes("Status: 404")) {
+            setShowDeletedDialog(true);
+        } else {
+            setError("Failed to save document.");
+        }
         return null;
     }
   };
@@ -628,15 +725,25 @@ useEffect(() => {
     }
   };
 
-const updateField = (data: string | null, id: number) => {
-  setDroppedComponents(prev => {
-    const newComponents = prev.map(c => (c.id === id ? { ...c, data } : c));
-    // Save state after field update
-   saveToHistory(newComponents);
-    return newComponents;
-  }
-  );
-};
+  const updateField = useCallback((data: string | null, id: number) => {
+    setDroppedComponents(prev => {
+      const newComponents = prev.map(c => {
+        if (c.id === id) {
+          return { ...c, data };
+        }
+        const recipient = recipients.find(r => r.id === c.assignedRecipientId);
+        if (recipient && recipient.status === 'signed') {
+          const prevComponent = prev.find(pc => pc.id === c.id);
+          if (prevComponent && prevComponent.data) {
+            return { ...c, data: prevComponent.data };
+          }
+        }
+        return c;
+      });
+      saveState(newComponents);
+      return newComponents;
+    });
+  }, [setDroppedComponents, saveState, recipients]);
 
 const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
@@ -646,12 +753,23 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
 
   // Update the DroppedComponent that is currently being dragged
   if (draggingComponent && 'id' in draggingComponent) {
-    setDroppedComponents(prev =>
-      prev.map(comp =>
-        comp.id === draggingComponent.id
-          ? { ...comp, data: url }
-          : comp
-      )
+    setDroppedComponents(prev => {
+      const newComponents = prev.map(comp => {
+        if (comp.id === draggingComponent.id) {
+          return { ...comp, data: url };
+        }
+        const recipient = recipients.find(r => r.id === comp.assignedRecipientId);
+        if (recipient && recipient.status === 'signed') {
+          const prevComponent = prev.find(pc => pc.id === comp.id);
+          if (prevComponent && prevComponent.data) {
+            return { ...comp, data: prevComponent.data };
+          }
+        }
+        return comp;
+      });
+      saveState(newComponents);
+      return newComponents;
+    }
     );
   }
 
@@ -752,7 +870,7 @@ useEffect(() => {
         formData.append('documentId', currentDocumentId);
         formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
           id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
-          type: comp.component.toLowerCase().replace(' ', '_'),
+          type: getFieldTypeFromComponentLabel(comp.component),
           x: comp.x,
           y: comp.y,
           width: comp.width,
@@ -803,7 +921,6 @@ useEffect(() => {
       finalizeSession();
       window.removeEventListener('beforeunload', finalizeSession);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [droppedComponents, recipients, documentName, currentPage]);
 
   // Auto-save metadata when user finishes renaming (isEditingFileName toggles false)
@@ -933,6 +1050,7 @@ useEffect(() => {
                     recipients={recipients}
                     onAddRecipients={() => setShowAddRecipients(true)}
                     isSigningMode={isSigningMode}
+                    isSigned={isSigned}
                     onClickField={clickField}
                     currentRecipientId={currentRecipientId}
                   />
@@ -1006,7 +1124,7 @@ useEffect(() => {
           setZoom={setZoom}
           onPageChange={handleThumbnailClick}
         />
-      </>
+      </> 
       )}        
       </div>
       {/* -- PageThumbnailMenu integration (uses pdfDoc, pageIndex and onPdfUpdated) */}
@@ -1019,7 +1137,8 @@ useEffect(() => {
         onPdfUpdated={handlePdfUpdated}
       />
       )}
-    </>
+      <DeletedDocumentDialog isOpen={showDeletedDialog} onClose={() => setShowDeletedDialog(false)} />
+    </> 
   );
 };
 

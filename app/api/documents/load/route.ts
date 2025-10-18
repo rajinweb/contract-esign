@@ -1,52 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 
-export const runtime = 'nodejs';
-
+// GET - Load a document with its fields and recipients
 export async function GET(req: NextRequest) {
   try {
-    await connectDB();
-    const userId = await getUserIdFromReq(req);
+    const userId = await getAuthSession(req);
     if (!userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
     const documentId = searchParams.get('id');
+    console.log(`[LOAD] Attempting to load document with ID: ${documentId}`);
 
     if (!documentId) {
-      return NextResponse.json({ message: 'Document ID is required' }, { status: 400 });
+      return NextResponse.json({ message: 'Document ID missing' }, { status: 400 });
     }
 
-    const document = await DocumentModel.findOne({ _id: documentId, userId });
+    const document = await DocumentModel.findById(documentId);
 
     if (!document) {
-      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+      return NextResponse.json({ message: 'Document not found by ID' }, { status: 404 });
     }
 
-    const currentVersionIndex = document.currentVersion - 1;
-    const currentVersion = document.versions[currentVersionIndex];
+    console.log(`[LOAD] DocUser ID: ${document.userId}, Type: ${typeof document.userId}`);
+    console.log(`[LOAD] ReqUser ID: ${userId}, Type: ${typeof userId}`);
 
-    if (!currentVersion) {
-      return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
+    // Correctly compare ObjectId with string
+    if (document.userId.toString() !== userId) {
+      return NextResponse.json({ message: `User ID mismatch. DocUser: ${document.userId}, ReqUser: ${userId}` }, { status: 403 });
     }
 
-    return NextResponse.json({
-      success: true,
-      document: {
-        id: document._id,
-        documentName: document.documentName,
-        originalFileName: document.originalFileName,
-        currentVersion: document.currentVersion,
-        fields: currentVersion.fields || [],
-        recipients: document.recipients || [],
-        status: document.status,
-        filePath: currentVersion.filePath,
-      },
-    });
+    // Get the current version's fields
+    const currentVersion = document.versions && document.versions.length > 0
+      ? document.versions[document.currentVersion - 1]
+      : null;
+
+    const fields = currentVersion?.fields || [];
+
+    console.log(`[LOAD] Returning ${fields.length} fields from version ${document.currentVersion}`);
+
+    // Return document with fields from current version
+    const responseDoc = {
+      _id: document._id,
+      documentId: document._id, // Add documentId for consistency
+      documentName: document.documentName,
+      originalFileName: document.originalFileName,
+      currentVersion: document.currentVersion,
+      recipients: document.recipients,
+      status: document.status,
+      fields: fields, // Fields from current version
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+    };
+
+    return NextResponse.json({ success: true, document: responseDoc });
   } catch (error) {
-    console.error('Error loading document:', error);
-    return NextResponse.json({ message: 'Failed to load document' }, { status: 500 });
+    console.error('API Error in GET /api/documents/load', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

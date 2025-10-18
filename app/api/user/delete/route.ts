@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
+import connectDB from '@/utils/db';
 import Users from '@/models/Users';
 import { serialize } from 'cookie';
+import { getUserIdFromReq } from '@/lib/auth';
 
 
 export async function DELETE(req: NextRequest) {

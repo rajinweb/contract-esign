@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation';
 import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
 import { HandleSavePDFOptions, Recipient, DroppedComponent } from "@/types/types";
-import { downloadPdf, loadPdf, savePdfBlob } from '@/utils/handleSavePDF';
+import { downloadPdf, loadPdf, savePdfBlob } from '@/lib/pdf';
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 interface ActionToolBarProps {
@@ -165,7 +165,6 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   };
 
   const handleSendClick = () => {
-    console.log("Send clicked. Unsaved changes?", hasUnsavedChanges);
     if (hasUnsavedChanges) {
       setIsUnsavedChangesDialogVisible(true);
     } else {

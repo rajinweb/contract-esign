@@ -1,53 +1,51 @@
 'use client';
 import React, { useState } from 'react';
 import { X, Trash2, AlertTriangle } from 'lucide-react';
-import { Contact } from '@/types/types';
+import { Doc } from '@/types/types';
 import toast from 'react-hot-toast';
 
 interface BulkDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedContacts: Contact[];
+  selectedDocs: Doc[];
   onDeleteComplete: (deletedIds: string[]) => void;
 }
 
 const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
   isOpen,
   onClose,
-  selectedContacts,
+  selectedDocs,
   onDeleteComplete,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (selectedContacts.length === 0) return;
+    if (selectedDocs.length === 0) return;
 
     setIsDeleting(true);
     try {
-      const contactIds = selectedContacts.map(contact => contact._id).filter(Boolean);
+      const documentIds = selectedDocs.map(doc => doc.id);
       
-      const token = localStorage.getItem('AccessToken');
-      const response = await fetch('/api/contacts/bulk-delete', {
-        method: 'DELETE',
+      const response = await fetch('/api/documents/bulk-delete', {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ contactIds }),
+        body: JSON.stringify({ documentIds }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to delete contacts');
+        throw new Error(result.message || 'Failed to delete documents');
       }
 
       toast.success(result.message);
-      onDeleteComplete(contactIds as []);
+      onDeleteComplete(documentIds);
       onClose();
     } catch (error) {
-      console.error('Error deleting contacts:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete contacts');
+      console.error('Error deleting documents:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete documents');
     } finally {
       setIsDeleting(false);
     }
@@ -60,7 +58,7 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
       <div className="relative max-w-md w-full bg-white rounded-lg shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Delete Contacts</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Delete Documents</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
           </button>
@@ -78,25 +76,25 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
               </h3>
               <p className="text-sm text-gray-500">
                 This action cannot be undone. You are about to delete{' '}
-                <span className="font-semibold">{selectedContacts.length}</span>{' '}
-                contact{selectedContacts.length !== 1 ? 's' : ''}.
+                <span className="font-semibold">{selectedDocs.length}</span>{' '}
+                document{selectedDocs.length !== 1 ? 's' : ''}.
               </p>
             </div>
           </div>
 
-          {/* Contact List Preview */}
+          {/* Document List Preview */}
           <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
-            <p className="text-xs font-medium text-gray-700 mb-2">Contacts to be deleted:</p>
+            <p className="text-xs font-medium text-gray-700 mb-2">Documents to be deleted:</p>
             <ul className="text-sm text-gray-600 space-y-1">
-              {selectedContacts.slice(0, 5).map((contact) => (
-                <li key={contact._id} className="flex items-center">
+              {selectedDocs.slice(0, 5).map((doc) => (
+                <li key={doc.id} className="flex items-center">
                   <Trash2 className="w-3 h-3 mr-2 text-red-400" />
-                  {contact.firstName} {contact.lastName} ({contact.email})
+                  {doc.name}
                 </li>
               ))}
-              {selectedContacts.length > 5 && (
+              {selectedDocs.length > 5 && (
                 <li className="text-gray-500 italic">
-                  ... and {selectedContacts.length - 5} more
+                  ... and {selectedDocs.length - 5} more
                 </li>
               )}
             </ul>
@@ -114,7 +112,7 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
           </button>
           <button
             onClick={handleDelete}
-            disabled={isDeleting || selectedContacts.length === 0}
+            disabled={isDeleting || selectedDocs.length === 0}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {isDeleting ? (
@@ -125,7 +123,7 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
             ) : (
               <>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete {selectedContacts.length} Contact{selectedContacts.length !== 1 ? 's' : ''}
+                Delete {selectedDocs.length} Document{selectedDocs.length !== 1 ? 's' : ''}
               </>
             )}
           </button>

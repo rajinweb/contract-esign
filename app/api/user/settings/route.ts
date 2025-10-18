@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB, { getUserIdFromReq } from '@/utils/db';
 import Users from '@/models/Users';
+import connectDB from '@/utils/db';
+import { getUserIdFromReq } from '@/lib/auth';
 
 
 // Define a flexible type for user settings

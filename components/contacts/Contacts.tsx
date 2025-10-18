@@ -1,19 +1,16 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Contact } from '@/types/types';
 import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
 import BulkImportModal from '@/components/contacts/BulkImportModal';
 import BulkDeleteModal from '@/components/contacts/BulkDeleteModal';
-import { Users, LoaderPinwheel } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
 import { useContactsStore } from '@/hooks/useContactsStore';
+import { Contact } from '@/types/types';
+import { Users, LoaderPinwheel } from 'lucide-react';
 
-interface SearchQueryProps  {
-  searchQuery: string;
-};
-const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
+const Contacts = ({ searchQuery }: { searchQuery: string }) => {
   const {
     contacts,
     loading,
@@ -21,28 +18,27 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
     updateContact,
     deleteContact,
     deleteContacts,
-    revalidateContacts
+    revalidateContacts,
   } = useContactsStore();
-  
+
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showBulkDelete, setShowBulkDelete] = useState(false);
-
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
-  const {showModal, setShowModal} = useContextStore()
+  const { showModal, setShowModal } = useContextStore();
 
   // Listen for contact updates from other components
   useEffect(() => {
     const handleContactsUpdated = () => {
       revalidateContacts();
     };
-
     window.addEventListener('contactsUpdated', handleContactsUpdated);
     return () => {
       window.removeEventListener('contactsUpdated', handleContactsUpdated);
     };
   }, [revalidateContacts]);
+
   // Filter contacts based on search query
   useEffect(() => {
     if (!searchQuery?.trim()) {
@@ -56,7 +52,6 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
       setFilteredContacts(filtered);
     }
   }, [contacts, searchQuery]);
-
 
   const handleContactAdded = (contact: Contact) => {
     if (editingContact) {
@@ -77,7 +72,7 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
 
   const handleDeleteContact = (contactId: string) => {
     deleteContact(contactId);
-    setSelectedContacts(prev => prev.filter(c => c._id !== contactId));
+    setSelectedContacts((prev) => prev.filter((c) => c._id !== contactId));
   };
 
   const handleCloseModal = () => {
@@ -93,10 +88,10 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   };
 
   const handleSelectContact = (contact: Contact) => {
-    setSelectedContacts(prev => {
-      const isSelected = prev.some(c => c._id === contact._id);
+    setSelectedContacts((prev) => {
+      const isSelected = prev.some((c) => c._id === contact._id);
       if (isSelected) {
-        return prev.filter(c => c._id !== contact._id);
+        return prev.filter((c) => c._id !== contact._id);
       } else {
         return [...prev, contact];
       }
@@ -122,56 +117,50 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
   const handleDeleteComplete = (deletedIds: string[]) => {
     deleteContacts(deletedIds);
     setSelectedContacts([]);
-
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-       <LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color='#2563eb' />
+            <LoaderPinwheel className="absolute z-10 animate-spin left-1/2 top-1/2 " size="40" color="#2563eb" />
       </div>
     );
   }
 
   return (
     <>
-     <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl  text-gray-900">All Contacts</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Manage your contact information for document signing
-              </p>
+              <h1 className="text-2xl text-gray-900">All Contacts ({contacts.length})</h1>
+              <p className="mt-1 text-sm text-gray-500">Manage your contact information for document signing</p>
             </div>
             <div className="ml-4 flex items-center gap-4">
-              <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-gray-500">
               <Users className="h-4 w-4 mr-1" />
               {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}
-              </div>
+            </div>
             </div>
       </div>
-      
-        {/* Contact List */}
+
         <ContactList
           contacts={filteredContacts}
           onEditContact={handleEditContact}
           onDeleteContact={handleDeleteContact}
           selectedContacts={selectedContacts}
           onSelectContact={handleSelectContact}
-          onSelectAll={handleSelectAll} 
+          onSelectAll={handleSelectAll}
           handleBulkDelete={handleBulkDelete}
         />
 
-        {/* Add/Edit Contact Modal */}
-        {showModal && (
+      {showModal && (
         <AddContactModal
           isOpen={showModal}
           onClose={handleCloseModal}
           onContactAdded={handleContactAdded}
           editContact={editingContact}
         />
-        )}
+      )}
 
-        {/* Bulk Import Modal */}
         <BulkImportModal
           isOpen={showBulkImport}
           onClose={() => setShowBulkImport(false)}
@@ -181,7 +170,6 @@ const Contacts: React.FC<SearchQueryProps> = ({ searchQuery }) => {
           }}
         />
 
-        {/* Bulk Delete Modal */}
         <BulkDeleteModal
           isOpen={showBulkDelete}
           onClose={() => setShowBulkDelete(false)}
