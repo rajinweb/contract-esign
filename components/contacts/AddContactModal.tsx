@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import { Contact } from '@/types/types';
 import toast from 'react-hot-toast';
+import Input from '../forms/Input';
 
 interface AddContactModalProps {
   isOpen: boolean;
@@ -150,7 +151,7 @@ console.log(editContact);
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name *
                 </label>
-                <input
+                <Input
                   type="text"
                   placeholder="e.g. John"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -165,7 +166,7 @@ console.log(editContact);
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name *
                 </label>
-                <input
+                <Input
                   type="text"
                   placeholder="e.g. Smith"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -182,7 +183,7 @@ console.log(editContact);
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email *
                 </label>
-                <input
+                <Input
                   type="email"
                   placeholder="e.g. johnsmith@gmail.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -210,7 +211,7 @@ console.log(editContact);
                   <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                     +91
                   </span>
-                  <input
+                  <Input
                     type="tel"
                     placeholder="Phone Number"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -228,7 +229,7 @@ console.log(editContact);
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Company Name
                   </label>
-                  <input
+                  <Input
                     type="text"
                     placeholder="Enter a company name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -240,7 +241,7 @@ console.log(editContact);
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Job Title
                   </label>
-                  <input
+                  <Input
                     type="text"
                     placeholder="Enter a job title"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -275,7 +276,7 @@ console.log(editContact);
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Street Address
                   </label>
-                  <input
+                  <Input
                     type="text"
                     placeholder="E.g. 123 Main Avenue"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -287,7 +288,7 @@ console.log(editContact);
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Apartment, Suite, Unit, Building, Floor, etc.
                   </label>
-                  <input
+                  <Input
                     type="text"
                     placeholder="E.g. Apt #7"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -300,7 +301,7 @@ console.log(editContact);
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       City / Town
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="e.g. Boston"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -312,7 +313,7 @@ console.log(editContact);
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       State / Region / Province
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="Enter state, region or province"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -325,7 +326,7 @@ console.log(editContact);
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     ZIP / Postal Code
                   </label>
-                  <input
+                  <Input
                     type="text"
                     placeholder="E.g. 02101 or 02101-1234"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

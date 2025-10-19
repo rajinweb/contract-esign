@@ -294,6 +294,10 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         const { assignedCount, filledCount, pendingRequiredCount } = recipientMetrics;
         const allRequiredFieldsFilled = pendingRequiredCount === 0;
 
+        if (currentRecipient.isCC || currentRecipient.role === 'viewer') {
+          return <p className="mt-4 text-gray-600 font-medium">You are a viewer for this document and will be notified upon completion.</p>;
+        }
+
         if (currentRecipient.role === 'signer') {
           // If already signed, show completion message
           if (isSigned) {
@@ -356,7 +360,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
         if (currentRecipient.role === 'approver') {
           if (approvalStatus === 'approved') {
-            return  <p className="text-green-600 font-medium">ThankYou</p>;
+            return  <p className="text-green-600 font-medium">✓ You have approved this document.</p>;
           }
           if (approvalStatus === 'rejected') {
             return <div className="mt-4 text-center">
@@ -383,10 +387,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
               </div>
             </div>
           );
-        }
-
-        if (currentRecipient.role === 'viewer') {
-          return <p className="mt-4 text-gray-600 font-medium">You are a viewer for this document.</p>;
         }
 
         return null;

@@ -67,7 +67,7 @@ export async function sendSigningRequestEmail(
               
               <div style="background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Document:</strong> ${document.documentName}</p>
-                <p style="margin: 0;"><strong>Your Role:</strong> <span style="background-color: ${recipient.color}; color: white; padding: 4px 12px;">${recipient.role.toUpperCase()}</span></p>
+                <p style="margin: 0;"><strong>Your Role:</strong> <span style="background-color: ${recipient.color}; color: white; padding: 4px 12px;">${recipient.isCC ? 'CC' : recipient.role.toUpperCase()}</span></p>
                 <p style="margin: 0;><strong>Status:</strong> ${recipient.status}</p>
                 ${recipient.expiresAt ? `<p style="margin: 0;"><strong>Expires:</strong> ${new Date(recipient.expiresAt).toLocaleDateString()}</p>` : ''}
               </div>
@@ -75,7 +75,7 @@ export async function sendSigningRequestEmail(
                Click the link below to proceed. ${roleMessage}
               </p>
             
-            ${!recipient.isCC ? `
+           
               <div style="text-align: center; margin: 20px 0;">
                 <a href="${signingLink}" 
                    style="background-color: #2563eb; color: white; padding: 12px 24px; 
@@ -83,7 +83,7 @@ export async function sendSigningRequestEmail(
                   ${actionButton}
                 </a>
               </div>
-            ` : ''}
+            
 
               <p>
                 Or copy and paste this link into your browser:<br>

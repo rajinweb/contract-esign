@@ -7,6 +7,7 @@ import { FileSignature } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import ResetPassword from '@/components/ResetPassword';
+import Input from '@/components/forms/Input';
 
 
 
@@ -258,7 +259,7 @@ export default function SettingsPage() {
         <form onSubmit={handleSubmitInvite(onSubmitInvite)}>
           <div className="mb-4">
             <label className="block text-sm text-gray-600">Invite Email Subject</label>
-            <input {...registerInvite('inviteSubject')} className="w-full border px-3 py-2 rounded" />
+            <Input {...registerInvite('inviteSubject')} className="w-full border px-3 py-2 rounded" />
           </div>
 
           <div className="mb-4">

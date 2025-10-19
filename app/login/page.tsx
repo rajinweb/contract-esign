@@ -22,8 +22,10 @@ const LoginPage: React.FC = () => {
   const emailFromUrl = searchParams.get("email") || ""; 
   const { register, handleSubmit, formState } = useForm<FormValues>({ defaultValues: { email: emailFromUrl ? emailFromUrl : '', password: '' } });
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const onSubmit = async (data: FormValues) => {
+    setFormError(null);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -32,7 +34,9 @@ const LoginPage: React.FC = () => {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(json?.message || 'Login failed')
+        const errorMessage = json?.message || 'Login failed';
+        setFormError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -46,7 +50,9 @@ const LoginPage: React.FC = () => {
       setShowModal(false)
     } catch (err) {
       console.error(err);
-      toast('Network error')
+      const errorMessage = 'Network error. Please try again.';
+      setFormError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -102,6 +108,11 @@ const LoginPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)}>
+            {formError && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <span className="block sm:inline">{formError}</span>
+              </div>
+            )}
             {/* Email Input */}
             <div className="mb-3">
               <Input

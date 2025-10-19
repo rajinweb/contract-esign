@@ -4,6 +4,7 @@ import { X, UserPlus, Users, CheckCircle, Trash2, Edit, CircleQuestionMark } fro
 import { Contact, Recipient, ROLES } from '@/types/types';
 import toast from 'react-hot-toast';
 import DropdownPortal from '../DropdownPortal';
+import Input from '../forms/Input';
 
 interface AddRecipientModalProps {
   isOpen: boolean;
@@ -158,7 +159,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
         id: generateRecipientId(),
         email: '',
         name: finalName,
-        role: 'signer',
+        role: isCC ? 'viewer' : 'signer',
         color: getNextColor(prev),
         order: prev.length + 1,
         isCC,
@@ -298,7 +299,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       {editingAlias === recipient.id ? (
-                        <input
+                        <Input
                           ref={el => { inputRefs.current[recipient.id] = el; }}
                           type="text"
                           value={recipient.name}
@@ -308,7 +309,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                           className={` border px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasNameError ? 'border-red-500' : 'border-gray-300'}`}
                         />
                       ) : (
-                        <span className="text-sm font-medium text-gray-900 flex gap-1 items-center">{recipient.isCC && 'CC'} {recipient.name}  {recipient.isCC && <CircleQuestionMark  size={14} xlinkTitle='This person will receive a notification once is complete'/>} </span> 
+                        <span className="text-sm font-medium text-gray-900 flex gap-1 items-center" title='This person will receive a notification once is complete'>{recipient.isCC && 'CC'} {recipient.name}  {recipient.isCC && <CircleQuestionMark  size={14} />} </span> 
                       )}
                       <button onClick={() => toggleAliasEdit(recipient.id)} className="text-gray-400 hover:text-gray-600">
                         <Edit className="w-4 h-4" />
@@ -318,7 +319,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
 
                     <div className="flex items-center gap-2">
                       <div className="flex-1 relative">
-                        <input
+                        <Input
                           id={`email-input-${recipient.id}`}
                           type="email"
                           autoComplete="off"

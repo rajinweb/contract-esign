@@ -10,6 +10,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import zxcvbn from 'zxcvbn';
 
 import toast from 'react-hot-toast';
+import Input from '@/components/forms/Input';
 
 
 type FormValues = {
@@ -102,7 +103,7 @@ function Register() {
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Full Name
             </label>
-            <input
+            <Input
               id="name"
               type="text"
               placeholder="John Doe"
@@ -118,7 +119,7 @@ function Register() {
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
             </label>
-            <input
+            <Input
               id="email"
               type="email"
               placeholder="you@example.com"
@@ -135,7 +136,7 @@ function Register() {
               Password
             </label>
             <div className="relative">
-              <input
+              <Input
                 id="password"
                 type={isVisible ? 'text' : 'password'}
                 className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none pr-10 ${
@@ -171,7 +172,7 @@ function Register() {
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
               Confirm Password
             </label>
-            <input
+            <Input
               id="confirmPassword"
               type="password"
               placeholder="********"

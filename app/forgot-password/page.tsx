@@ -1,5 +1,6 @@
 'use client';
 
+import Input from '@/components/forms/Input';
 import { useState } from 'react';
 
 const ForgotPasswordPage = () => {
@@ -43,7 +44,7 @@ const ForgotPasswordPage = () => {
         </p>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <label htmlFor="email-address" className="sr-only">Email address</label>
-          <input
+          <Input
             id="email-address"
             name="email"
             type="email"

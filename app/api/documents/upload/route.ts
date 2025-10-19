@@ -157,6 +157,56 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
   const fields = fieldsData ? JSON.parse(fieldsData) : [];
   const recipients = recipientsData ? JSON.parse(recipientsData) : [];
 
+  // Logic to identify recipients whose status needs to be reset
+  const oldFields = currentVersionData.fields || [];
+  const recipientsToReset: string[] = [];
+
+  const oldRecipientFields = new Map<string, Set<string>>();
+  for (const field of oldFields) {
+    if (field.recipientId) {
+      const recipientIdStr = field.recipientId.toString();
+      if (!oldRecipientFields.has(recipientIdStr)) {
+        oldRecipientFields.set(recipientIdStr, new Set());
+      }
+      oldRecipientFields.get(recipientIdStr)!.add(field.id.toString());
+    }
+  }
+
+  const newRecipientFields = new Map<string, Set<string>>();
+  for (const field of fields) {
+    if (field.recipientId) {
+      const recipientIdStr = field.recipientId.toString();
+      if (!newRecipientFields.has(recipientIdStr)) {
+        newRecipientFields.set(recipientIdStr, new Set());
+      }
+      newRecipientFields.get(recipientIdStr)!.add(field.id.toString());
+    }
+  }
+
+  for (const recipient of recipients) {
+    if (recipient.status === 'signed' || recipient.status === 'approved') {
+      const recipientIdStr = recipient.id.toString();
+      const oldFieldSet = oldRecipientFields.get(recipientIdStr) || new Set();
+      const newFieldSet = newRecipientFields.get(recipientIdStr) || new Set();
+
+      let hasNewFields = false;
+      if (newFieldSet.size > oldFieldSet.size) {
+        hasNewFields = true;
+      } else {
+        for (const fieldId of newFieldSet) {
+          if (!oldFieldSet.has(fieldId)) {
+            hasNewFields = true;
+            break;
+          }
+        }
+      }
+
+      if (hasNewFields) {
+        recipientsToReset.push(recipient.id);
+      }
+    }
+  }
+
   const sessionIdFinal = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   // Build edit history item
@@ -185,6 +235,14 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
   );
 
   if (!updatedDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+
+  if (recipientsToReset.length > 0) {
+    await DocumentModel.updateOne(
+      { _id: documentId },
+      { $set: { "recipients.$[elem].status": "pending" } },
+      { arrayFilters: [{ "elem.id": { $in: recipientsToReset } }] }
+    );
+  }
 
   // -------------------- PHYSICAL FILE RENAME --------------------
   try {
@@ -270,7 +328,7 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
   }
 
   for (const recipient of recipients) {
-    if (recipient.status === 'signed') {
+    if (recipient.status === 'signed' || recipient.status === 'approved') {
       const recipientIdStr = recipient.id.toString();
       const oldFieldSet = oldRecipientFields.get(recipientIdStr) || new Set();
       const newFieldSet = newRecipientFields.get(recipientIdStr) || new Set();

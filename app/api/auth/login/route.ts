@@ -21,9 +21,14 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await Users.findOne({ email });
+
+    if (!user || !user.password) {
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!user || !user.password || !isMatch) {
+    if (!isMatch) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 

@@ -23,7 +23,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
   const assignedRecipient = recipients.find(r => r.id === field.assignedRecipientId);
-  // const availableRecipients = recipients.filter(r => !r.isCC); // Only signers and approvers
+  const availableRecipients = recipients.filter(r => !r.isCC); // Only signers and approvers
 
   const handleRecipientSelect = (recipientId: string | null) => {
     onAssignRecipient(field.id, recipientId);
@@ -62,7 +62,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
                   </div>
                   <span>Unassigned</span>
                 </button>
-                {recipients.map((recipient) => {
+                {availableRecipients.map((recipient) => {
                    const isDisabled = recipient.role === 'viewer' || recipient.role === 'approver';
                    return(
                   <button

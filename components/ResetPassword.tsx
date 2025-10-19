@@ -3,6 +3,7 @@
 import { useForm, SubmitHandler } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import Input from './forms/Input';
 
 // Define the PasswordInputs type for the form
 type PasswordInputs = {
@@ -78,13 +79,13 @@ const ResetPassword = ({ token, email }: ResetPasswordProps) => {
       <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-md border border-gray-100">
         <div className="w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input
+            <Input
               {...register('newPassword', { required: true, minLength: 6 })}
               type="password"
               placeholder="New password"
               className="border px-3 py-2 rounded w-full"
             />
-            <input
+            <Input
               {...register('confirmPassword', { required: true })}
               type="password"
               placeholder="Confirm password"

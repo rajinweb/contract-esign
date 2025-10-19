@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { X, Send, Clock, AlertCircle } from 'lucide-react';
 import { Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
+import Input from '../forms/Input';
 
 interface SendDocumentModalProps {
   isOpen: boolean;
@@ -152,7 +153,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email Subject
               </label>
-              <input
+              <Input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}

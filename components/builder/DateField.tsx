@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, forwardRef } from "react";
 import { InputProps } from '@/types/types';
+import Input from '@/components/forms/Input';
 
 
 const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, ref) => {
@@ -27,7 +28,7 @@ const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, 
   };
 
   return (
-        <input
+        <Input
           ref={ref}
           value={text}
           onChange={handleChange}

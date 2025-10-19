@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import Image from 'next/image';
 import { blobToURL } from '@/lib/pdf';
+import Input from '@/components/forms/Input';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
@@ -95,14 +96,14 @@ export default function ProfilePage() {
           />
           <div>
             <label className="block text-sm font-medium text-gray-700">Change picture</label>
-            <input type="file" accept="image/*" onChange={handleFile} className="mt-1" />
+            <Input type="file" accept="image/*" onChange={handleFile} className="mt-1" />
             <div className="mt-2 text-sm text-gray-500">Or paste an image URL below</div>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Picture URL</label>
-          <input
+          <Input
             type="text"
             value={picture || ''}
             onChange={(e) => setPicture(e.target.value || null)}
@@ -113,7 +114,7 @@ export default function ProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Name</label>
-          <input
+          <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -124,7 +125,7 @@ export default function ProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input type="email" value={email} readOnly className="mt-1 block w-full border px-3 py-2 rounded bg-gray-50" />
+          <Input type="email" value={email} readOnly className="mt-1 block w-full border px-3 py-2 rounded bg-gray-50" />
         </div>
 
         {error && <div className="text-red-600">{error}</div>}

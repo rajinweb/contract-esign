@@ -121,17 +121,6 @@ export interface Recipient {
   totalFields?: number;
   status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending'
 }
-/* send email 
-export interface SendDocumentRequest {
-  recipients: Recipient[];
-  documentName?: string;
-  documentId?: string;
-  subject: string;
-  message: string;
-  sendReminders: boolean;
-  reminderDays: number;
-  expiryDays: number;
-}*/
 /* contacts  */
 export interface Contact {
   _id?: string;
