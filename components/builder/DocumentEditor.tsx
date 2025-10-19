@@ -231,6 +231,12 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
         setElementId(maxId + 1);
         resetHistory(restoredFields);
   
+        setLastSavedState({
+          components: restoredFields,
+          name: doc?.documentName || doc?.originalFileName || '',
+          recipients: doc?.recipients || [],
+        });
+
         if (doc?.documentId) {
           const fileUrl = `/api/documents/${encodeURIComponent(doc.documentId)}`;
           setSelectedFile(fileUrl);
@@ -591,8 +597,8 @@ useEffect(() => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  const saveToServer = useCallback(async (): Promise<void> => {
-    if (!selectedFile) return;
+  const saveToServer = useCallback(async (): Promise<boolean> => {
+    if (!selectedFile) return false;
 
     try {
       // Save as blob
@@ -613,6 +619,7 @@ useEffect(() => {
         name: documentName,
         recipients: recipients,
       });
+      return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -623,6 +630,7 @@ useEffect(() => {
       } else {
         toast.error("An error occurred while saving the document.");
       }
+      return false;
     }
   }, [selectedFile, documentName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setDocumentName, setSelectedFile, signingToken, setLastSavedState]);
 
@@ -643,8 +651,7 @@ useEffect(() => {
       return null;
     }
     if(isServerSave){
-      await saveToServer();
-      return null; 
+      return await saveToServer();
     }
 
     const canvas = documentRef.current;
@@ -830,26 +837,14 @@ const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
       });
     }
   }, [currentPage]);
-// unsave changes alert 
-useEffect(() => {
-  if (
-    droppedComponents.length &&
-    documentName &&
-    recipients.length &&
-    !lastSavedState
-  ) {
-    setLastSavedState({
-      components: droppedComponents,
-      recipients,
-      name: documentName,
-    });
-  }
-}, [droppedComponents, recipients, documentName, lastSavedState]);
+
 
 // save signed copy
 useEffect(() => {
   if (onSignedSaveDocument) {    
-    onSignedSaveDocument(saveToServer);
+    onSignedSaveDocument(() => saveToServer().then(() => {
+      console.log('Document updated')
+    })); // Wrap saveToServer to return Promise<void>
   }
 }, [onSignedSaveDocument, saveToServer]);
 

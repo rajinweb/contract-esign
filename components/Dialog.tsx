@@ -45,12 +45,12 @@ export function Dialog({
         {children}
         <div className='flex justify-end'>
            {!hideCancel && (
-                    <Button
-                      title={"Cancel"}
-                      onClick={onCancel}
-                    />
-                  )}
-                  <Button title={confirmTitle} inverted={true} onClick={onConfirm} disabled={disabled}/>
+                  <Button
+                    label={"Cancel"}
+                    onClick={onCancel}
+                  />
+                )}
+                <Button label={confirmTitle} inverted onClick={onConfirm} disabled={disabled}/>
         </div>
       </div>
     </div>

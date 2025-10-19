@@ -1,5 +1,6 @@
 'use client'
 import { Ellipsis, LucideProps } from 'lucide-react';
+import { Button } from './Button';
 
 interface MenuItem  {
   label: string;
@@ -21,9 +22,7 @@ const MoreActions: React.FC<MoreActionsProps> = ({ menuItems, triggerIcon: Trigg
   return (
     <div className="relative inline-block text-left group">
       {/* Button */}
-      <button className="iconButton border border-gray-300 text-md" title="More Actions" >
-          {TriggerIcon ? <TriggerIcon size={16} /> : <Ellipsis size={16} />}
-      </button>
+      <Button inverted title="More Actions" icon={TriggerIcon ? <TriggerIcon size={16} /> : <Ellipsis size={16} />}/>
 
       {/* Dropdown Menu */}
       <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 opacity-0 invisible group-focus-within:opacity-100 group-focus-within:visible group-hover:opacity-100 group-hover:visible transform scale-95 group-focus-within:scale-100 group-hover:scale-100 transition-all duration-150 z-50">

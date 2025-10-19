@@ -15,7 +15,10 @@ import { FileText, Settings, PenLine, CheckLine,
   Keyboard,
   Globe,
   Star,
-  Merge
+  Merge,
+  LogOut,
+  Save,
+  Send
  } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
@@ -24,7 +27,9 @@ import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
 import { HandleSavePDFOptions, Recipient, DroppedComponent } from "@/types/types";
 import { downloadPdf, loadPdf, savePdfBlob } from '@/lib/pdf';
+import toast, { Toaster } from 'react-hot-toast';
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
+import { Button } from "../Button";
 
 interface ActionToolBarProps {
   documentName: string;
@@ -77,6 +82,9 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
 }) => {
   const { selectedFile } = useContextStore();
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
 
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +172,27 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     onSendDocument();
   };
 
+  const handleSave = async () => {
+    if (!hasUnsavedChanges) return;
+
+    setSaveStatus('saving');
+    try {
+      const success = await handleSavePDF({ isServerSave: true });
+      if (success) {
+        setSaveStatus('saved');
+        setLastSaved(new Date());
+        toast.success('Saved ✓');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (error) {
+      setSaveStatus('idle');
+      toast.error('Error saving document. Please try again.');
+      console.error(error);
+    }
+  };
+
   const handleSendClick = () => {
     if (hasUnsavedChanges) {
       setIsUnsavedChangesDialogVisible(true);
@@ -186,6 +215,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
 
   return (
     <>
+      <Toaster />
       <UnsavedChangesDialog
         isVisible={isUnsavedChangesDialogVisible}
         onCancel={() => setIsUnsavedChangesDialogVisible(false)}
@@ -198,17 +228,14 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
         <div className="flex flex-1 items-center min-w-0 px-1">
           <div className="flex items-center gap-4 min-w-0">
             {/* Back Button */}
-            <button
-              type="button"
+            <Button
               aria-label="Press to go back"
               tabIndex={200}
-              className="iconButton border border-gray-300 text-md"
               onClick={onBackClick}
-            >
-              <ChevronLeft  className="w-4 h-4 text-gray-700" />
-            </button>
-
-            <div
+              icon={  <ChevronLeft size={16} />}
+              inverted={true}
+           />
+           <div
               className="flex items-center bg-blue-50 rounded px-2 py-1 w-[350px] justify-between space-x-2"
             >
               <FileText  size={18} className="text-blue-600 flex-shrink-0" />
@@ -296,25 +323,33 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
 
         {/* Right Section */}
         <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
-          <MoreActions menuItems={menuItems as []} />
-
-          <button
-            type="button"
-            className="bg-gray-100 text-gray-700 px-4 py-1 rounded hover:bg-gray-200 text-sm"
-            onClick={() => handleSavePDF({ isServerSave: true })}
-          >
-            Save and Close
-          </button>
-
-          <button
-            type="button"
-            className={`primary-button ${recipients.length === 0 ? 'opacity-50 cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-700' : ''}`}
+            {lastSaved && (
+                <small>
+                Saved at {lastSaved.toLocaleTimeString()}
+                </small>
+              )}
+            <MoreActions menuItems={menuItems as []} />
+            <Button
+              onClick={handleSave}
+              disabled={!hasUnsavedChanges || saveStatus === 'saving'}
+              title="Save your edits."
+              icon={<Save size={18} />}
+              label={
+                  saveStatus === 'saving'
+                ? 'Saving…'
+                : saveStatus === 'saved'
+                ? 'Saved ✓'
+                : 'Save'
+              }
+            />
+          <Button
             onClick={handleSendClick}
             disabled={recipients.length === 0}
             title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
-          >
-            Send ({recipients.length})
-          </button>
+            label={`Send ${recipients.length}`}
+            icon={<Send size={18}/>}
+          />
+          <Button icon={<LogOut size={16} />} inverted title="Exit from builder" onClick={()=> router.replace('/dashboard')} />
         </div>
       </div>
     </div>
@@ -322,73 +357,46 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
     <div className="flex items-center gap-4 px-4 py-2 bg-white border-b text-sm font-medium">
     {/* Undo / Redo */}
     <div className="flex items-center gap-2">
-      <button 
+      <Button 
         aria-label="Undo (Ctrl+Z)" 
-        className={`iconButton ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        inverted
         onClick={onUndo}
         disabled={!canUndo}
         title="Undo (Ctrl+Z)"
-      >
-        <Undo size={20} />
-      </button>
-      <button 
+        icon={ <Undo size={20} />}
+        className="border-0 bg-transparent"
+      />     
+      <Button 
         aria-label="Redo (Ctrl+Y)" 
-        className={`iconButton ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        inverted
         onClick={onRedo}
         disabled={!canRedo}
         title="Redo (Ctrl+Y)"
-      >
-        <Redo size={20} />
-      </button>
+        icon={ <Redo size={20} />}
+        className="border-0 bg-transparent"
+      />
     </div>
-
-    <div className="w-px h-6 bg-gray-200 mx-2" />
-
-    {/* Tool Buttons */}
-    {/* <div className="flex items-center gap-2">
-      <button aria-label="Text Tool" className="iconButton">
-        <Text size={16} />
-      </button>
-      <button aria-label="Checkbox Tool" className="iconButton">
-        <CheckSquare size={16} />
-      </button>
-      <button aria-label="Date Tool" className="iconButton">
-        <CalendarDays size={16} />
-      </button>
-    </div> 
-
-    <div className="w-px h-6 bg-gray-200 mx-2" />
-*/}
+    <div className="w-px h-6 bg-gray-200 mx-2" />  
     {/* Spacer */}
     <div className="flex-grow" />
 
     {/* Right Actions */}
     <div className="flex items-center gap-3">
-      <button className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">
-        <Eye size={16} />
-        <span>Open Preview</span>
-      </button>
+      <Button icon={<Eye size={16} />} label="Open Preview" inverted className="border-0 bg-gray-100 hover:bg-gray-200 text-gray-700"  />
       <div className="w-px h-6 bg-gray-200 mx-2" />
-         <MoreActions  menuItems={[ 
+       <MoreActions  menuItems={[ 
           { label: "Download PDF", icon: Download, action:downloadDoc },
           { type: "divider", label: "" },
           { label: "Merge and download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true })},
           { type: "divider", label: "" },
           { label: "Merge Fields Into PDF", icon: Merge, action: ()=> handleSavePDF({ isMergeFields: true })},
          ]} triggerIcon={Download} />
-  
-      <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className="iconButton" aria-label="Help">
-        <HelpCircle size={16} />
-      </button>
-      <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className="iconButton"  aria-label="Settings">
-        <Settings size={20} />
-      </button>
-      <div className="w-px h-6 bg-gray-200 mx-2" />
-      <button className="iconButton text-blue-600 bg-blue-50" aria-label="Thumbnails" >
-        <LayoutGrid size={20} />
-      </button>
+             <div className="w-px h-6 bg-gray-200 mx-2" />
+      <Button aria-label="Help" icon={<HelpCircle size={16} />} inverted className="border-0"/>
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+      <Button aria-label="Settings" icon={<Settings size={16} />} inverted className="border-0"/>
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+      <Button aria-label="Thumbnails" icon={<LayoutGrid size={16} />} inverted className="border-0"/>
     </div>
   </div>
   </>
