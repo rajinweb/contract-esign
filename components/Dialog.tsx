@@ -42,15 +42,16 @@ export function Dialog({
             strokeWidth={3}
           />
         </div>
-        {children}
-        <div className='flex justify-end'>
+        <div className='p-2  mb-4'>{children}</div>
+        <div className='flex justify-end gap-2  border-t -mx-4 p-4 pb-0'>
            {!hideCancel && (
                   <Button
                     label={"Cancel"}
                     onClick={onCancel}
+                    inverted
                   />
                 )}
-                <Button label={confirmTitle} inverted onClick={onConfirm} disabled={disabled}/>
+                <Button label={confirmTitle}  onClick={onConfirm} disabled={disabled}/>
         </div>
       </div>
     </div>

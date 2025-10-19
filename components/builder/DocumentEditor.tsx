@@ -462,7 +462,7 @@ useEffect(() => {
           const shouldResetStatus =
             recipientId !== null &&
             r.id === recipientId &&
-            r.status === 'signed' &&
+            r.status === 'signed' || r.status === 'approved' &&
             previousRecipientId !== recipientId;
 
           if (shouldResetStatus) {

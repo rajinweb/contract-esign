@@ -344,7 +344,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
             />
           <Button
             onClick={handleSendClick}
-            disabled={recipients.length === 0}
+            disabled={recipients.length === 0 || hasUnsavedChanges}
             title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
             label={`Send ${recipients.length}`}
             icon={<Send size={18}/>}

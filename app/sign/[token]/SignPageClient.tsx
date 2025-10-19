@@ -66,7 +66,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       const filledCount = assigned.length - pendingRequiredCount;
 
       const normalizedRecipient =
-        pendingRequiredCount > 0 && recipient.status === "signed"
+        pendingRequiredCount > 0 && (recipient.status === "signed" || recipient.status === "approved")
           ? { ...recipient, status: "pending" as Recipient["status"] }
           : recipient;
 
@@ -108,6 +108,17 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       if (!response.ok) {
         throw new Error(result.message || `Failed to ${action} document`);
       }
+
+      setDoc(prevDoc => {
+        if (!prevDoc) return null;
+        const newRecipients = prevDoc.recipients.map(r => {
+            if (r.id === recipientId) {
+                return { ...r, status: action };
+            }
+            return r;
+        });
+        return { ...prevDoc, recipients: newRecipients };
+      });
 
       if (action === 'signed' || action === 'approved') {
         setIsSigned(true);
