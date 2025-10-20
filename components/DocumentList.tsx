@@ -10,9 +10,6 @@ import {
   Trash2,
   Save,
   View,
-  Download,
-  Share2,
-  MoveRight,
   SendHorizontal,
   FileCheck,
 } from 'lucide-react';
@@ -32,7 +29,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   unfinished: Clock,
   waiting_for_me: AlertCircle,
   waiting_for_others: AlertCircle,
-  signed: CheckCircle,
+  completed: CheckCircle,
   pending: Clock,
   draft: FileText,
   rejected: XCircle,
@@ -137,29 +134,9 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
     setIsBulkDeleteModalOpen(false);
   };
 
-  const hasSelection = selectedIds.length > 0;
   return ( 
-    <div className='relative'>
-      {/* Toolbar - appears when something is selected */}
-      {hasSelection && (
-        <div className="absolute top-0 left-0 w-full bg-white shadow-md border-b z-10 flex items-center gap-3 p-3">
-          <span className="font-medium">{selectedIds.length} selected</span>
-          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
-            <MoveRight size={16} /> Move
-          </button>
-          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
-            <Download size={16} /> Download
-          </button>
-          <button className="flex items-center gap-1 px-3 py-1 border rounded hover:bg-gray-100">
-            <Share2 size={16} /> Share
-          </button>
-          <button
-            onClick={() => setIsBulkDeleteModalOpen(true)}
-            className="flex items-center gap-1 px-3 py-1 border rounded text-red-600 hover:bg-red-50">
-            <Trash2 size={16} /> Delete
-          </button>
-        </div>
-      )}           
+    <>
+             
       <Filters
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
@@ -173,7 +150,8 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         setSortBy={setSortBy}
         toggleSelectAll={toggleSelectAll} 
         selectedIds={selectedIds} 
-        totalDocuments={documents.length}      
+        totalDocuments={documents.length}
+        bulkDelete={setIsBulkDeleteModalOpen}
         />
   <div className="space-y-2 mt-2">
       {filteredDocuments.map((doc) => {
@@ -287,6 +265,6 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
         selectedDocs={documents.filter(doc => selectedIds.includes(doc.id))}
         onDeleteComplete={handleBulkDeleteComplete}
       />
-  </div>
+  </>
   );
 }

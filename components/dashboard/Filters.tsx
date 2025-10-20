@@ -1,6 +1,7 @@
 "use client";
-import { RefreshCcw, ArrowUpDown } from "lucide-react";
+import { RefreshCcw, ArrowUpDown, MoveRight, Download, Share2, Trash2 } from "lucide-react";
 import StatusDropdown from "./StatusDropdown";
+import { Button } from "../Button";
 
 type FiltersProps = {
   selectedStatus: string | null;
@@ -16,6 +17,7 @@ type FiltersProps = {
   toggleSelectAll:()=>void;
   selectedIds: string[];
   totalDocuments: number;
+  bulkDelete:(s: boolean) => void
 };
 
 export default function Filters({
@@ -31,13 +33,12 @@ export default function Filters({
   setSortBy,
   toggleSelectAll,
   selectedIds,
-  totalDocuments
+  totalDocuments,
+  bulkDelete
 }: FiltersProps) {
   const isAllSelected = selectedIds.length === totalDocuments;
   return (
-    <div className="w-full flex items-center justify-between bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm">
-     
-      <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 h-14 relative">
         <input
           type="checkbox"
           className="w-4 h-4 border-gray-300 rounded"
@@ -45,7 +46,18 @@ export default function Filters({
           checked={isAllSelected}
           onChange={toggleSelectAll}
         />
-     
+        {/* Toolbar - appears when something is selected */}
+           {selectedIds.length > 0 && (
+           <>
+               <span className="font-medium">{selectedIds.length} selected</span>
+               <Button icon={<MoveRight size={16} />} label="Move" inverted />
+               <Button icon={<Download size={16} />} label="Download" inverted />
+               <Button icon={<Share2 size={16} />} label="Share" inverted/>
+               <Button icon={<Trash2 size={16} />} label="Delete" inverted  onClick={() => bulkDelete(true)} className="text-red-600 hover:bg-red-50"/>
+            </>
+           )} 
+      {!selectedIds.length && (
+       <>
         <StatusDropdown
           selectedStatus={selectedStatus}
           setSelectedStatus={setSelectedStatus}
@@ -80,10 +92,9 @@ export default function Filters({
           <option value="me">Me</option>
           <option value="team">Team</option>
         </select>
-      </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 absolute right-4">
         <button className="p-2 rounded hover:bg-gray-100">
           <RefreshCcw className="w-4 h-4 text-gray-600" />
         </button>
@@ -102,6 +113,8 @@ export default function Filters({
           <option value="name">Name</option>
         </select>
       </div>
+        </>
+      )}
     </div>
   );
 }
