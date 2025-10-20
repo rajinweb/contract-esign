@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { X, Upload, Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { Button } from '../Button';
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -220,30 +221,19 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
 
         {/* Footer */}
         <div className="flex justify-end space-x-3 p-6 border-t">
-          <button
+          <Button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            inverted
             disabled={isUploading}
-          >
-            Cancel
-          </button>
-          <button
+            label='Cancel'
+          />
+          <Button
             onClick={handleImport}
             disabled={!file || isUploading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-          >
-            {isUploading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Importing...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4 mr-2" />
-                Import Contacts
-              </>
-            )}
-          </button>
+            className={isUploading ? 'animate-spin' : ''}
+            icon={<Upload  size={16} />}
+            label= {isUploading ?  'Importing...' : 'Import Contacts'} 
+            />
         </div>
       </div>
     </div>

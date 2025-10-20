@@ -5,6 +5,7 @@ import { Contact, Recipient, ROLES } from '@/types/types';
 import toast from 'react-hot-toast';
 import DropdownPortal from '../DropdownPortal';
 import Input from '../forms/Input';
+import { Button } from '../Button';
 
 interface AddRecipientModalProps {
   isOpen: boolean;
@@ -426,29 +427,26 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
         <div className="flex justify-between items-center p-6 border-t">
           {/* Action Buttons */}
           <div className="flex items-center gap-4">
-              <button
+              <Button
                 onClick={()=> addRecipient(false)}
-                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
-              >
-                <UserPlus className="w-4 h-4" />
-                Add Recipient
-              </button>
-
+                icon={<UserPlus size={16}/>}
+                inverted
+               className='border-0'
+                label='Add Recipient'
+              />
            {!sortedRecipients.some(r => r.isCC) && (
-              <button
+              <Button
                 onClick={() => addRecipient(true)}
-                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md"
-              >
-                <Users className="w-4 h-4" />
-                Add CC Recipients
-              </button>
+                label='Add CC Recipients'
+                inverted
+                icon={<Users size={16} />}
+               className='border-0'
+              />
             )}
            </div>
            <div className='flex gap-2'>
-            <button onClick={onClose} className="bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 hover:text-gray-600 hover:border-gray-400 p-2">
-              Cancel
-            </button>
-            <button onClick={handleSaveAndContinue} className="primary-button"> Save and Continue </button>
+            <Button onClick={onClose} label="Cancel" inverted/>
+            <Button onClick={handleSaveAndContinue} label='Save and Continue '/> 
           </div>
         </div>
 
