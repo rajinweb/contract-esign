@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
+import { updateDocumentStatus } from '@/lib/statusLogic';
 
 // GET - Load a document with its fields and recipients
 export async function GET(req: NextRequest) {
@@ -31,6 +32,10 @@ export async function GET(req: NextRequest) {
     if (document.userId.toString() !== userId) {
       return NextResponse.json({ message: `User ID mismatch. DocUser: ${document.userId}, ReqUser: ${userId}` }, { status: 403 });
     }
+
+    // Update document status
+    updateDocumentStatus(document, userId);
+    await document.save();
 
     // Get the current version's fields
     const currentVersion = document.versions && document.versions.length > 0

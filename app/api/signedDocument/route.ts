@@ -30,11 +30,13 @@ export async function POST(req: NextRequest) {
         }
 
         if (recipient.role === 'signer') {
-            if (action !== 'signed') {
-                return NextResponse.json({ message: `Signers must use action "signed"` }, { status: 400 });
+            if (action !== 'signed' && action !== 'rejected') {
+                return NextResponse.json({ message: `Signers must use action "signed" or "rejected"` }, { status: 400 });
             }
-            recipient.status = 'signed';
-            recipient.signedAt = new Date();
+            recipient.status = action;
+            if (action === 'signed') {
+                recipient.signedAt = new Date();
+            }
         }
         else if (recipient.role === 'approver') {
             if (action !== 'approved' && action !== 'rejected') {
@@ -63,8 +65,8 @@ export async function POST(req: NextRequest) {
 
         await document.save();
 
-        return NextResponse.json({ success: true, message: 'Document signed' });
+        return NextResponse.json({ success: true, message: 'Document status updated' });
     } catch {
-        return NextResponse.json({ message: 'Failed to sign document' }, { status: 500 });
+        return NextResponse.json({ message: 'Failed to update document status' }, { status: 500 });
     }
 }

@@ -5,13 +5,17 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
   AlertTriangle,
   Trash2,
   Save,
   View,
   SendHorizontal,
   FileCheck,
+  PenTool,
+  Ban,
+  ThumbsUp,
+  Eye,
+  RefreshCw,
 } from 'lucide-react';
 import { Doc, statuses} from '@/types/types';
 import PdfThumbnail from '@/components/PdfThumbnails';
@@ -26,18 +30,20 @@ interface DocumentListProps {
 }
 
 const statusIcons: Record<Doc['status'], React.ElementType> = {
-  unfinished: Clock,
-  waiting_for_me: AlertCircle,
-  waiting_for_others: AlertCircle,
-  completed: CheckCircle,
-  pending: Clock,
   draft: FileText,
+  saved: Save,
+  sent: SendHorizontal,
+  viewed: Eye,
+  in_progress: Clock,
+  signed: PenTool,
+  approved: ThumbsUp,
+  completed: CheckCircle,
   rejected: XCircle,
-  expired: Clock,
   delivery_failed: AlertTriangle,
-  saved:Save,
-  sent: SendHorizontal 
-}
+  expired: Clock,
+  cancelled: Ban,
+  pending: Clock,
+};
 
 export default function DocumentList({searchQuery}: DocumentListProps) {
   const {  documents, setDocuments } = useContextStore();
@@ -110,6 +116,43 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
       }
     } finally {
       setDownloadingDoc(null);
+    }
+  }
+
+  async function handleResetStatus(doc: Doc) {
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/reset`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to reset document status');
+      }
+
+      const { document: updatedDoc } = await res.json();
+
+      // Update the document in the local state
+      setDocuments(prev => prev.map(d => {
+        if (d.id === updatedDoc._id) {
+          return {
+            ...d,
+            ...updatedDoc,
+            id: updatedDoc._id,
+            createdAt: new Date(updatedDoc.createdAt),
+            updatedAt: new Date(updatedDoc.updatedAt),
+          };
+        }
+        return d;
+      }));
+
+      toast.success('Document status has been reset.');
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(`Cannot reset: ${err.message}`);
+      } else {
+        toast.error('Cannot reset: Unknown error');
+      }
     }
   }
   
@@ -190,6 +233,19 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
             </div>
             
             <div className="flex items-center gap-2 text-sm">
+              {doc.status === 'rejected' && (
+                <button
+                  className="text-blue-500 hover:text-blue-700"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResetStatus(doc);
+                  }}
+                  title="Reset Status"
+                  data-testid={`reset-status-${doc.id}`}
+                >
+                  <RefreshCw size={26} />
+                </button>
+              )}
               <button
                 className="text-red-500 hover:text-red-700"
                 onClick={(e) => {
@@ -216,7 +272,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                 )}
                 
                 {/* Download Signed Copy Button */}
-                {doc.status === 'signed' ? (
+                {doc.status === 'completed' ? (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

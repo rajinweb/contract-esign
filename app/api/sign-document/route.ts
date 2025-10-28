@@ -1,6 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
-import DocumentModel from '@/models/Document'
+import DocumentModel, { IDocumentVersion, IDocumentRecipient } from '@/models/Document';
+import { updateDocumentStatus } from '@/lib/statusLogic';
+
+export async function POST(req: NextRequest) {
+    try {
+        await connectDB();
+        const { token, recipientId, fields } = await req.json();
+
+        if (!token) return NextResponse.json({ success: false, message: 'Token is required' }, { status: 400 });
+        if (!recipientId) return NextResponse.json({ success: false, message: 'Recipient ID is required' }, { status: 400 });
+
+        const document = await DocumentModel.findOne({ 'versions.signingToken': token });
+        if (!document) return NextResponse.json({ success: false, message: 'Invalid or expired signing link' }, { status: 404 });
+
+        const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
+        if (!version) return NextResponse.json({ success: false, message: 'Version not found' }, { status: 404 });
+
+        if (version.expiresAt && new Date() > new Date(version.expiresAt)) {
+            return NextResponse.json({ success: false, message: 'Signing link has expired' }, { status: 410 });
+        }
+
+        const recipient = document.recipients.find((r: IDocumentRecipient) => r.id.toString() === recipientId);
+        if (!recipient) return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
+
+        recipient.status = 'signed';
+        recipient.signedAt = new Date();
+        version.fields = fields;
+
+        updateDocumentStatus(document, recipientId);
+
+        await document.save();
+
+        return NextResponse.json({ success: true, message: 'Document signed successfully' });
+    } catch (_err) {
+        console.error('Error in sign-document:', _err);
+        return NextResponse.json({ success: false, message: 'Failed to sign document' }, { status: 500 });
+    }
+}
 
 export async function GET(req: NextRequest) {
     try {
@@ -16,14 +53,14 @@ export async function GET(req: NextRequest) {
         const document = await DocumentModel.findOne({ 'versions.signingToken': token });
         if (!document) return NextResponse.json({ success: false, message: 'Invalid or expired signing link' }, { status: 404 });
 
-        const version = document.versions.find((v: { signingToken: string; }) => v.signingToken === token);
+        const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
         if (!version) return NextResponse.json({ success: false, message: 'Version not found' }, { status: 404 });
 
         // verify expiry
         if (version.expiresAt && new Date() > new Date(version.expiresAt)) {
             return NextResponse.json({ success: false, message: 'Signing link has expired' }, { status: 410 });
         }
-        const recipient = document.recipients.find((r: { id: { toString: () => string; }; }) => r.id.toString() === recipientId);
+        const recipient = document.recipients.find((r: IDocumentRecipient) => r.id.toString() === recipientId);
         if (!recipient) return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
 
         //  console.log('Returning recipients to client:', JSON.stringify(document.recipients, null, 2));

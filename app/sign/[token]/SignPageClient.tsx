@@ -120,7 +120,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         return { ...prevDoc, recipients: newRecipients };
       });
 
-      if (action === 'signed' || action === 'approved') {
+      if (action === 'signed' || action === 'approved' || action === 'rejected') {
         setIsSigned(true);
         // Update current recipient status in local state
         setCurrentRecipient(prev => prev ? { ...prev, status: action } : null);
@@ -311,13 +311,20 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
         if (currentRecipient.role === 'signer') {
           // If already signed, show completion message
-          if (isSigned) {
+          if (currentRecipient.status === 'signed') {
             return (
               <div className="mt-4 text-center">
                 <p className="text-green-600 font-medium">✓ You have signed this document.</p>
                 <small className="text-gray-500">
                   {filledCount} of {assignedCount} fields completed
                 </small>
+              </div>
+            );
+          }
+          if (currentRecipient.status === 'rejected') {
+            return (
+              <div className="mt-4 text-center">
+                <p className="text-red-600 font-medium">You have rejected this document.</p>
               </div>
             );
           }
@@ -333,38 +340,46 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                   {pendingRequiredCount} required field{pendingRequiredCount > 1 ? 's' : ''} remaining
                 </p>
               )}
-              <button
-                onClick={async () => {
-                  if (!allRequiredFieldsFilled) return; // Safety check
-                  
-                  try {
-                    // Save fields first
-                    if (saveRef.current) {
-                      console.log('Saving fields...');
-                      await saveRef.current();
-                      console.log('Fields saved successfully');
+              <div className="flex justify-center gap-4 mt-2">
+                <button
+                  onClick={async () => {
+                    if (!allRequiredFieldsFilled) return; // Safety check
+                    
+                    try {
+                      // Save fields first
+                      if (saveRef.current) {
+                        console.log('Saving fields...');
+                        await saveRef.current();
+                        console.log('Fields saved successfully');
+                      }
+                      
+                      // Small delay to ensure DB save completes
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      // Then mark as signed (this must come after field save)
+                      console.log('Marking as signed...');
+                      await handleSignOrApprove('signed');
+                      console.log('Signed successfully');
+                    } catch (error) {
+                      console.error('Error during signing:', error);
+                      alert('Failed to sign document. Please try again.');
                     }
-                    
-                    // Small delay to ensure DB save completes
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    // Then mark as signed (this must come after field save)
-                    console.log('Marking as signed...');
-                    await handleSignOrApprove('signed');
-                    console.log('Signed successfully');
-                  } catch (error) {
-                    console.error('Error during signing:', error);
-                    alert('Failed to sign document. Please try again.');
-                  }
-                }}
-                disabled={!allRequiredFieldsFilled}
-                className="flex items-center gap-2 text-white px-4 py-2 rounded text-xs mt-2 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-                style={{ backgroundColor: currentRecipient.color }}
-                title={!allRequiredFieldsFilled ? 'Please fill all required fields before signing' : 'Click to sign the document'}
-              >
-                {Icon && <Icon size={12} />}
-                Sign Document
-              </button>
+                  }}
+                  disabled={!allRequiredFieldsFilled}
+                  className="flex items-center gap-2 text-white px-4 py-2 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  style={{ backgroundColor: currentRecipient.color }}
+                  title={!allRequiredFieldsFilled ? 'Please fill all required fields before signing' : 'Click to sign the document'}
+                >
+                  {Icon && <Icon size={12} />}
+                  Sign Document
+                </button>
+                <button
+                  onClick={() => handleSignOrApprove('rejected')}
+                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-xs"
+                >
+                  <X size={12} /> Reject
+                </button>
+              </div>
             </div>
           );
         }

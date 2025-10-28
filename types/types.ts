@@ -8,17 +8,19 @@ export interface Doc {
   name: string;
   createdAt: Date;
   status:
-  | 'unfinished'
-  | 'waiting_for_me'
-  | 'waiting_for_others'
-  | 'signed'
-  | 'pending'
   | 'draft'
-  | 'rejected'
-  | 'expired'
-  | 'delivery_failed'
   | 'saved'
-  | 'sent';
+  | 'sent'
+  | 'viewed'
+  | 'in_progress'
+  | 'signed'
+  | 'approved'
+  | 'completed'
+  | 'rejected'
+  | 'delivery_failed'
+  | 'expired'
+  | 'cancelled'
+  | 'pending';
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
@@ -26,17 +28,26 @@ export interface Doc {
 }
 export const statuses = [
   { value: "all", label: "All Statuses", color: "text-slate-300", dot: "bg-slate-300" },
-  { value: "unfinished", label: "Unfinished", color: "text-yellow-400", dot: "bg-yellow-400" },
-  { value: "waiting_me", label: "Waiting for Me", color: "text-sky-400", dot: "bg-sky-400" },
-  { value: "waiting_others", label: "Waiting for Others", color: "text-teal-400", dot: "bg-teal-400" },
-  { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
-  { value: "pending", label: "Pending", color: "text-amber-600", dot: "bg-amber-600" },
+
+  // --- Draft / Setup ---
   { value: "draft", label: "Draft", color: "text-gray-400", dot: "bg-gray-400" },
-  { value: "rejected", label: "Rejected", color: "text-rose-400", dot: "bg-rose-400" },
-  { value: "expired", label: "Expired", color: "text-zinc-300", dot: "bg-zinc-300" },
-  { value: "delivery_failed", label: "Delivery Failed", color: "text-red-500", dot: "bg-red-500" },
   { value: "saved", label: "Saved", color: "text-purple-400", dot: "bg-purple-400" },
+
+  // --- Active Workflow States ---
   { value: "sent", label: "Sent", color: "text-indigo-500", dot: "bg-indigo-500" },
+  { value: "viewed", label: "Viewed", color: "text-sky-400", dot: "bg-sky-400" },
+  { value: "in_progress", label: "In Progress", color: "text-amber-500", dot: "bg-amber-500" },
+
+  // --- Completed / Finalized ---
+  { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
+  { value: "approved", label: "Approved", color: "text-emerald-500", dot: "bg-emerald-500" },
+  { value: "completed", label: "Completed", color: "text-green-600", dot: "bg-green-600" },
+
+  // --- Error / Exception States ---
+  { value: "rejected", label: "Rejected", color: "text-rose-500", dot: "bg-rose-500" },
+  { value: "delivery_failed", label: "Delivery Failed", color: "text-red-500", dot: "bg-red-500" },
+  { value: "expired", label: "Expired", color: "text-zinc-400", dot: "bg-zinc-400" },
+  { value: "cancelled", label: "Cancelled", color: "text-neutral-400", dot: "bg-neutral-400" },
 ];
 
 export const ROLES = [
@@ -119,7 +130,14 @@ export interface Recipient {
   order: number;
   isCC?: boolean;
   totalFields?: number;
-  status: 'signed' | 'sent' | 'approved' | 'rejected' | 'pending'
+  status:
+  | 'signed'
+  | 'sent'
+  | 'approved'
+  | 'rejected'
+  | 'pending'
+  | 'viewed'
+  | 'delivery_failed';
 }
 /* contacts  */
 export interface Contact {
@@ -213,11 +231,25 @@ export interface IDocument extends Document {
     status?: string;
     changeLog?: string;
   }[];
-  recipients?: any[];
-  status?: string;
+  recipients?: Recipient[];
+  status?:
+  | 'draft'
+  | 'saved'
+  | 'sent'
+  | 'viewed'
+  | 'in_progress'
+  | 'signed'
+  | 'approved'
+  | 'completed'
+  | 'rejected'
+  | 'delivery_failed'
+  | 'expired'
+  | 'cancelled'
+  | 'pending';
   token?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  expiresAt?: Date;
 }
 export interface DocumentEditorProps {
   documentId?: string | null;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel, { IDocumentVersion } from '@/models/Document';
+import { updateDocumentStatus } from '@/lib/statusLogic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,6 +27,11 @@ export async function GET(req: NextRequest) {
       .skip((page - 1) * limit);
 
     const total = await DocumentModel.countDocuments(query);
+
+    // Update document statuses before sending them
+    for (const doc of documents) {
+      updateDocumentStatus(doc, userId);
+    }
 
     const documentsWithMetadata = documents.map(doc => ({
       id: doc._id,

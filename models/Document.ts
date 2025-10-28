@@ -28,10 +28,21 @@ export interface IDocumentVersion {
 
 export interface IDocumentRecipient extends Recipient {
   sendReminders: boolean;
-  reminderDays: number;
-  expiresAt: Date | null;
+  reminderDays?: number; // optional if reminders are off
+  expiresAt?: Date | null;
+
+  // Timestamps for actions
   signedAt?: Date;
-  ipAddress?: string;
+  approvedAt?: Date;   // track approver approval time
+  rejectedAt?: Date;   // track rejection time
+  viewedAt?: Date;     // track when the document was viewed
+
+  // Additional metadata
+  ipAddress?: string;  // optional IP for audit
+  token?: string;      // unique token URL for signing
+  color: string;      // UI color per recipient (optional)
+  isCC?: boolean;      // marks CC recipients
+  order: number;      // signing order (optional for viewers)
 }
 
 const DocumentFieldSchema = new Schema<DocumentField>({
@@ -54,11 +65,23 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   email: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
-  order: { type: Number, required: true },
+  //order: { type: Number, required: true },
+  order: { type: Number, required: function () { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },
-  color: { type: String, required: true },
-  status: { type: String, default: 'pending', enum: ['pending', 'viewed', 'signed', 'approved', 'rejected', 'sent'] },
+  //color: { type: String, required: true },
+  color: {
+    type: String, default: function () {
+      switch (this.role) {
+        case 'signer': return '#3B82F6';
+        case 'approver': return '#10B981';
+        case 'viewer': return '#6B7280';
+      }
+    }
+  },
+  status: { type: String, default: 'pending', enum: ['pending', 'sent', 'viewed', 'signed', 'approved', 'rejected', 'delivery_failed', 'expired'] },
   signedAt: { type: Date },
+  approvedAt: { type: Date },
+  rejectedAt: { type: Date },
   ipAddress: { type: String },
   sendReminders: { type: Boolean, default: false },
   reminderDays: { type: Number },
@@ -96,7 +119,7 @@ const DocumentSchema = new Schema<IDocument>({
   currentVersion: { type: Number, default: 1 },
   currentSessionId: { type: String },
   versions: { type: [DocumentVersionSchema], default: [] },
-  recipients: { type: Array, default: [] },
+  recipients: { type: [DocumentRecipientSchema], default: [] },
   status: { type: String, default: 'draft' },
   token: { type: String, sparse: true, unique: true },
 }, { timestamps: true });
