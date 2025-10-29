@@ -1,16 +1,8 @@
 import { IDocument } from "@/types/types";
 import { Document } from "mongoose";
 
-const ROLE_COMPLETION_STATUS: Record<string, string[]> = {
-  signer: ["signed"],
-  approver: ["approved"],
-  viewer: ["viewed"],
-};
-
 export const getUpdatedDocumentStatus = (
-  document: IDocument,
-  currentUserId?: string
-): IDocument["status"] => {
+  document: IDocument): IDocument["status"] => {
   const recipients = document.recipients || [];
 
   // Condition: No recipients or all are pending
@@ -46,17 +38,12 @@ export const getUpdatedDocumentStatus = (
   const signersAndApprovers = recipients.filter(
     (r) => r.role === "signer" || r.role === "approver"
   );
-  const viewers = recipients.filter((r) => r.role === "viewer");
 
   const allRequiredDone =
     signersAndApprovers.length > 0 &&
-    signersAndApprovers.every((r) =>
-      ROLE_COMPLETION_STATUS[r.role]?.includes(r.status)
+    signersAndApprovers.every(
+      (r) => r.status === "signed" || r.status === "approved"
     );
-
-  const allViewersDone =
-    viewers.length > 0 &&
-    viewers.every((r) => ROLE_COMPLETION_STATUS[r.role]?.includes(r.status));
 
   // Condition: All required recipients (signers + approvers) are done
   if (allRequiredDone) {
@@ -64,19 +51,17 @@ export const getUpdatedDocumentStatus = (
   }
 
   // Condition: Only viewers present, all viewed
-  if (signersAndApprovers.length === 0 && allViewersDone) {
-    return "completed";
+  if (signersAndApprovers.length === 0) {
+    // This case is now handled by the "sent" or "in_progress" status if viewers have viewed.
+    // If there are only viewers and all have viewed, it's still "in_progress" or "sent" until all have viewed.
+    // If all viewers have viewed, and there are no signers/approvers, it should be completed.
+    // Re-evaluating this logic: if there are only viewers, and all have viewed, the document is considered "completed" for its purpose.
+    if (recipients.every(r => r.role === 'viewer' && r.status === 'viewed')) {
+      return "completed";
+    }
   }
 
   // Condition: Partial signing/approving still in progress
-  if (
-    signersAndApprovers.some((r) =>
-      ROLE_COMPLETION_STATUS[r.role]?.includes(r.status)
-    )
-  ) {
-    return "in_progress";
-  }
-
   // Condition: At least one recipient viewed but not completed
   if (recipients.some((r) => r.status === "viewed")) {
     return "in_progress";
@@ -90,13 +75,13 @@ export const getUpdatedDocumentStatus = (
   return document.status; // Fallback to current status
 };
 
-
 // This function handles the Mongoose document and applies the status logic.
 export const updateDocumentStatus = (
-  doc: Document & IDocument,
-  currentUserId?: string
-): void => {
-  const plainDoc = doc.toObject() as IDocument;
-  const newStatus = getUpdatedDocumentStatus(plainDoc, currentUserId);
+  doc: Document & IDocument): void => {
+  // Mongoose documents have a toObject() method that returns a plain JavaScript object.
+  // This is important because getUpdatedDocumentStatus expects a plain IDocument object,
+  // not a Mongoose Document instance, which might have additional methods/properties.
+  const plainDoc = doc.toObject({ virtuals: true }) as IDocument;
+  const newStatus = getUpdatedDocumentStatus(plainDoc);
   doc.status = newStatus;
 };

@@ -227,7 +227,7 @@ export default function DocumentList({searchQuery}: DocumentListProps) {
                 }}>
                   {doc.name}
                   <small className="flex text-gray-500">
-                    Created {doc.createdAt.toLocaleDateString()}
+                    Created {doc.createdAt && new Date(doc.createdAt).toLocaleDateString()}
                   </small>           
               </div>
             </div>

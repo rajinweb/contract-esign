@@ -138,6 +138,7 @@ export interface Recipient {
   | 'pending'
   | 'viewed'
   | 'delivery_failed';
+  rejectedAt?:Date
 }
 /* contacts  */
 export interface Contact {

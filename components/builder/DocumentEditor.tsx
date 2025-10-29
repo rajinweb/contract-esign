@@ -150,7 +150,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
     }
     if (initialDocumentName) setDocumentName(initialDocumentName);
     if (propDocumentId) setDocumentId(propDocumentId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [propDocumentId, initialFileUrl, initialDocumentName, initialRecipients, setSelectedFile]);
 
   // --- Draft autosave (sessionStorage) ---

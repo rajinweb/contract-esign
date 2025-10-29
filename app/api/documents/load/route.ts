@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Update document status
-    updateDocumentStatus(document, userId);
+    updateDocumentStatus(document);
     await document.save();
 
     // Get the current version's fields

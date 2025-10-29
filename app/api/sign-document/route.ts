@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         recipient.signedAt = new Date();
         version.fields = fields;
 
-        updateDocumentStatus(document, recipientId);
+        updateDocumentStatus(document);
 
         await document.save();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel, { IDocumentVersion, IDocumentRecipient } from '@/models/Document';
+import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 
 export async function POST(req: NextRequest) {
     try {
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
             recipient.status = action;
             if (action === 'signed') {
                 recipient.signedAt = new Date();
+            } else if (action === 'rejected') {
+                recipient.rejectedAt = new Date();
             }
         }
         else if (recipient.role === 'approver') {
@@ -43,7 +46,11 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ message: `Approvers must use action "approved" or "rejected"` }, { status: 400 });
             }
             recipient.status = action;
-            recipient.signedAt = new Date();
+            if (action === 'approved') {
+                recipient.approvedAt = new Date();
+            } else if (action === 'rejected') {
+                recipient.rejectedAt = new Date();
+            }
         }
         else if (recipient.role === 'viewer') {
             return NextResponse.json({ message: 'Viewers cannot take any actions' }, { status: 400 });
@@ -52,14 +59,13 @@ export async function POST(req: NextRequest) {
         // IMPORTANT: Mark recipients array as modified so Mongoose saves it
         document.markModified('recipients');
 
-        // If all signers are signed, mark version/document as signed
-        const allSignersDone = (document.recipients as IDocumentRecipient[])
-            .filter((r: IDocumentRecipient) => r.role !== 'viewer')
-            .every((r: IDocumentRecipient) => r.status === 'signed' || r.status === 'approved');
-
-        if (allSignersDone) {
-            version.status = 'signed';
-            document.status = 'signed';
+        // Update overall document status
+        const newStatus = getUpdatedDocumentStatus(document.toObject());
+        document.status = newStatus;
+        
+        // also update version status if completed
+        if (newStatus === 'completed') {
+            version.status = 'signed'; // or 'final'
             document.markModified('versions');
         }
 

@@ -40,7 +40,7 @@ export default function StatusDropdown({
           <div className="px-3 py-2 text-xs font-semibold text-gray-500">
             FILTER BY STATUS
           </div>
-          <ul className="max-h-60 overflow-y-auto">
+          <ul className="max-h-60 overflow-y-auto text-sm">
             {statuses.map((status) => (
               <li
                 key={status.value ?? "all"}

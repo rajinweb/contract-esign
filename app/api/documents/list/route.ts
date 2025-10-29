@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // Update document statuses before sending them
     for (const doc of documents) {
-      updateDocumentStatus(doc, userId);
+      updateDocumentStatus(doc);
     }
 
     const documentsWithMetadata = documents.map(doc => ({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel, { IDocumentRecipient } from '@/models/Document';
+import DocumentModel from '@/models/Document';
 import { sendSigningRequestEmail } from '@/lib/email';
 import { updateDocumentStatus } from '@/lib/statusLogic';
 
