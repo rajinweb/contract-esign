@@ -10,12 +10,13 @@ import { DraggableData } from 'react-rnd';
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
 import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentEditorProps } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
+import dynamic from 'next/dynamic';
 
 // Components
 import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
-import { AddSigDialog } from "@/components/builder/AddSigDialog";
+const AddSigDialog = dynamic(() => import('@/components/builder/AddSigDialog').then(mod => mod.AddSigDialog), { ssr: false });
 import { RealtimePhotoDialog } from "@/components/builder/RealtimePhotoDialog";
 import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
@@ -996,7 +997,7 @@ useEffect(() => {
         hasUnsavedChanges={hasUnsavedChanges}
         droppedItems={droppedComponents}
       />}
-      <div className='bg-[#efefef] flex h-[calc(100vh-107px)]'>
+      <div className='bg-[#efefef] flex h-[calc(100vh-137px)]'>
          {!isSigningMode &&
          <>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
