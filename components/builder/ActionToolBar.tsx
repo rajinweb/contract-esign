@@ -18,7 +18,8 @@ import { FileText, Settings, PenLine, CheckLine,
   Merge,
   LogOut,
   Save,
-  Send
+  Send,
+  Heart
  } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
@@ -45,9 +46,30 @@ interface ActionToolBarProps {
   onSendDocument: () => void;
   hasUnsavedChanges: boolean;
   droppedItems: DroppedComponent[];
-}
-
+  onSaveAsTemplate?: () => void;
+  isLoggedIn?: boolean;
+  setShowModal?: (show: boolean) => void;
+}  
+const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
+  documentName,
+  setDocumentName,
+  isEditingFileName,
+  setIsEditingFileName,
+  handleSavePDF,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  recipients,
+  onSendDocument,
+  hasUnsavedChanges,
+  droppedItems = [],
+  onSaveAsTemplate,
+  isLoggedIn = true,
+  setShowModal,
+}) => {
 const menuItems = [
+  { label: 'Save as Template', icon: Heart,  action:() => onSaveAsTemplate && onSaveAsTemplate()},
   { label: 'Download', icon: Download },
   { label: 'Download with History', icon: History },
   { label: 'History', icon: History },
@@ -63,23 +85,7 @@ const menuItems = [
   { type: 'divider' },
   { label: 'Support', icon: HelpCircle },
   { label: 'Upgrade Subscription', icon: Star, className: 'text-yellow-500' },
-];  
-  
-const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
-  documentName,
-  setDocumentName,
-  isEditingFileName,
-  setIsEditingFileName,
-  handleSavePDF,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
-  recipients,
-  onSendDocument,
-  hasUnsavedChanges,
-  droppedItems = []
-}) => {
+]; 
   const { selectedFile } = useContextStore();
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -90,6 +96,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   
   const downloadDoc=async () => {
+      if (!isLoggedIn) {
+        setShowModal?.(true);
+        return;
+      }
       if (!selectedFile) return;
       const pdfDoc = await loadPdf(selectedFile as File | string );
       const blob = await savePdfBlob(pdfDoc);
@@ -173,6 +183,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   };
 
   const handleSave = async () => {
+    if (!isLoggedIn) {
+      setShowModal?.(true);
+      return;
+    }
     if (!hasUnsavedChanges) return;
 
     setSaveStatus('saving');
@@ -194,6 +208,10 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   };
 
   const handleSendClick = () => {
+    if (!isLoggedIn) {
+      setShowModal?.(true);
+      return;
+    }
     if (hasUnsavedChanges) {
       setIsUnsavedChangesDialogVisible(true);
     } else {

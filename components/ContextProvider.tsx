@@ -1,12 +1,13 @@
 'use client';
-import React, { createContext, useState, useEffect } from 'react'; 
+import React, { createContext, useState, useEffect } from 'react';
 import { Doc, ContextValue, ContextProviderProps, User } from '@/types/types';
 import { pdfjs } from 'react-pdf';
+import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 export const ContextStore = createContext<ContextValue | undefined>(undefined);
 
-// Configure the PDF.js worker.
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+// Initialize the PDF.js worker (centralized setup)
+initializePdfWorker(pdfjs);
 
 const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedFile, setSelectedFile] = useState<string | File | Doc | null>(null);

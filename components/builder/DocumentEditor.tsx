@@ -5,6 +5,7 @@ import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallbac
 import { pdfjs } from "react-pdf";
 import { PDFDocument } from "pdf-lib";
 import { DraggableData } from 'react-rnd';
+import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
@@ -22,6 +23,7 @@ import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
 import ActionToolBar from '@/components/builder/ActionToolBar';
+import SaveAsTemplateModal from '@/components/SaveAsTemplateModal';
 import PageThumbnailMenu from '@/components/builder/PageThumbnailMenu';
 import PageThumbnails from './PageThumbnails';
 import PDFViewer from './PDFViewer';
@@ -51,7 +53,8 @@ const getFieldTypeFromComponentLabel = (label: string): DocumentField['type'] =>
   return mapping[lowerCaseLabel] || 'text'; // default to text for safety
 };
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+// Initialize PDF worker (centralized setup)
+initializePdfWorker(pdfjs);
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, isSigned=false, onPageChange, onNumPagesChange, onSignedSaveDocument, signingToken, currentRecipientId, onFieldsChange}) => {
   // ========= Context =========
@@ -94,6 +97,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState<boolean>(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const handleAddRecipients = useCallback(() => {
     setShowAddRecipients(true);
@@ -994,9 +998,49 @@ useEffect(() => {
         onRedo={handleRedo}
         recipients={recipients}
         onSendDocument={() => setShowSendDocument(true)}
+        onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
         hasUnsavedChanges={hasUnsavedChanges}
         droppedItems={droppedComponents}
+        isLoggedIn={isLoggedIn}
+        setShowModal={setShowModal}
       />}
+
+      {/* Save as Template Modal */}
+      {showSaveAsTemplate && (
+        isLoggedIn ? (
+          <SaveAsTemplateModal
+            documentName={documentName || 'Untitled'}
+            documentFileUrl={typeof selectedFile === 'string' ? selectedFile : ''}
+            documentFilePath={typeof selectedFile === 'string' ? selectedFile : ''}
+            documentFields={droppedComponents.map((c) => ({
+              id: String(c.id),
+              type: getFieldTypeFromComponentLabel(c.component || ''),
+              x: c.x,
+              y: c.y,
+              width: c.width,
+              height: c.height,
+              pageNumber: c.pageNumber,
+              recipientId: c.assignedRecipientId,
+              required: c.required !== undefined ? c.required : true,
+              value: c.data || '',
+              placeholder: c.placeholder,
+            }))}
+            documentDefaultSigners={recipients}
+            documentPageCount={pages.length}
+            documentFileSize={0}
+            onClose={() => setShowSaveAsTemplate(false)}
+            onSuccess={() => {
+              setShowSaveAsTemplate(false);
+              toast.success('Template saved');
+            }}
+          />
+        ) : (
+          // If not logged in, show login modal instead
+          <>
+            {setShowModal(true)}
+          </>
+        )
+      )}
       <div className='bg-[#efefef] flex h-[calc(100vh-137px)]'>
          {!isSigningMode &&
          <>

@@ -66,15 +66,16 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
   //order: { type: Number, required: true },
-  order: { type: Number, required: function () { return this.role !== 'viewer'; } },
+  order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },
   //color: { type: String, required: true },
   color: {
-    type: String, default: function () {
+    type: String, default: function (): string {
       switch (this.role) {
         case 'signer': return '#3B82F6';
         case 'approver': return '#10B981';
         case 'viewer': return '#6B7280';
+        default: return '#6B7280';
       }
     }
   },

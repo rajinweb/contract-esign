@@ -2,6 +2,10 @@
 import { LoaderPinwheel } from 'lucide-react';
 import React, { Fragment, useMemo } from 'react';
 import { Document, Page, pdfjs } from "react-pdf";
+import { initializePdfWorker } from '@/utils/pdfjsSetup';
+
+// Initialize PDF worker once when component is imported
+initializePdfWorker(pdfjs);
 
 interface PDFViewerProps {
   selectedFile: File | string;

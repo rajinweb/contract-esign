@@ -1,5 +1,5 @@
 'use client';
-import React, {useEffect, useState } from 'react';
+import React, {useEffect, useState, useCallback } from 'react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import {PrimarySidebar, SecondarySidebar} from '@/components/dashboard/Sidebar';
@@ -9,14 +9,26 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
+import { useTemplates } from '@/hooks/useTemplates';
+import { TemplatesPage } from '@/components/templates/TemplatesPage';
+
 function Dashboard() {
-  const { documents, setDocuments } = useContextStore();
+  const { documents, setDocuments, isLoggedIn } = useContextStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
-  useEffect(() => {
-    localStorage.removeItem('currentDocumentId'); // remove stored doc id   
-    localStorage.removeItem('currentSessionId'); // remove currentFileSessionId    
-    async function fetchDocs() {
+  const [activeSecondarybar, setActiveSecondarybar] = useState<'dash-documents' | 'archive' | 'my-templates' | 'trash'>('dash-documents');
+  
+  const { 
+    templates, 
+    loading: templatesLoading, 
+    error: templatesError, 
+    fetchTemplates,
+    duplicateTemplate,
+    deleteTemplate,
+    createDocumentFromTemplate,
+  } = useTemplates();
+
+  const fetchDocs = useCallback(async () => {
       try {
         const res = await fetch('/api/documents/list', {
           headers: {
@@ -67,9 +79,17 @@ function Dashboard() {
         console.error('Error fetching documents:', err);
         setDocuments([]);
       }
-    }
-    fetchDocs();
   }, [setDocuments]);
+
+  useEffect(() => {
+    localStorage.removeItem('currentDocumentId'); // remove stored doc id   
+    localStorage.removeItem('currentSessionId'); // remove currentFileSessionId    
+    
+    if (isLoggedIn) {
+      fetchDocs();
+    }
+  }, [isLoggedIn, fetchDocs]);
+  
   return (
     <div className="flex h-screen">
        <div className="min-h-screen flex flex-col w-[300px] bg-white border-r border-gray-200">
@@ -95,7 +115,13 @@ function Dashboard() {
           </header>
         <main className="flex flex-1">
           <PrimarySidebar active={activeSidebar} setActive={setActiveSidebar} />
-          <SecondarySidebar active={activeSidebar}/>
+          <SecondarySidebar 
+            active={activeSidebar} 
+            activeSecondarybar={activeSecondarybar} 
+            secondaryActive={setActiveSecondarybar}
+            templates={templates}
+            fetchTemplates={fetchTemplates}
+          />
         </main>
       </div>
   
@@ -106,16 +132,29 @@ function Dashboard() {
           <DashboardHeader/>
         </header>
 
-        {documents.length === 0 && activeSidebar === 'documents' ? (
+        {documents.length === 0 && activeSidebar === 'documents' && activeSecondarybar === 'dash-documents' ? (
           <UploadZone />
         ) : (
 
           <div className='p-4 overflow-auto h-[calc(100vh-65px)] bg-gray-100'>
           
-            {activeSidebar === 'documents' && (
-            <DocumentList searchQuery={searchQuery}/>
-            )
-            }
+            {activeSidebar === 'documents' && activeSecondarybar == 'dash-documents' && (<DocumentList searchQuery={searchQuery}/>)}
+            {activeSidebar === 'documents' && activeSecondarybar === 'archive' && (<>Archive page</>)}
+            {activeSidebar === 'documents' && activeSecondarybar === 'my-templates' && (
+              <TemplatesPage 
+                initialViewMode='my'
+                templates={templates}
+                loading={templatesLoading}
+                error={templatesError}
+                fetchTemplates={fetchTemplates}
+                duplicateTemplate={duplicateTemplate}
+                deleteTemplate={deleteTemplate}
+                createDocumentFromTemplate={createDocumentFromTemplate}
+                onTemplateDeleted={fetchDocs}
+              />
+            )}
+            {activeSidebar === 'documents' && activeSecondarybar === 'trash' && (<>All Trash</>)}
+
             {activeSidebar === 'contacts' && <Contacts searchQuery={searchQuery}/>}
             {activeSidebar === 'reports' &&  <>Report page</>}    
           </div>
