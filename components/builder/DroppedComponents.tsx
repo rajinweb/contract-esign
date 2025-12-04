@@ -86,16 +86,19 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             scale={zoom}
             bounds="parent"
             ref={rndFields}
-            className={`absolute cursor-pointer min-w-[150px] min-h-[50px] z-50 text-center text-sm ${
+            className={`absolute cursor-pointer min-w-[150px] min-h-[50px] text-center text-sm ${
               assignedRecipient  ? 'border-2 '  : 'bg-[#1ca4ff33]'
             } ${isSelected ? 'bg-[#1ca4ff66]' : ''}            
             ${ assignedRecipient && assignedLabel}
             ${!isCurrentUserField ? 'opacity-50' : ''}
             `}
-            style={assignedRecipient ? { 
-              backgroundColor: `${assignedRecipient.color}33`,
-              borderColor: assignedRecipient.color 
-            } : {}}
+            style={{
+              zIndex: isSelected ? 99 : 10,
+              ...(assignedRecipient && {
+                backgroundColor: `${assignedRecipient.color}33`,
+                borderColor: assignedRecipient.color,
+              }),
+            }}
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
