@@ -9,9 +9,9 @@ import type { DocumentField, Recipient } from '@/types/types';
 const CATEGORIES = ['HR', 'Legal', 'Sales', 'Finance', 'Other'];
 
 interface SaveAsTemplateModalProps {
+  documentId: string | null;
   documentName: string;
   documentFileUrl: string;
-  documentFilePath: string;
   documentFields?: DocumentField[];
   documentDefaultSigners?: Recipient[];
   documentPageCount?: number;
@@ -28,9 +28,9 @@ interface FormInputs {
 }
 
 export default function SaveAsTemplateModal({
+  documentId,
   documentName,
   documentFileUrl,
-  documentFilePath,
   documentFields = [],
   documentDefaultSigners = [],
   documentPageCount = 1,
@@ -38,8 +38,6 @@ export default function SaveAsTemplateModal({
   onClose,
   onSuccess,
 }: SaveAsTemplateModalProps) {
-  // documentFileUrl is kept in interface for backward compatibility but not used
-  void documentFileUrl;
   const { createTemplate } = useTemplates();
   const {
     register,
@@ -55,6 +53,10 @@ export default function SaveAsTemplateModal({
   });
 
   const onSubmit: SubmitHandler<FormInputs> = async (data) => {
+    if (!documentFileUrl) {
+      toast.error('Document file URL is missing. Cannot create template.');
+      return;
+    }
     try {
       const tags = data.tags
         .split(',')
@@ -65,13 +67,14 @@ export default function SaveAsTemplateModal({
         name: data.name,
         description: data.description,
         category: data.category,
-        templateFileUrl: documentFilePath, // Use the permanent file path
-        filePath: documentFilePath,
+        templateFileUrl: documentFileUrl,
         fields: documentFields,
         defaultSigners: documentDefaultSigners,
         pageCount: documentPageCount,
         fileSize: documentFileSize,
         tags,
+        // Pass documentId to backend to find original file
+        documentId: documentId,
       });
 
       if (result) {

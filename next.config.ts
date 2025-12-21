@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
+    qualities: [100, 75],
   },
 
   // 👇 Fix for COOP/COEP blocking Google OAuth popup

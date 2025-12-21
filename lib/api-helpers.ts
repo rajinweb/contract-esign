@@ -12,6 +12,12 @@ import connectDB from '@/utils/db';
  */
 export async function getAuthSession(req: NextRequest): Promise<string | null> {
   await connectDB();
-  const userId = await getUserIdFromReq(req);
-  return userId;
+  try {
+    const userId = await getUserIdFromReq(req);
+    return userId;
+  } catch (error) {
+    // In a real application, you might log the error here.
+    // For now, we return null to adhere to the documented return type.
+    return null;
+  }
 }

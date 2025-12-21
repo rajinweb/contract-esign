@@ -31,9 +31,12 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
    // persist user when it changes
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (user) {
-      localStorage.setItem('User', JSON.stringify(user));
-    } else {
+    const storedUser = localStorage.getItem('User');
+    const currentUserString = user ? JSON.stringify(user) : null;
+
+    if (currentUserString && currentUserString !== storedUser) {
+      localStorage.setItem('User', currentUserString);
+    } else if (!currentUserString && storedUser) {
       localStorage.removeItem('User');
     }
   }, [user]);

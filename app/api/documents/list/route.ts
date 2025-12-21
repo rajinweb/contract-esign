@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       id: doc._id,
       userId: doc.userId,
       name: doc.documentName,
+      isTemplate: doc.isTemplate,
       originalFileName: doc.originalFileName,
       currentVersion: doc.currentVersion,
       totalVersions: doc.versions.length,

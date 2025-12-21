@@ -24,7 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",
     "mongoose": "^8.15.1",
-    "next": "15.1.7",
+    "next": "^16.0.7",
     "nodemailer": "^7.0.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
@@ -64,5 +64,8 @@
     "tailwindcss": "^3.4.1",
     "turbo": "^2.5.6",
     "typescript": "^5"
+  },
+  "overrides": {
+    "canvas": "^3.2.0"
   }
 }

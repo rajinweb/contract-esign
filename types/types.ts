@@ -25,6 +25,7 @@ export interface Doc {
   file?: File | string;
   fileUrl?: string;
   documentId?: string;
+  isTemplate?: boolean;
 }
 export const statuses = [
   { value: "all", label: "All Statuses", color: "text-slate-300", dot: "bg-slate-300" },
@@ -231,6 +232,7 @@ export interface IDocument extends Document {
     fields?: any[];
     status?: string;
     changeLog?: string;
+    filePath?: string;
   }[];
   recipients?: Recipient[];
   status?:
@@ -251,6 +253,8 @@ export interface IDocument extends Document {
   createdAt?: Date;
   updatedAt?: Date;
   expiresAt?: Date;
+  usageCount?: number;
+  isTemplate?: boolean;
 }
 export interface DocumentEditorProps {
   documentId?: string | null;

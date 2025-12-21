@@ -1,5 +1,11 @@
 import mongoose, { Schema } from 'mongoose';
-import { DocumentField, IDocument, Recipient } from '@/types/types';
+import { DocumentField, IDocument as BaseIDocument, Recipient } from '@/types/types';
+
+// The base IDocument from @/types/types is missing properties defined in the schema below.
+// We extend it here to create a complete interface for our Document model, resolving the type error.
+export interface IDocument extends BaseIDocument {
+  templateId?: mongoose.Schema.Types.ObjectId;
+}
 
 export interface IEditHistory {
   sessionId: string;
@@ -99,7 +105,7 @@ const EditHistorySchema = new Schema<IEditHistory>({
 
 export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   version: { type: Number, required: true },
-  pdfData: { type: Buffer, required: true },
+  pdfData: { type: Buffer, required: false },
   fields: [DocumentFieldSchema],
   documentName: { type: String, required: true },
   filePath: { type: String, required: true },
@@ -121,8 +127,11 @@ const DocumentSchema = new Schema<IDocument>({
   currentSessionId: { type: String },
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: [DocumentRecipientSchema], default: [] },
-  status: { type: String, default: 'draft' },
+  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending'] },
+  templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', sparse: true, required: false },
   token: { type: String, sparse: true, unique: true },
+  isTemplate: { type: Boolean, default: false },
+  usageCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // Indexes for performance

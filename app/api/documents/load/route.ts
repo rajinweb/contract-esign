@@ -29,13 +29,21 @@ export async function GET(req: NextRequest) {
     console.log(`[LOAD] ReqUser ID: ${userId}, Type: ${typeof userId}`);
 
     // Correctly compare ObjectId with string
-    if (document.userId.toString() !== userId) {
-      return NextResponse.json({ message: `User ID mismatch. DocUser: ${document.userId}, ReqUser: ${userId}` }, { status: 403 });
-    }
+    const { searchParams: urlParams } = new URL(req.url);
+    const guestId = urlParams.get('guestId');
 
-    // Update document status
-    updateDocumentStatus(document);
-    await document.save();
+    // Validate guestId: only accept guest IDs (must start with "guest_")
+    // This prevents attackers from passing legitimate user IDs as guestId
+    const isValidGuestId = guestId && guestId.startsWith('guest_');
+
+    // If the document is a template, any authenticated user can load it.
+    // Otherwise, check for ownership (creator or validated guest).
+    const isOwner = document.userId.toString() === userId || 
+                   (isValidGuestId && document.userId.toString() === guestId);
+    
+    if (!document.isTemplate && !isOwner) {
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
 
     // Get the current version's fields
     const currentVersion = document.versions && document.versions.length > 0

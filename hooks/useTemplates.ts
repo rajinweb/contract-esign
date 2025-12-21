@@ -64,11 +64,13 @@ export function useTemplates() {
         setError(null);
         try {
             const token = localStorage.getItem('AccessToken') || '';
-            const headers: Record<string, string> = {};
+            const headers: Record<string, string> = {
+                'Accept': 'application/json',
+            };
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
-            const response = await fetch(`/api/templates/${templateId}`, {
+            const response = await fetch(`/api/templates/${templateId}?format=json`, {
                 headers,
             });
 
@@ -159,17 +161,29 @@ export function useTemplates() {
                 body: JSON.stringify({ templateId }),
             });
 
-            if (!response.ok) throw new Error('Failed to duplicate template');
+            if (!response.ok) {
+                let errorPayload;
+                try {
+                    errorPayload = await response.json();
+                } catch (e) {
+                    throw new Error('Failed to duplicate template and could not parse error response.');
+                }
+                throw new Error(errorPayload.message || 'Failed to duplicate template');
+            }
+            
             const data = await response.json();
+            // After duplicating, fetch the updated list of templates
+            await fetchTemplates();
             return data.template;
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            const errMsg = err instanceof Error ? err.message : 'An error occurred';
+            setError(errMsg);
             console.error('Error duplicating template:', err);
             return null;
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [fetchTemplates]);
 
     const deleteTemplate = useCallback(async (templateId: string) => {
         setLoading(true);
@@ -227,14 +241,15 @@ export function useTemplates() {
             });
 
             if (!response.ok) {
+                let errorPayload;
                 try {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to create document from template');
-                } catch (jsonError) {
-                    const errorText = await response.text();
-                    console.error('Failed to parse error response, raw response:', errorText);
-                    throw new Error('Failed to create document from template: Invalid error response');
+                    errorPayload = await response.json();
+                } catch (e) {
+                    // If JSON parsing fails, the response might not be JSON.
+                    // We'll throw a generic error, but in a real app, you might want to handle this differently.
+                    throw new Error('Failed to create document and could not parse error response.');
                 }
+                throw new Error(errorPayload.message || 'Failed to create document from template');
             }
             const data: { documentId: string, sessionId: string } = await response.json();
             

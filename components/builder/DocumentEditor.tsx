@@ -9,7 +9,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentEditorProps } from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField } from '@/types/types'; // DocumentEditorProps is no longer imported
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import dynamic from 'next/dynamic';
 
@@ -34,7 +34,24 @@ import toast from 'react-hot-toast';
 import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, downloadPdf} from '@/lib/pdf';
 import {uploadToServer} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
-// PDF.js worker setup
+
+export interface EditorProps {
+  resourceId?: string | null;
+  initialFileUrl?: string | null;
+  initialResourceName?: string | null;
+  initialFields?: DocumentField[] | null;
+  initialRecipients?: Recipient[] | null;
+  isSigningMode?: boolean;
+  isSigned?: boolean;
+  onPageChange?: (page: number) => void;
+  onNumPagesChange?: (numPages: number) => void;
+  onSignedSaveDocument?: (saveFn: () => Promise<void>) => void;
+  signingToken?: string;
+  currentRecipientId?: string;
+  onFieldsChange?: (fields: DocumentField[]) => void;
+  isTemplateEditor?: boolean; // New prop to differentiate
+}
+
 
 const getFieldTypeFromComponentLabel = (label: string): DocumentField['type'] => {
   const mapping: { [key: string]: DocumentField['type'] } = {
@@ -1008,24 +1025,23 @@ useEffect(() => {
       {/* Save as Template Modal */}
       {showSaveAsTemplate && (
         isLoggedIn ? (
-          <SaveAsTemplateModal
-            documentName={documentName || 'Untitled'}
-            documentFileUrl={typeof selectedFile === 'string' ? selectedFile : ''}
-            documentFilePath={typeof selectedFile === 'string' ? selectedFile : ''}
-            documentFields={droppedComponents.map((c) => ({
-              id: String(c.id),
-              type: getFieldTypeFromComponentLabel(c.component || ''),
-              x: c.x,
-              y: c.y,
-              width: c.width,
-              height: c.height,
-              pageNumber: c.pageNumber,
-              recipientId: c.assignedRecipientId,
-              required: c.required !== undefined ? c.required : true,
-              value: c.data || '',
-              placeholder: c.placeholder,
-            }))}
-            documentDefaultSigners={recipients}
+                    <SaveAsTemplateModal
+                      documentId={documentId}
+                      documentName={documentName || 'Untitled'}
+                      documentFileUrl={typeof selectedFile === 'string' ? selectedFile : ''}
+                      documentFields={droppedComponents.map((c) => ({
+                        id: String(c.id),
+                        type: getFieldTypeFromComponentLabel(c.component || ''),
+                        x: c.x,
+                        y: c.y,
+                        width: c.width,
+                        height: c.height,
+                        pageNumber: c.pageNumber,
+                        recipientId: c.assignedRecipientId,
+                        required: c.required !== undefined ? c.required : true,
+                        value: c.data || '',
+                        placeholder: c.placeholder,
+                      }))}            documentDefaultSigners={recipients}
             documentPageCount={pages.length}
             documentFileSize={0}
             onClose={() => setShowSaveAsTemplate(false)}

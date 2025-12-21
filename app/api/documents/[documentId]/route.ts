@@ -16,17 +16,31 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const search = req.nextUrl.searchParams;
     const { documentId: paramDocumentId } = await context.params;
     const token = search.get('token');
+    const guestId = search.get('guestId'); // Extract guestId
 
     let document;
 
     if (token) {
       // If token is provided, find by token (for signing links - no auth required)
       document = await DocumentModel.findOne({ 'versions.signingToken': token });
-    } else if (userId && paramDocumentId && mongoose.Types.ObjectId.isValid(paramDocumentId)) {
-      // Otherwise, find by documentId and userId (requires auth)
-      document = await DocumentModel.findOne({ _id: paramDocumentId, userId });
+    } else if (paramDocumentId && mongoose.Types.ObjectId.isValid(paramDocumentId)) {
+      document = await DocumentModel.findById(paramDocumentId);
+
+      if (document) {
+        // Validate guestId: only accept guest IDs (must start with "guest_")
+        // This prevents attackers from passing legitimate user IDs as guestId
+        const isValidGuestId = guestId && guestId.startsWith('guest_');
+        
+        // Check for ownership using userId or validated guestId
+        const isOwner = (userId && document.userId.toString() === userId) || 
+                       (isValidGuestId && document.userId.toString() === guestId);
+        
+        if (!isOwner) {
+          return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+        }
+      }
     } else {
-      // If no token, we must have a userId and a valid documentId
+      // If no token, we must have a userId or guestId and a valid documentId
       return NextResponse.json({ message: 'Unauthorized or invalid document identifier' }, { status: 401 });
     }
 
