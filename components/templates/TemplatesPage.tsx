@@ -3,14 +3,14 @@ import PdfThumbnail from '@/components/PdfThumbnails';
 import TemplatePreviewModal from '@/components/TemplatePreviewModal';
 import useContextStore from '@/hooks/useContextStore';
 import type { Template } from '@/hooks/useTemplates';
-import { Copy, Edit2, Eye, Plus, Search, Trash2 } from 'lucide-react';
+import { Copy, Edit2, Eye, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['HR', 'Legal', 'Sales', 'Finance', 'Other'];
+import TemplateSearch from './TemplateSearch';
 
 export function TemplatesPage({
   initialViewMode,
@@ -42,7 +42,6 @@ export function TemplatesPage({
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
 
   useEffect(() => {
-    console.log('Fetching templates for category:', selectedCategory, 'search:', searchQuery);
     fetchTemplates(selectedCategory ?? undefined, searchQuery);
   }, [selectedCategory, searchQuery, fetchTemplates]);
 
@@ -50,15 +49,10 @@ export function TemplatesPage({
   useEffect(() => {
     const view = searchParams?.get('view');
     if (view === 'my' || view === 'system' || view === 'all') {
-      console.log(`Setting filter mode from URL param: ${view}`);
       setFilterMode(view);
     }
   }, [searchParams]);
 
-  const handleFilterChange = (mode: 'all' | 'my' | 'system') => {
-    console.log(`Setting filter mode to: ${mode}`);
-    setFilterMode(mode);
-  };
 
   const handleDuplicate = async (templateId: string) => {
     if (!isLoggedIn) {
@@ -120,76 +114,18 @@ export function TemplatesPage({
     return true;
   });
 
-  const myTemplates = templates.filter((t) => !t.isSystemTemplate);
-  const systemTemplates = templates.filter((t) => t.isSystemTemplate);
 
   return (
    <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl  mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mt-10">Templates</h1>
-        <p className="text-gray-600">Create, manage, and organize your document templates</p>
+        <p className="text-gray-600 my-2">Manage, and organize your document templates</p>
   
-        <div className="bg-white rounded-lg shadow-sm p-4 flex gap-4 items-center flex-wrap">
-          <div className="flex-1 min-w-[250px] relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <select
-            value={selectedCategory || ''}
-            onChange={(e) => setSelectedCategory(e.target.value || null)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Categories</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-
-        
-        </div>
-
-        <div className="mb-6 flex gap-3">
-          <button
-            onClick={() => handleFilterChange('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filterMode === 'all'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            All Templates ({templates.length})
-          </button>
-          {isLoggedIn && (
-            <button
-              onClick={() => setFilterMode('my')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                filterMode === 'my'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              My Templates ({myTemplates.length})
-            </button>
-          )}
-          <button
-            onClick={() => setFilterMode('system')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filterMode === 'system'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            System Templates ({systemTemplates.length})
-          </button>
-        </div>
+        <TemplateSearch
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+        />
 
         {loading && <div className="text-center py-12 text-gray-500">Loading templates...</div>}
 

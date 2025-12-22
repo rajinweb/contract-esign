@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import{ useEffect, useRef, useState } from 'react';
 import {
   ChevronDown,
   FileText,
@@ -18,6 +18,7 @@ import useContextStore from '@/hooks/useContextStore';
 import BulkImportModal from '../contacts/BulkImportModal';
 import { useContactsStore } from '@/hooks/useContactsStore';
 import { Template } from '@/hooks/useTemplates';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type SidebarType = 'documents' | 'contacts' | 'reports';
 type SecondarySidebarType='dash-documents' | 'archive' | 'my-templates' | 'trash';
@@ -129,8 +130,11 @@ export const DocumentsMenu = ({
     fetchTemplates: (category?: string, search?: string) => Promise<void>;
   }) => {
   const {documents} = useContextStore();
-  const [myTemplatesCount, setMyTemplatesCount]=useState(0);
+  const [myTemplatesCount, setMyTemplatesCount] = useState(0);
+  const [systemTemplatesCount, setSystemTemplatesCount] = useState(0);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const fetchedRef = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!fetchedRef.current) {
@@ -143,8 +147,21 @@ export const DocumentsMenu = ({
   if (templates) {
     const myTemplates = templates.filter((t) => !t.isSystemTemplate).length;
     setMyTemplatesCount(myTemplates);
+    const systemTemplates = templates.filter((t) => t.isSystemTemplate).length;
+      setSystemTemplatesCount(systemTemplates);
   }
-}, [templates]);
+  }, [templates]);
+
+  const searchParams = useSearchParams();
+  const view = searchParams?.get('view');
+
+  useEffect(() => {
+    if (view === 'my' || view === 'system' || view === 'all') {
+      secondaryActive('my-templates');
+      setTemplatesOpen(true);
+    }
+  }, [view, secondaryActive]);
+      
   return (
     <>
       <h2 className="text-lg font-semibold text-slate-800 mb-4">Documents</h2>     
@@ -155,7 +172,7 @@ export const DocumentsMenu = ({
       </div>
       <nav className="mt-3 space-y-2 text-sm">
         <button  onClick={() => secondaryActive('dash-documents')} 
-          className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 border-blue-600 ${
+          className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${
             activeSecondarybar === 'dash-documents'
               ? 'bg-slate-100 text-slate-800 border-blue-600'
               : 'hover:bg-slate-50 border-transparent'
@@ -170,7 +187,7 @@ export const DocumentsMenu = ({
         
         <button
            onClick={() => secondaryActive('archive')} 
-          className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 border-blue-600 ${
+          className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${
             activeSecondarybar === 'archive'
               ? 'bg-slate-100 text-slate-800 border-blue-600'
               : 'hover:bg-slate-50 border-transparent'
@@ -183,23 +200,46 @@ export const DocumentsMenu = ({
           <div className="text-slate-500">0</div>
         </button>
 
-        <button onClick={() => secondaryActive('my-templates')} 
-         className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 border-blue-600 ${
-            activeSecondarybar === 'my-templates'
-              ? 'bg-slate-100 text-slate-800 border-blue-600'
-              : 'hover:bg-slate-50 border-transparent'
-          }`}
-        >
-          <div className="flex items-center gap-3 text-slate-700">
-            <Layers className="w-5 h-5 text-slate-600" />
-            <span>My Templates</span>
-          </div>
-          <div className="text-slate-500">{myTemplatesCount}</div>
-        </button>
+        <div>
+            <button 
+            onClick={() => setTemplatesOpen(!templatesOpen)}
+            className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${
+                activeSecondarybar === 'my-templates'
+                ? 'bg-slate-100 text-slate-800 border-blue-600'
+                : 'hover:bg-slate-50 border-transparent'
+            }`}
+            >
+            <div className="flex items-center gap-3 text-slate-700">
+                <Layers className="w-5 h-5 text-slate-600" />
+                <span>Templates</span>
+            </div>
+            <div className="text-slate-500">{myTemplatesCount + systemTemplatesCount}</div>
+            </button>
+            {templatesOpen && (
+            <div className='pl-10 py-2 w-full space-y-1'>
+                <button 
+                    onClick={() => {
+                        secondaryActive('my-templates');
+                        router.push('/dashboard?view=my');
+                    }}
+                    className={`w-full flex justify-between items-center px-2 py-1 rounded-md text-xs ${view === 'my' ? 'bg-slate-100 font-semibold text-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <span>▸ My Templates</span> {myTemplatesCount}
+                </button>
+                <button 
+                    onClick={() => {
+                        secondaryActive('my-templates');
+                        router.push('/dashboard?view=system');
+                    }}
+                    className={`w-full flex justify-between items-center px-2 py-1 rounded-md text-xs ${view === 'system' ? 'bg-slate-100 font-semibold text-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}> 
+                    <span>▸ System Templates</span> {systemTemplatesCount}
+                </button>
+            </div>
+            )}
+        </div>
 
         <button
          onClick={() => secondaryActive('trash')}
-         className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 border-blue-600 ${
+         className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${
             activeSecondarybar === 'trash'
               ? 'bg-slate-100 text-slate-800 border-blue-600'
               : 'hover:bg-slate-50 border-transparent'
