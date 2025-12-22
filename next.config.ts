@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Explicitly configure Turbopack to silence Next.js 16 warning about having a webpack config
+  // without a turbopack config. We don't need any special Turbopack options right now.
+  turbopack: {},
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Prevent AWS Amplify from trying to build node-canvas

@@ -68,7 +68,7 @@ export default async function TemplateBuilderPage({ params }: Props) {
     <TemplateEditor
       documentId={templateId} // Using documentId prop for templateId for now, assuming editor can handle it
       initialFileUrl={initialData.fileUrl}
-      initialDocumentName={initialData.templateName} // Using templateName as documentName
+      initialResourceName={initialData.templateName} // Using templateName as documentName
       initialFields={initialData.fields}
       initialRecipients={initialData.recipients}
       isTemplateEditor={true} // New prop to indicate it's editing a template

@@ -277,7 +277,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           <DocumentEditor
             documentId={doc.id}
             initialFileUrl={doc.fileUrl}
-            initialDocumentName={doc.name}
+            initialResourceName={doc.name}
             initialFields={doc.fields}
             initialRecipients={doc.recipients}
             isSigningMode={true}
@@ -285,7 +285,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
             onPageChange={setPage}
             onNumPagesChange={setNumPages}
             signingToken={token}
-            onSignedSaveDocument={(fn) => (saveRef.current = fn)}
+            onSignedSaveDocument={(fn: () => Promise<void>) => {
+              saveRef.current = fn;
+            }}
             currentRecipientId={currentRecipientId}
             onFieldsChange={(fields: DocumentField[]) => {
               // Prevent infinite loop by checking if fields actually changed

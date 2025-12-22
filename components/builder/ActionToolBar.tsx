@@ -136,7 +136,9 @@ const menuItems = [
           console.log("Fetching metadata from:", selectedFile);
           const res = await fetch(selectedFile, opts);
           if (!res.ok) {
-            throw new Error(`Failed to fetch file: ${res.status} ${res.statusText}`);
+            console.warn(`Failed to fetch file metadata from ${selectedFile}: ${res.status} ${res.statusText}`);
+            setDocumentMetadata(null);
+            return; // Don't treat this as a hard error – just skip metadata
           }
           
           arrayBuffer = await res.arrayBuffer();

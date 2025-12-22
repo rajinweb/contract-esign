@@ -7,11 +7,10 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     try {
-        const session = await getAuthSession(req);
-        if (!session?.user?.id) {
+        const userId = await getAuthSession(req);
+        if (!userId) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-        const userId = session.user.id;
 
         const templates = await Document.find({ userId, isTemplate: true }).lean();
 

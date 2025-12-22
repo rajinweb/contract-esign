@@ -18,6 +18,8 @@ export interface Template {
     tags?: string[];
     createdAt: Date;
     duplicateCount?: number;
+    // Optional documentId used when creating a template from an existing document
+    documentId?: string | null;
 }
 
 export function useTemplates() {

@@ -63,7 +63,7 @@ export default async function BuilderDoc({ params }: Props) {
     <DocumentEditor
       documentId={documentId}
       initialFileUrl={initialData.fileUrl}
-      initialDocumentName={initialData.documentName}
+      initialResourceName={initialData.documentName}
       initialFields={initialData.fields}
       initialRecipients={initialData.recipients}
     />

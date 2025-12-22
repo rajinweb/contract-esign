@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Template name and document ID are required' }, { status: 400 });
         }
 
-        const originalDoc = await DocumentModel.findById(documentId).lean();
+        // Load the original document; we treat it as 'any' here to avoid lean() union typing issues
+        const originalDoc: any = await DocumentModel.findById(documentId).lean();
         if (!originalDoc) {
             return NextResponse.json({ message: 'Original document not found' }, { status: 404 });
         }

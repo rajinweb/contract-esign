@@ -36,7 +36,9 @@ import {uploadToServer} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
 
 export interface EditorProps {
+  // Prefer resourceId going forward, but keep documentId for backward compatibility
   resourceId?: string | null;
+  documentId?: string | null;
   initialFileUrl?: string | null;
   initialResourceName?: string | null;
   initialFields?: DocumentField[] | null;
@@ -73,7 +75,24 @@ const getFieldTypeFromComponentLabel = (label: string): DocumentField['type'] =>
 // Initialize PDF worker (centralized setup)
 initializePdfWorker(pdfjs);
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumentId = null, initialFileUrl = null, initialDocumentName = null, initialFields = null, initialRecipients = null, isSigningMode=false, isSigned=false, onPageChange, onNumPagesChange, onSignedSaveDocument, signingToken, currentRecipientId, onFieldsChange}) => {
+const DocumentEditor: React.FC<EditorProps> = ({
+  resourceId,
+  documentId: documentIdProp,
+  initialFileUrl = null,
+  initialResourceName: initialDocumentName = null,
+  initialFields = null,
+  initialRecipients = null,
+  isSigningMode = false,
+  isSigned = false,
+  onPageChange,
+  onNumPagesChange,
+  onSignedSaveDocument,
+  signingToken,
+  currentRecipientId,
+  onFieldsChange,
+}) => {
+  // Support both legacy documentId prop and new resourceId prop
+  const propDocumentId = resourceId ?? documentIdProp ?? null;
   // ========= Context =========
   const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
 
@@ -265,6 +284,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ documentId: propDocumen
         }
       } catch (err) {
         console.error('Failed to load document:', err);
+        // Clear any stale selected file so metadata fetcher doesn't keep hitting a 404
+        setSelectedFile(null);
       }
     };
   
