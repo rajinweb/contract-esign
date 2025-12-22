@@ -1,5 +1,5 @@
 'use client';
-import React, {useEffect, useState, useCallback } from 'react';
+import {useEffect, useState, useCallback } from 'react';
 import DocumentList from '@/components/DocumentList';
 import UploadZone from '@/components/UploadZone';
 import {PrimarySidebar, SecondarySidebar} from '@/components/dashboard/Sidebar';
@@ -10,11 +10,13 @@ import { ChevronDown } from 'lucide-react';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
 import { useTemplates } from '@/hooks/useTemplates';
-import { TemplatesPage } from '@/components/templates/TemplatesPage';
+import { Templates } from '@/components/templates/Templates';
+import TemplateSearch from '@/components/templates/TemplateSearch';
 
 function Dashboard() {
   const { documents, setDocuments, isLoggedIn } = useContextStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
   const [activeSecondarybar, setActiveSecondarybar] = useState<'dash-documents' | 'archive' | 'my-templates' | 'trash'>('dash-documents');
   
@@ -128,7 +130,20 @@ function Dashboard() {
       <div className="flex-1">
 
         <header className="flex items-center justify-end  border-b  gap-4 px-6  bg-white h-16">
-          <SearchInput searchQuery={searchQuery} setSearchQuery={setSearchQuery} placeholder={activeSidebar === 'contacts' ? 'Search contacts...' : 'Search documents and forms'}  />
+          {activeSecondarybar === 'my-templates' ? (
+            <TemplateSearch
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
+          ) : (
+            <SearchInput
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              placeholder={activeSidebar === 'contacts' ? 'Search contacts...' : 'Search documents and forms'}
+            />
+          )}
           <DashboardHeader/>
         </header>
 
@@ -141,7 +156,7 @@ function Dashboard() {
             {activeSidebar === 'documents' && activeSecondarybar == 'dash-documents' && (<DocumentList searchQuery={searchQuery}/>)}
             {activeSidebar === 'documents' && activeSecondarybar === 'archive' && (<>Archive page</>)}
             {activeSidebar === 'documents' && activeSecondarybar === 'my-templates' && (
-              <TemplatesPage 
+              <Templates 
                 initialViewMode='my'
                 templates={templates}
                 loading={templatesLoading}
@@ -151,6 +166,8 @@ function Dashboard() {
                 deleteTemplate={deleteTemplate}
                 createDocumentFromTemplate={createDocumentFromTemplate}
                 onTemplateDeleted={fetchDocs}
+                searchQuery={searchQuery}
+                selectedCategory={selectedCategory}
               />
             )}
             {activeSidebar === 'documents' && activeSecondarybar === 'trash' && (<>All Trash</>)}

@@ -9,6 +9,7 @@ interface TemplateSearchProps {
   setSearchQuery: (query: string) => void;
   selectedCategory: string | null;
   setSelectedCategory: (category: string | null) => void;
+  className?:string;
 }
 
 const TemplateSearch: React.FC<TemplateSearchProps> = ({
@@ -16,24 +17,24 @@ const TemplateSearch: React.FC<TemplateSearchProps> = ({
   setSearchQuery,
   selectedCategory,
   setSelectedCategory,
+  className
 }) => {
   return (
-    <div className="flex gap-4 items-center mb-4">
-      <div className="flex-1 min-w-[250px] relative">
-        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+      <div className={`relative flex gap-2 ${className}`}>
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+         <Search className="h-5 w-5 text-gray-400" />
+        </div>
         <input
           type="text"
           placeholder="Search templates..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
         />
-      </div>
-
       <select
         value={selectedCategory || ''}
         onChange={(e) => setSelectedCategory(e.target.value || null)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
       >
         <option value="">All Categories</option>
         {CATEGORIES.map((cat) => (

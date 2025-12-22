@@ -10,9 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
-import TemplateSearch from './TemplateSearch';
-
-export function TemplatesPage({
+export function Templates({
   initialViewMode,
   templates,
   loading,
@@ -22,6 +20,8 @@ export function TemplatesPage({
   deleteTemplate,
   createDocumentFromTemplate,
   onTemplateDeleted,
+  searchQuery,
+  selectedCategory
 }: {
   initialViewMode?: 'all' | 'my' | 'system',
   templates: Template[],
@@ -32,12 +32,12 @@ export function TemplatesPage({
   deleteTemplate: (templateId: string) => Promise<boolean>,
   createDocumentFromTemplate: (templateId: string, documentName?: string) => Promise<{ documentId: string; sessionId: string } | null>,
   onTemplateDeleted?: () => void,
+  searchQuery: string,
+  selectedCategory: string | null
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoggedIn, setShowModal } = useContextStore(); 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'my' | 'system'>(initialViewMode || 'all');
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
 
@@ -116,17 +116,7 @@ export function TemplatesPage({
 
 
   return (
-   <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl  mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mt-10">Templates</h1>
-        <p className="text-gray-600 my-2">Manage, and organize your document templates</p>
-  
-        <TemplateSearch
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-        />
-
+   <div className="p-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {loading && <div className="text-center py-12 text-gray-500">Loading templates...</div>}
 
         {error && <div className="text-center py-12 text-red-600">{error}</div>}
