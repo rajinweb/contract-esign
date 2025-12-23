@@ -32,7 +32,7 @@ export default function TemplatesPage() {
                 setSearchQuery={setSearchQuery}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
-                className=" max-w-7xl"
+                className="!w-full"
               /> 
             </div>
             }

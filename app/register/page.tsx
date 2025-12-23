@@ -3,15 +3,12 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
-import usePasswordToggle from '@/hooks/usePasswordToggle';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { LockKeyhole } from 'lucide-react';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { Eye, EyeOff } from 'lucide-react';
 import zxcvbn from 'zxcvbn';
-
 import toast from 'react-hot-toast';
 import Input from '@/components/forms/Input';
-
+import Link from 'next/link';
 
 type FormValues = {
   name: string;
@@ -29,19 +26,22 @@ function Register() {
   const password = watch('password');
   
   const [isLoading, setIsLoading] = useState(false);
-  const { isVisible, toggleVisibility } = usePasswordToggle();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams.get("email") || ""; 
 
   const onSubmit = async (data: FormValues) => {
     if (data.password !== data.confirmPassword) {
-      toast('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
+    setIsLoading(true);
     try {
       const payload = { name: data.name, email: data.email, password: data.password, picture: data.picture };
       const res = await fetch('/api/auth/register', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -54,10 +54,8 @@ function Register() {
       router.replace('/login?email=' + encodeURIComponent(data.email));
 
     } catch (err) {
-
       console.error(err);
-      toast('Network error');
-
+      toast.error('Network error. Please try again.');
     } finally {
       setIsLoading(false); 
     }
@@ -95,123 +93,166 @@ function Register() {
   }, [emailFromUrl, setValue]);
 
   return (
-    <div className="flex items-center justify-center py-16">
-      <div className="px-8 py-6 text-left bg-white shadow-lg rounded-lg w-full max-w-md">
-        <h3 className="text-2xl font-bold text-center mb-4">SIGN UP FOR FREE NOW!</h3>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none ${
-                formState.errors.name ? 'border-red-500' : 'border-gray-300'
-              }`}
-              {...register('name', { required: 'Name is required' })}
-            />
-            {formState.errors.name && <p className="text-red-500 text-sm mt-1">{formState.errors.name.message}</p>}
+    <div className="w-full px-4">
+      <div className="relative max-w-[500px] mx-auto">
+        <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-6">
+          {/* Heading */}
+          <h3 className="text-lg font-medium text-[#020817] text-center mb-2">
+            Create your account
+          </h3>
+          <p className="text-xs text-[#64748B] text-center mb-6">
+            Sign up with your Social Media Accounts
+          </p>
+
+          {/* Social Login Buttons */}
+          <div className="flex gap-3 mb-4 text-sm">
+            <button 
+              type="button"
+              className="flex-1 h-10 rounded-md border border-[#E2E8F0] bg-white flex items-center justify-center gap-2 hover:bg-gray-50 transition"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.5 9.0525C16.5 4.86 13.14 1.5 8.9475 1.5C4.755 1.5 1.5 4.86 1.5 9.0525C1.5 12.8175 4.245 15.945 7.83 16.5375V11.25H5.925V9.0525H7.83V7.35C7.83 5.475 8.9475 4.44 10.6575 4.44C11.475 4.44 12.33 4.59 12.33 4.59V6.4275H11.385C10.455 6.4275 10.1625 7.005 10.1625 7.5975V9.015H12.2475L11.9175 11.2125H10.1625V16.5C13.755 15.945 16.5 12.8175 16.5 9.0525Z" fill="#1877F2"/>
+              </svg>
+              <span>Facebook</span>
+            </button>
+            <div className="flex-1 justify-center">
+              <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+                <GoogleSignInButton />
+              </GoogleOAuthProvider>
+            </div>
+            <button 
+              type="button"
+              className="flex-1 h-10 rounded-md border border-[#E2E8F0] bg-white flex items-center justify-center gap-2 hover:bg-gray-50 transition"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 1.5H1.5V9H9V1.5Z" fill="#F25022"/>
+                <path d="M16.5 1.5H9V9H16.5V1.5Z" fill="#7FBA00"/>
+                <path d="M9 9H1.5V16.5H9V9Z" fill="#00A4EF"/>
+                <path d="M16.5 9H9V16.5H16.5V9Z" fill="#FFB900"/>
+              </svg>
+              <span>Microsoft</span>
+            </button>
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none ${
-                formState.errors.email ? 'border-red-500' : 'border-gray-300'
-              }`}
-              {...register('email', { required: 'Email is required' })}
-            />
-            {formState.errors.email && <p className="text-red-500 text-sm mt-1">{formState.errors.email.message}</p>}
+          {/* Divider */}
+          <div className="text-center mb-4">
+            <span className="text-xs text-[#64748B] uppercase font-poppins">or</span>
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <div className="relative">
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {/* Name Input */}
+            <div className="mb-3">
               <Input
-                id="password"
-                type={isVisible ? 'text' : 'password'}
-                className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none pr-10 ${
-                  formState.errors.password ? 'border-red-500' : 'border-gray-300'
-                }`}
-                {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'At least 6 chars' } })}
+                type="text"
+                placeholder="Full name"
+                {...register('name', { required: 'Name is required' })}
+                className="w-full h-[38px] px-3 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {formState.errors.name && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.name.message}</p>
+              )}
+            </div>
+
+            {/* Email Input */}
+            <div className="mb-3">
+              <Input
+                type="email"
+                placeholder="name@example.com"
+                {...register('email', { required: 'Email is required' })}
+                className="w-full h-[38px] px-3 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {formState.errors.email && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Password Input */}
+            <div className="mb-3 relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter password"
+                {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'At least 6 characters' } })}
+                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 type="button"
-                onClick={toggleVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {isVisible ? <FaEye /> : <FaEyeSlash />}
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
               </button>
-            </div>
-            {formState.errors.password && <p className="text-red-500 text-sm mt-1">{formState.errors.password.message}</p>}
-            <div className="mt-1 h-3 w-full flex items-center">
-                <LockKeyhole size={12}/>
-                <div className="ml-1 flex-1 bg-gray-100 rounded-full h-1/2 overflow-hidden p-0.5">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ease-in-out ${strengthColor}`}
-                    style={{ width: `${(passwordStrength + 1) * 20}%` }}
-                  ></div>
+              {formState.errors.password && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.password.message}</p>
+              )}
+              {password && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 bg-gray-100 rounded-full h-1 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
+                      style={{ width: `${(passwordStrength + 1) * 20}%` }}
+                    ></div>
+                  </div>
+                  {strengthText && (
+                    <span className="text-xs text-gray-600 font-medium">{strengthText}</span>
+                  )}
                 </div>
-             {strengthText && (
-                  <span className="text-sm ml-2 text-gray-700 font-medium">{strengthText}</span>
-                )} 
+              )}
             </div>
-          
-          </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="********"
-              className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none ${
-                formState.errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-              }`}
-              {...register('confirmPassword', { required: 'Confirm Password is required' })}
-            />
-            {formState.errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{formState.errors.confirmPassword.message}</p>}
-          </div>
+            {/* Confirm Password Input */}
+            <div className="mb-3 relative">
+              <Input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm password"
+                {...register('confirmPassword', { required: 'Please confirm your password' })}
+                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+              {formState.errors.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">{formState.errors.confirmPassword.message}</p>
+              )}
+            </div>
 
+            {/* Submit Button */}
+            <button 
+              type="submit" 
+              disabled={formState.isSubmitting || isLoading}
+              className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {formState.isSubmitting || isLoading ? 'Creating account...' : 'Create account'}
+            </button>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`w-full py-2 px-4 text-white font-semibold rounded-md transition-colors ${
-              isLoading
-                ? 'bg-blue-300 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {isLoading ? 'Registering...' : 'Register'}
-          </button>
-        </form>
-        <div className="my-3 text-center text-sm text-gray-600">
-        <span className='text-2xl'>🎉 </span> No credit card required
+            {/* Sign In Link */}
+            <p className="text-xs text-center mt-4 font-poppins">
+              <span className="text-[#64748B]">Already have an account? </span>
+              <Link href="/login" className="text-blue-500 hover:underline">Sign in</Link>
+            </p>
+          </form>
         </div>
-
-         <p className="mt-4 text-center text-gray-600 text-sm border-t pt-3">
-         Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign in.</a>
-          </p>
-           {/* Include the Google Sign-In button */}
-          <div className="flex justify-center mt-4">
-            <GoogleOAuthProvider clientId="475170635447-lrrlsb0coohf3dicefsges3keo386at5.apps.googleusercontent.com">
-              <GoogleSignInButton />
-            </GoogleOAuthProvider>
-            {/* Add other social login buttons here */}
-          </div>
       </div>
+
+      {/* Terms and Privacy */}
+      <p className="text-xs text-center mt-4 font-poppins leading-4">
+        <span className="text-[#64748B]">By clicking Create account, you agree to the </span>
+        <Link href="/terms" className="text-blue-500 hover:underline">Terms of Service</Link>
+        <span className="text-[#64748B]"> and </span>
+        <Link href="/privacy" className="text-blue-500 hover:underline">Privacy Notice</Link>
+      </p>
     </div>
   );
 }
