@@ -8,7 +8,7 @@ export async function POST() {
     'Set-Cookie',
     serialize('token', '', {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       expires: new Date(0), // expired date = delete

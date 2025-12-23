@@ -11,6 +11,7 @@ const UserDropdown = () => {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
+        credentials: 'include',
       });
     } catch (error) {
       console.error('Logout API call failed:', error);
