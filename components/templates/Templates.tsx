@@ -1,6 +1,7 @@
 'use client';
 import PdfThumbnail from '@/components/PdfThumbnails';
 import TemplatePreviewModal from '@/components/TemplatePreviewModal';
+import CreateTemplateModal from '@/components/CreateTemplateModal';
 import useContextStore from '@/hooks/useContextStore';
 import type { Template } from '@/hooks/useTemplates';
 import { Copy, Edit2, Eye, Plus, Trash2 } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Button } from '../Button';
 
 export function Templates({
   initialViewMode,
@@ -37,9 +39,16 @@ export function Templates({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoggedIn, setShowModal } = useContextStore(); 
+  const { isLoggedIn, setShowModal } = useContextStore();
   const [filterMode, setFilterMode] = useState<'all' | 'my' | 'system'>(initialViewMode || 'all');
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [localTemplates, setLocalTemplates] = useState<Template[]>(templates);
+  const [operatingTemplateId, setOperatingTemplateId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    setLocalTemplates(templates);
+  }, [templates]);
 
   useEffect(() => {
     fetchTemplates(selectedCategory ?? undefined, searchQuery);
@@ -59,28 +68,73 @@ export function Templates({
       setShowModal(true);
       return;
     }
-    const result = await duplicateTemplate(templateId);
-    if (result) {
-      toast.success('Template duplicated successfully');
-      await fetchTemplates(selectedCategory ?? undefined, searchQuery);
-    } else {
+
+    setOperatingTemplateId(templateId);
+    const originalTemplates = localTemplates;
+    const templateToDuplicate = localTemplates.find(t => t._id === templateId);
+
+    if (!templateToDuplicate) return;
+
+    // Optimistic UI update: add duplicated template immediately
+    const duplicatedTemplate: Template = {
+      ...templateToDuplicate,
+      _id: `temp_${Date.now()}`,
+      name: `${templateToDuplicate.name} (Copy)`,
+    };
+    setLocalTemplates([...localTemplates, duplicatedTemplate]);
+
+    try {
+      const result = await duplicateTemplate(templateId);
+      if (result) {
+        // Replace temporary template with actual response
+        setLocalTemplates(prev => [
+          ...prev.filter(t => t._id !== `temp_${Date.now()}`),
+          result
+        ]);
+        toast.success('Template duplicated successfully');
+      } else {
+        // Rollback on failure
+        setLocalTemplates(originalTemplates);
+        toast.error('Failed to duplicate template');
+      }
+    } catch (err) {
+      // Rollback on error
+      setLocalTemplates(originalTemplates);
       toast.error('Failed to duplicate template');
+    } finally {
+      setOperatingTemplateId(null);
     }
   };
 
   const handleDelete = async (templateId: string) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
+    if (!window.confirm('Are you sure you want to delete this template?')) {
+      return;
+    }
+
+    setOperatingTemplateId(templateId);
+    const originalTemplates = localTemplates;
+
+    // Optimistic UI update: remove template immediately
+    setLocalTemplates(prev => prev.filter(t => t._id !== templateId));
+
+    try {
       const result = await deleteTemplate(templateId);
       if (result) {
         toast.success('Template deleted successfully');
-        await fetchTemplates(selectedCategory ?? undefined, searchQuery);
-        console.log('Calling onTemplateDeleted');
         if (onTemplateDeleted) {
           onTemplateDeleted();
         }
       } else {
+        // Rollback on failure
+        setLocalTemplates(originalTemplates);
         toast.error('Failed to delete template');
       }
+    } catch (err) {
+      // Rollback on error
+      setLocalTemplates(originalTemplates);
+      toast.error('Failed to delete template');
+    } finally {
+      setOperatingTemplateId(null);
     }
   };
 
@@ -104,7 +158,7 @@ export function Templates({
 
 
 
-  const filteredTemplates = templates.filter((template) => {
+  const filteredTemplates = localTemplates.filter((template) => {
     if (filterMode === 'my') {
       return !template.isSystemTemplate;
     }
@@ -117,6 +171,19 @@ export function Templates({
 
   return (
    <div className="p-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {filterMode === 'my' && (
+          <div className="mb-6 flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-900">My Templates</h2>
+            {isLoggedIn && (
+              <Button
+                onClick={() => setShowCreateModal(true)}
+               icon={<Plus className="w-4 h-4" />}
+               label='Create Template'
+              />
+            )}
+          </div>
+        )}
+
         {loading && <div className="text-center py-12 text-gray-500">Loading templates...</div>}
 
         {error && <div className="text-center py-12 text-red-600">{error}</div>}
@@ -182,33 +249,37 @@ export function Templates({
                     </button>
                     <button
                       onClick={() => setPreviewTemplate(template)}
-                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition"
+                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Preview"
+                      disabled={operatingTemplateId !== null}
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(template._id)}
-                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition"
+                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Duplicate"
+                      disabled={operatingTemplateId !== null}
                     >
-                      <Copy className="w-4 h-4" />
+                      <Copy className={`w-4 h-4 ${operatingTemplateId === template._id ? 'animate-spin' : ''}`} />
                     </button>
                     {isLoggedIn && !template.isSystemTemplate && (
                       <>
                         <button
                           onClick={() => router.push(`/templates/${template._id}/edit`)}
-                          className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-600 transition"
+                          className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Edit"
+                          disabled={operatingTemplateId !== null}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(template._id)}
-                          className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition"
+                          className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Delete"
+                          disabled={operatingTemplateId !== null}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className={`w-4 h-4 ${operatingTemplateId === template._id ? 'animate-spin' : ''}`} />
                         </button>
                       </>
                     )}
@@ -237,6 +308,17 @@ export function Templates({
             onClose={() => setPreviewTemplate(null)}
             templateUrl={previewTemplate.templateFileUrl}
             templateName={previewTemplate.name}
+          />
+        )}
+
+        {showCreateModal && (
+          <CreateTemplateModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              fetchTemplates(selectedCategory ?? undefined, searchQuery);
+            }}
           />
         )}
 

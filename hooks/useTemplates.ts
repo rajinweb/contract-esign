@@ -27,7 +27,7 @@ export function useTemplates() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-        const fetchTemplates = useCallback(async (category?: string, search?: string) => {
+    const fetchTemplates = useCallback(async (category?: string, search?: string) => {
             setLoading(true);
             setError(null);
             try {
@@ -174,8 +174,6 @@ export function useTemplates() {
             }
             
             const data = await response.json();
-            // After duplicating, fetch the updated list of templates
-            await fetchTemplates();
             return data.template;
         } catch (err) {
             const errMsg = err instanceof Error ? err.message : 'An error occurred';
@@ -185,7 +183,7 @@ export function useTemplates() {
         } finally {
             setLoading(false);
         }
-    }, [fetchTemplates]);
+    }, []);
 
     const deleteTemplate = useCallback(async (templateId: string) => {
         setLoading(true);
@@ -266,6 +264,54 @@ export function useTemplates() {
         }
     }, []);
 
+    const uploadTemplate = useCallback(async (file: File, templateData: Partial<Template>) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('AccessToken') || '';
+            const formData = new FormData();
+
+            formData.append('file', file);
+            formData.append('name', templateData.name || '');
+            formData.append('description', templateData.description || '');
+            formData.append('category', templateData.category || '');
+            if (templateData.tags && Array.isArray(templateData.tags)) {
+                formData.append('tags', templateData.tags.join(', '));
+            }
+
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch('/api/templates/upload', {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+
+            if (!response.ok) {
+                let errorPayload;
+                try {
+                    errorPayload = await response.json();
+                } catch (e) {
+                    throw new Error('Failed to upload template and could not parse error response.');
+                }
+                throw new Error(errorPayload.message || 'Failed to upload template');
+            }
+
+            const data = await response.json();
+            return data.template;
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : 'An error occurred';
+            setError(errMsg);
+            console.error('Error uploading template:', err);
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     return {
         templates,
         loading,
@@ -277,5 +323,6 @@ export function useTemplates() {
         duplicateTemplate,
         deleteTemplate,
         createDocumentFromTemplate,
+        uploadTemplate,
     };
 }

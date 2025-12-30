@@ -156,7 +156,7 @@ function Dashboard() {
             {activeSidebar === 'documents' && activeSecondarybar == 'dash-documents' && (<DocumentList searchQuery={searchQuery}/>)}
             {activeSidebar === 'documents' && activeSecondarybar === 'archive' && (<>Archive page</>)}
             {activeSidebar === 'documents' && activeSecondarybar === 'my-templates' && (
-              <Templates 
+              <Templates
                 initialViewMode='my'
                 templates={templates}
                 loading={templatesLoading}
@@ -165,7 +165,10 @@ function Dashboard() {
                 duplicateTemplate={duplicateTemplate}
                 deleteTemplate={deleteTemplate}
                 createDocumentFromTemplate={createDocumentFromTemplate}
-                onTemplateDeleted={fetchDocs}
+                onTemplateDeleted={() => {
+                  fetchDocs();
+                  fetchTemplates();
+                }}
                 searchQuery={searchQuery}
                 selectedCategory={selectedCategory}
               />
