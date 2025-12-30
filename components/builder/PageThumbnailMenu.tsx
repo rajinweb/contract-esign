@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RotateCcw, ArrowUp, ArrowDown, Copy, Trash2, FileSymlink, Replace } from "lucide-react";
 import { PDFDocument, degrees } from "pdf-lib";
@@ -19,8 +19,20 @@ const PageThumbnailMenu: React.FC<Props> = ({
   onPdfUpdated,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
-  // Close menu on outside click
+  useEffect(() => {
+    if (triggerElement) {
+      const rect = triggerElement.getBoundingClientRect();
+      setMenuStyle({
+        position: "fixed",
+        top: `${rect.bottom}px`,
+        left: `${rect.right - 192}px`, // w-48 is 12rem = 192px
+      });
+    }
+  }, [triggerElement]);
+
+  // Close menu on outside click or scroll
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -28,7 +40,12 @@ const PageThumbnailMenu: React.FC<Props> = ({
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", onClose, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", onClose, true);
+    };
   }, [onClose]);
 
   // --- Page operations ---
@@ -77,7 +94,7 @@ const PageThumbnailMenu: React.FC<Props> = ({
   const menu = (
     <div
       ref={ref}
-      className="absolute z-50 bg-white shadow-md border rounded w-48 right-0"
+      className="z-50 bg-white shadow-md border rounded w-48" style={menuStyle}
     >
       <ul className="text-sm p-2">
         <li className={listItemCss} onClick={rotatePage}>
@@ -89,26 +106,23 @@ const PageThumbnailMenu: React.FC<Props> = ({
         <li className={listItemCss} onClick={movePageDown}>
           <ArrowDown size={16} /> Move Page Down
         </li>
-         <li className={listItemCss}>
-            <FileSymlink size={16} /> Move Page To...
+        <li className={listItemCss}>
+          <FileSymlink size={16} /> Move Page To...
         </li>
         <li className={listItemCss}>
-            <Replace size={16} /> Replace Page
+          <Replace size={16} /> Replace Page
         </li>
         <li className={listItemCss} onClick={duplicatePage}>
           <Copy size={16} /> Duplicate Page
         </li>
-        <li
-          className={`${listItemCss} text-red-600`}
-          onClick={removePage}
-        >
+        <li className={`${listItemCss} text-red-600`} onClick={removePage}>
           <Trash2 size={16} /> Remove Page
         </li>
       </ul>
     </div>
   );
 
-  return createPortal(menu, triggerElement || document.body);
+  return createPortal(menu, document.body);
 };
 
 export default PageThumbnailMenu;

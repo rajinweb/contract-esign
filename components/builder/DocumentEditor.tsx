@@ -135,6 +135,24 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState<boolean>(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPdfForEditing = async () => {
+      if (selectedFile) {
+        try {
+          const pdfDoc = await loadPdf(selectedFile as File | string);
+          setPdfDoc(pdfDoc);
+        } catch (err) {
+          console.error("Error loading PDF for menu operations:", err);
+          // We can silently fail here, as this only affects menu operations
+        }
+      } else {
+        setPdfDoc(null);
+      }
+    };
+    loadPdfForEditing();
+  }, [selectedFile]);
+
   const handleAddRecipients = useCallback(() => {
     setShowAddRecipients(true);
   }, []);
@@ -353,11 +371,10 @@ useEffect(() => {
   };
 
   const insertBlankPageAt = async (index: number) => {
-    if (!selectedFile) return;
-    const pdfDocLocal = await loadPdf(selectedFile as File | string);
-    pdfDocLocal.insertPage(index); // A4 size is default for new pages
+    if (!pdfDoc) return;
+    pdfDoc.insertPage(index); // A4 size is default for new pages
 
-    await handlePdfUpdated(pdfDocLocal);
+    await handlePdfUpdated(pdfDoc);
     setDroppedComponents([]);
     resetHistory([]);
   };
@@ -637,15 +654,19 @@ useEffect(() => {
     };
 
     document.addEventListener('keydown', handleKeyDown);
+    
+    // initialize lastSavedName on mount from current documentName
+    lastSavedNameRef.current = documentName || null;
+
     return () => document.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleUndo, handleRedo]);
 
   const saveToServer = useCallback(async (): Promise<boolean> => {
-    if (!selectedFile) return false;
+    if (!selectedFile || !pdfDoc) return false;
 
     try {
       // Save as blob
-      const pdfDoc = await loadPdf(selectedFile as File | string);
       const blob = await savePdfBlob(pdfDoc);
       const safeName = sanitizeFileName(documentName);
       // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
@@ -675,7 +696,7 @@ useEffect(() => {
       }
       return false;
     }
-  }, [selectedFile, documentName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setDocumentName, setSelectedFile, signingToken, setLastSavedState]);
+  }, [selectedFile, documentName, currentPage, droppedComponents, recipients, documentId, setDocumentId, setDocumentName, setSelectedFile, signingToken, setLastSavedState, pdfDoc]);
 
   //File Handling
   const handleSavePDF = async ({
@@ -689,7 +710,7 @@ useEffect(() => {
       return null;
     }
 
-    if (!selectedFile) {
+    if (!selectedFile || !pdfDoc) {
       console.error("No file selected!");
       return null;
     }
@@ -703,7 +724,6 @@ useEffect(() => {
 
     try {
         // Load and merge
-        const pdfDoc = await loadPdf(selectedFile as File | string );
         const blob = await savePdfBlob(pdfDoc);
         const safeName = sanitizeFileName(documentName);
         const pdfUrl = await blobToURL(blob); 
@@ -963,11 +983,6 @@ useEffect(() => {
 
   // Auto-save metadata when user finishes renaming (isEditingFileName toggles false)
   const lastSavedNameRef = React.useRef<string | null>(null);
-  useEffect(() => {
-    // initialize lastSavedName on mount from current documentName
-    lastSavedNameRef.current = documentName || null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const saveRenameIfNeeded = async () => {
