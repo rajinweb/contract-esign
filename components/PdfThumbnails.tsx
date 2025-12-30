@@ -10,7 +10,7 @@ interface PdfThumbnailProps {
 }
 import { pdfjs } from "react-pdf";
 
-const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height = 10, className }) => {
+const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 120, height = 160, className }) => {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,7 +31,8 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
         }).promise;
         const page = await pdf.getPage(1);
 
-        const viewport = page.getViewport({ scale: 0.2 });
+        // Use higher scale for better quality (2.0 = 200% of original viewport)
+        const viewport = page.getViewport({ scale: 2.0 });
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
@@ -40,7 +41,8 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 80, height
 
         await page.render({ canvasContext: ctx!, viewport }).promise;
 
-        setThumbUrl(canvas.toDataURL("image/png"));
+        // Use high compression quality (90-100)
+        setThumbUrl(canvas.toDataURL("image/png", 0.95));
       } catch (err) {
         console.error("Error rendering thumbnail:", err);
       }

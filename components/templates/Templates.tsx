@@ -125,7 +125,7 @@ export function Templates({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTemplates.map((template) => (
               <div key={template._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
-                <div className="aspect-video bg-gray-200 relative">
+                <div className="bg-gray-200 relative">
                   {template.templateFileUrl ? (
                     <PdfThumbnail fileUrl={template.templateFileUrl} width={400} height={225} className="w-full h-full object-cover" />
                   ) : template.thumbnailUrl ? (
@@ -155,41 +155,41 @@ export function Templates({
                       System
                     </div>
                   )}
-                </div>
+              
 
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">{template.name}</h3>
+                <div className="p-4 absolute bottom-0 text-gray-900 bg-white/10 backdrop-blur-xl border-t w-full">
+                  <h3 className="font-semibold text-lg mb-1 truncate">{template.name}</h3>
                   {template.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{template.description}</p>
+                    <p className="text-sm mb-3 line-clamp-2">{template.description}</p>
                   )}
 
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                    <span className="text-xs bg-sky-700 text-gray-100 px-2 py-1 rounded">
                       {template.category}
                     </span>
                     {template.duplicateCount ? (
-                      <span className="text-xs text-gray-500">Used {template.duplicateCount} times</span>
+                      <span className="text-xs text-sky-700">Used {template.duplicateCount} times</span>
                     ) : null}
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleUseTemplate(template._id, template.name)}
-                      className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-2 bg-gray-700 text-white text-sm rounded hover:bg-gray-500 transition flex items-center justify-center gap-1"
                     >
                       <Plus className="w-4 h-4" />
                       Use
                     </button>
                     <button
                       onClick={() => setPreviewTemplate(template)}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition"
+                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition"
                       title="Preview"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(template._id)}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition"
+                      className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition"
                       title="Duplicate"
                     >
                       <Copy className="w-4 h-4" />
@@ -198,14 +198,14 @@ export function Templates({
                       <>
                         <button
                           onClick={() => router.push(`/templates/${template._id}/edit`)}
-                          className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition"
+                          className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-600 transition"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(template._id)}
-                          className="px-3 py-2 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 transition"
+                          className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -213,6 +213,7 @@ export function Templates({
                       </>
                     )}
                   </div>
+                </div>
                 </div>
               </div>
             ))}

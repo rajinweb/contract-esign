@@ -171,7 +171,10 @@ export const DocumentsMenu = ({
         Quick Access
       </div>
       <nav className="mt-3 space-y-2 text-sm">
-        <button  onClick={() => secondaryActive('dash-documents')} 
+        <button  onClick={() => {
+            secondaryActive('dash-documents');
+            router.push('/dashboard');
+          }}
           className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${
             activeSecondarybar === 'dash-documents'
               ? 'bg-slate-100 text-slate-800 border-blue-600'
