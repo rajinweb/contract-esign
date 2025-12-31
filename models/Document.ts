@@ -127,7 +127,14 @@ const DocumentSchema = new Schema<IDocument>({
   currentSessionId: { type: String },
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: [DocumentRecipientSchema], default: [] },
-  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending'] },
+  status: {
+    type: String,
+    default: 'draft',
+    enum: [
+      'draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending',
+      'completed', 'in_progress', 'cancelled', 'delivery_failed'
+    ]
+  },
   templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', sparse: true, required: false },
   token: { type: String, sparse: true, unique: true },
   isTemplate: { type: Boolean, default: false },
