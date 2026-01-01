@@ -139,7 +139,11 @@ export interface Recipient {
   | 'pending'
   | 'viewed'
   | 'delivery_failed';
-  rejectedAt?:Date
+  rejectedAt?:Date;
+  signedAt?: Date;
+  approvedAt?: Date;
+  viewedAt?: Date;
+  ipAddress?: string;
 }
 /* contacts  */
 export interface Contact {

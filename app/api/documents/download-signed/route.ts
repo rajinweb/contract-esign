@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Verify document is signed
-        if (document.status !== 'signed') {
+        // Verify document is signed or completed
+        if (document.status !== 'signed' && document.status !== 'completed') {
             return NextResponse.json({
-                error: 'Document is not signed yet',
+                error: 'Document is not completed yet',
                 message: 'Signed copy will be available once all recipients complete signing.'
             }, { status: 400 });
         }
