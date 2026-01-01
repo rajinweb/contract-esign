@@ -69,7 +69,7 @@ export default function SaveAsTemplateModal({
         category: data.category,
         templateFileUrl: documentFileUrl,
         fields: documentFields,
-        defaultSigners: documentDefaultSigners,
+        defaultSigners: [], // Don't include recipients in template
         pageCount: documentPageCount,
         fileSize: documentFileSize,
         tags,
@@ -184,11 +184,9 @@ export default function SaveAsTemplateModal({
                 <span className="font-medium">Fields:</span> {documentFields.length}
               </p>
             )}
-            {documentDefaultSigners.length > 0 && (
-              <p className="text-xs text-gray-600">
-                <span className="font-medium">Default Signers:</span> {documentDefaultSigners.length}
-              </p>
-            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Recipients will not be included in the template.
+            </p>
           </div>
 
           {/* Actions */}

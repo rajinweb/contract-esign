@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
             templateFileUrl: tempTemplateFileUrl,
             filePath: newFilePath, // Use relative path, not absolute
             fields: fields || originalDoc.fields,
-            defaultSigners: defaultSigners || originalDoc.recipients,
+            defaultSigners: defaultSigners !== undefined ? defaultSigners : [], // Don't include recipients from original document
             pageCount: pageCount || originalDoc.versions?.length,
             fileSize,
             tags,
