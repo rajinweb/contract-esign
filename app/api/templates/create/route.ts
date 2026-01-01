@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Original document file path not found' }, { status: 400 });
         }
 
-        const originalFilePath = path.join(process.cwd(), originalVersion.filePath);
+        const originalFilePath = originalVersion.filePath;
         if (fs.existsSync(originalFilePath)) {
             fs.copyFileSync(originalFilePath, newFileAbsolutePath);
         } else {

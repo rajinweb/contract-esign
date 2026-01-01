@@ -175,9 +175,8 @@ const menuItems = [
       (item) => !item.assignedRecipientId || item.assignedRecipientId.trim() === ''
     );
 
-    console.log("Validation: Dropped Items", droppedItems);
     if (unassignedField) {
-      alert("All fields must be assigned to a signer before sending.");
+      toast.error("All fields must be assigned to a signer before sending.");
       return;
     }
 

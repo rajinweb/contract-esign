@@ -105,7 +105,15 @@ export function useTemplates() {
                 body: JSON.stringify(templateData),
             });
 
-            if (!response.ok) throw new Error('Failed to create template');
+            if (!response.ok) {
+                let errorPayload;
+                try {
+                    errorPayload = await response.json();
+                } catch (e) {
+                    throw new Error('Failed to create template and could not parse error response.');
+                }
+                throw new Error(errorPayload.message || 'Failed to create template');
+            }
             const data = await response.json();
             return data.template;
         } catch (err) {
