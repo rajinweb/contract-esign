@@ -680,7 +680,7 @@ useEffect(() => {
       }
       setLastSavedState({
         components: droppedComponents,
-        name: documentName,
+        name: result?.documentName || documentName,
         recipients: recipients,
       });
       return true;

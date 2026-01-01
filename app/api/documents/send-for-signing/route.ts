@@ -3,6 +3,7 @@ import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import { sendSigningRequestEmail } from '@/lib/email';
 import { updateDocumentStatus } from '@/lib/statusLogic';
+import { Recipient } from '@/types/types';
 
 // POST - Send a document for signing
 export async function POST(req: NextRequest) {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Update document status and recipients
-    document.recipients = recipients;
+    document.recipients = recipients.map((r: Recipient) => ({ ...r, status: 'sent' }));
     updateDocumentStatus(document);
 
     // Get or create the current version with signing token
