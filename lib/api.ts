@@ -1,6 +1,6 @@
-import { DroppedComponent, Recipient, UploadResult } from "@/types/types";
+import { DocumentField, DroppedComponent, Recipient, UploadResult, DocumentFieldType } from "@/types/types";
 
-const getFieldTypeFromComponentLabel = (label: string): string => {
+export const getFieldTypeFromComponentLabel = (label: string): string => {
     const mapping: { [key: string]: string } = {
         'signature': 'signature',
         'image': 'image',
@@ -48,11 +48,26 @@ export const uploadToServer = async (
         formData.append('sessionId', sessionId);
     }
 
-    // Enhanced field mapping to ensure all field data is preserved
-    formData.append('fields', JSON.stringify(droppedComponents.map(comp => {
+    const headers: Record<string, string> = {};
+
+    const loadResponse = await fetch(`/api/documents/load?id=${documentId}`, {
+        headers: Object.keys(headers).length ? headers : undefined,
+        cache: 'no-store',
+    });
+
+    if (!loadResponse.ok) {
+        throw new Error('Failed to fetch latest document data');
+    }
+
+    const loadData = await loadResponse.json();
+    const serverFields: DocumentField[] = loadData.document?.fields || [];
+    const serverRecipients: Recipient[] = loadData.document?.recipients || [];
+
+    // Map client fields to DocumentField format
+    const clientFieldsMapped: DocumentField[] = droppedComponents.map(comp => {
         return {
             id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
-            type: getFieldTypeFromComponentLabel(comp.component),
+            type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
             x: comp.x,
             y: comp.y,
             width: comp.width,
@@ -64,9 +79,91 @@ export const uploadToServer = async (
             placeholder: comp.placeholder,
             mimeType: comp.mimeType,
         };
-    })));
+    });
 
-    formData.append('recipients', JSON.stringify(recipients));
+    // Determine the current recipient ID from the URL or other context (only relevant in signing mode)
+    const currentRecipientId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get("recipient") || '' : '';
+
+    // Merge: Start with server fields
+    let mergedFields: DroppedComponent[] = serverFields.map(serverField => ({
+        id: Number(serverField.id), // Convert id to number
+        component: (String(serverField.type || '')).charAt(0).toUpperCase() + String(serverField.type || '').slice(1).replace('_', ' '), // Capitalize like DroppedComponent
+        x: serverField.x,
+        y: serverField.y,
+        width: serverField.width,
+        height: serverField.height,
+        pageNumber: serverField.pageNumber,
+        assignedRecipientId: serverField.recipientId,
+        required: serverField.required,
+        data: serverField.value,
+        placeholder: serverField.placeholder,
+    }));
+
+    clientFieldsMapped.forEach(clientField => {
+        const index = mergedFields.findIndex(s => s.id.toString() === clientField.id);
+        const droppedComponent: DroppedComponent = {
+            id: Number(clientField.id),
+            component: (String(clientField.type || '')).charAt(0).toUpperCase() + String(clientField.type || '').slice(1).replace('_', ' '),
+            x: clientField.x,
+            y: clientField.y,
+            width: clientField.width,
+            height: clientField.height,
+            pageNumber: clientField.pageNumber,
+            assignedRecipientId: clientField.recipientId,
+            required: clientField.required,
+            data: clientField.value,
+            placeholder: clientField.placeholder,
+        };
+
+        if (index !== -1) {
+            // Existing field: update only if not in signing mode or assigned to current recipient
+            if (!signingToken || clientField.recipientId === currentRecipientId) {
+                mergedFields[index] = { ...mergedFields[index], ...droppedComponent };
+            }
+        } else {
+            // New field: add only if not in signing mode or assigned to current recipient
+            if (!signingToken || clientField.recipientId === currentRecipientId) {
+                mergedFields.push(droppedComponent);
+            }
+        }
+    });
+
+    // Handle deletions: in editor mode, remove fields not present in client
+    if (!signingToken) {
+        const clientIds = new Set(clientFieldsMapped.map(f => f.id));
+        mergedFields = mergedFields.filter(f => clientIds.has(f.id.toString()));
+    }
+
+    // Map merged fields back to DocumentField format
+    const mergedFieldsMapped: DocumentField[] = mergedFields.map(comp => ({
+        id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
+        type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
+        x: comp.x,
+        y: comp.y,
+        width: comp.width,
+        height: comp.height,
+        pageNumber: comp.pageNumber || currentPage,
+        recipientId: comp.assignedRecipientId,
+        required: comp.required ?? true,
+        value: comp.data || '',
+        placeholder: comp.placeholder,
+        mimeType: comp.mimeType,
+    }));
+
+    // Merge recipients: start with server recipients, update with client changes
+    const mergedRecipients = serverRecipients.map(serverRec => {
+        const clientRec = recipients.find(r => r.id === serverRec.id);
+        return clientRec ? { ...serverRec, ...clientRec } : serverRec;
+    });
+    // Add any new recipients from client not in server
+    recipients.forEach(clientRec => {
+        if (!mergedRecipients.some(r => r.id === clientRec.id)) {
+            mergedRecipients.push(clientRec);
+        }
+    });
+
+    formData.append('fields', JSON.stringify(mergedFieldsMapped));
+    formData.append('recipients', JSON.stringify(mergedRecipients));
     // ensure we include a documentId if available either from the caller or localStorage
     const docIdToSend = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
     if (docIdToSend) {
@@ -80,7 +177,7 @@ export const uploadToServer = async (
             : 'Initial document creation';
     formData.append('changeLog', changeLog);
 
-    const headers: Record<string, string> = {};
+
     if (signingToken) {
         headers['X-Signing-Token'] = signingToken;
     } else {

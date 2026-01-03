@@ -9,7 +9,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField } from '@/types/types'; // DocumentEditorProps is no longer imported
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import dynamic from 'next/dynamic';
 
@@ -32,7 +32,7 @@ import Footer from './Footer';
 import RecipientsList from './RecipientsList';
 import toast from 'react-hot-toast';
 import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, downloadPdf} from '@/lib/pdf';
-import {uploadToServer} from '@/lib/api';
+import {uploadToServer, getFieldTypeFromComponentLabel} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
 
 export interface EditorProps {
@@ -53,24 +53,6 @@ export interface EditorProps {
   onFieldsChange?: (fields: DocumentField[]) => void;
   isTemplateEditor?: boolean; // New prop to differentiate
 }
-
-
-const getFieldTypeFromComponentLabel = (label: string): DocumentField['type'] => {
-  const mapping: { [key: string]: DocumentField['type'] } = {
-    'signature': 'signature',
-    'image': 'image',
-    'text': 'text',
-    'date': 'date',
-    'initials': 'initials',
-    'full name': 'text',
-    'email': 'text',
-    'checkbox': 'checkbox',
-    'stamp': 'stamp',
-    'realtime photo': 'realtime_photo',
-  };
-  const lowerCaseLabel = label.toLowerCase();
-  return mapping[lowerCaseLabel] || 'text'; // default to text for safety
-};
 
 // Initialize PDF worker (centralized setup)
 initializePdfWorker(pdfjs);
@@ -188,7 +170,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const setDroppedComponents = useCallback((updater: React.SetStateAction<DroppedComponent[]>) => {
     if (isSigningMode && onFieldsChange) {
       const newFields = typeof updater === 'function' ? updater(droppedComponents) : updater;
-      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component), x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType })));
+      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType })));
     } else {
       setInternalDroppedComponents(updater);
     }
@@ -272,11 +254,16 @@ const DocumentEditor: React.FC<EditorProps> = ({
             }))
           : [];
   
-        // Merge draft on top of server fields
+        // Merge draft on top of server fields, preserving server values if draft is empty.
         const restoredFields = [...serverFields];
         draftFields.forEach(draftField => {
           const index = restoredFields.findIndex(serverField => serverField.id === draftField.id);
           if (index !== -1) {
+            const serverField = restoredFields[index];
+            // If the server has a value and the draft doesn't, keep the server value.
+            if (serverField.data && !draftField.data) {
+                draftField.data = serverField.data;
+            }
             restoredFields[index] = draftField;
           } else {
             restoredFields.push(draftField);
@@ -1067,7 +1054,7 @@ useEffect(() => {
                       documentFileUrl={typeof selectedFile === 'string' ? selectedFile : ''}
                       documentFields={droppedComponents.map((c) => ({
                         id: String(c.id),
-                        type: getFieldTypeFromComponentLabel(c.component || ''),
+                        type: getFieldTypeFromComponentLabel(c.component || '')  as DocumentFieldType,
                         x: c.x,
                         y: c.y,
                         width: c.width,
@@ -1077,7 +1064,8 @@ useEffect(() => {
                         required: c.required !== undefined ? c.required : true,
                         value: c.data || '',
                         placeholder: c.placeholder,
-                      }))}            documentDefaultSigners={recipients}
+                      }))}
+            documentDefaultSigners={recipients}
             documentPageCount={pages.length}
             documentFileSize={0}
             onClose={() => setShowSaveAsTemplate(false)}
