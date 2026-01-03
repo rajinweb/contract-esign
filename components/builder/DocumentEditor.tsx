@@ -715,15 +715,22 @@ useEffect(() => {
         const safeName = sanitizeFileName(documentName);
         const pdfUrl = await blobToURL(blob); 
          
-        if (isMergeFields) {
+        if (isMergeFields || isDownload) {
           await mergeFieldsIntoPdf(pdfDoc, droppedComponents, pageRefs, canvasRect, currentPage, { autoDate });
+          const mergedBlob = await savePdfBlob(pdfDoc);
+          const mergedPdfUrl = await blobToURL(mergedBlob);
+          setSelectedFile(mergedPdfUrl);
+          if (isDownload) {
+            downloadPdf(mergedBlob, safeName);
+          }
+        } else {
           setSelectedFile(pdfUrl);
         }
-        if (isDownload && isMergeFields){
+        if (isDownload && !isMergeFields){
           downloadPdf(blob, safeName);
         }
         // Cleanup
-        if (isDownload || isMergeFields){
+        if (isDownload){
           setPosition({ x: 0, y: 0 });
           setDroppedComponents([]);
           resetHistory([]);

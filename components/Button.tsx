@@ -42,7 +42,7 @@ export function Button({
   return (
     <button
       id={id}
-      type="button"
+      // type="button" todo: consider if needed
       className={`${baseClasses} ${variantClass} ${cursorClass} ${iconOnlyClass} ${className}  ${label ? "gap-2" : ""}`}
       disabled={disabled}
       onClick={onClick}
