@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel, { IDocumentRecipient } from '@/models/Document';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { getUserIdFromReq } from '@/lib/auth';
 import { DocumentField } from '@/types/types';
+import dayjs from 'dayjs';
 
 export const runtime = 'nodejs';
+function wrapText(
+    text: string,
+    font: any,
+    fontSize: number,
+    maxWidth: number
+): string[] {
+    const lines: string[] = [];
+
+    text.split('\n').forEach((paragraph) => {
+        let line = '';
+        paragraph.split(' ').forEach((word) => {
+            const testLine = line ? `${line} ${word}` : word;
+            const width = font.widthOfTextAtSize(testLine, fontSize);
+            if (width > maxWidth) {
+                if (line) lines.push(line);
+                line = word;
+            } else {
+                line = testLine;
+            }
+        });
+        if (line) lines.push(line);
+    });
+
+    return lines;
+}
 
 export async function GET(req: NextRequest) {
     try {
@@ -77,117 +103,108 @@ export async function GET(req: NextRequest) {
         console.log(`Processing ${version.fields.length} fields for document ${documentId}`);
 
         for (const field of version.fields as DocumentField[]) {
-            // Skip fields without values (except checkbox which can be unchecked)
-            if (!field.value && field.type !== 'checkbox') {
-                console.log(`Skipping field ${field.id} (${field.type}) - no value`);
-                continue;
-            }
 
-            // Validate page number
-            if (!field.pageNumber || field.pageNumber < 1 || field.pageNumber > pages.length) {
-                console.warn(`Skipping field ${field.id} - invalid page number ${field.pageNumber}`);
-                continue;
-            }
+            if (!field.pageNumber || !field) continue;
 
             const page = pages[field.pageNumber - 1];
-            const { height: pageHeight } = page.getSize();
+            const { width: pageWidth, height: pageHeight } = page.getSize();
+            // const DOM_HEIGHT = pageWidth * (pageHeight / pageWidth);
+            const rotation = page.getRotation().angle;
+            const isPageRotated = page.getRotation().angle;
 
-            // Convert coordinates (assuming y is from top, PDF uses bottom-up)
-            const pdfY = pageHeight - field.y - field.height;
+            const scaleX = pageWidth / 890; // Assuming 890px is the original canvas width
+            const scaleY = pageHeight / 1500;
 
-            try {
-                // Handle image-based fields: signature, initials, stamp, image, realtime_photo
-                if (['signature', 'initials', 'stamp', 'image', 'realtime_photo'].includes(field.type)) {
-                    if (!field.value || !field.value.startsWith('data:image')) {
-                        console.warn(`Field ${field.id} (${field.type}) has invalid image data`);
-                        continue;
-                    }
+            const adjustedX = field.x * scaleX;
+            const adjustedY =
+                pageHeight - (field.y + field.height) * scaleY;
 
-                    const base64Data = field.value.split(',')[1];
-                    if (!base64Data) {
-                        console.warn(`Field ${field.id} (${field.type}) has no base64 data`);
-                        continue;
-                    }
+            const scaledW = field.width * scaleX;
+            const scaledH = field.height * scaleY;
 
-                    const imageBytes = Buffer.from(base64Data, 'base64');
+            // Clamp to page
+            const x = Math.max(0, Math.min(adjustedX, pageWidth - scaledW));
+            const y = Math.max(0, Math.min(adjustedY, pageHeight - scaledH));
 
-                    let image;
-                    try {
-                        if (field.value.includes('image/png') || field.value.includes('png')) {
-                            image = await pdfDoc.embedPng(imageBytes);
-                        } else if (field.value.includes('image/jpeg') || field.value.includes('image/jpg') || field.value.includes('jpg') || field.value.includes('jpeg')) {
-                            image = await pdfDoc.embedJpg(imageBytes);
-                        } else {
-                            // Try PNG first as default
-                            try {
-                                image = await pdfDoc.embedPng(imageBytes);
-                            } catch {
-                                image = await pdfDoc.embedJpg(imageBytes);
-                            }
-                        }
-                    } catch (imgError) {
-                        console.error(`Failed to embed image for field ${field.id}:`, imgError);
-                        continue;
-                    }
+            /* ---------------- TEXT ---------------- */
+            if (field.type === 'text' || field.type === 'date') {
+                if (!field.value) continue;
 
-                    if (image) {
-                        page.drawImage(image, {
-                            x: field.x,
-                            y: pdfY,
-                            width: field.width,
-                            height: field.height,
-                        });
-                        console.log(`Drew ${field.type} field ${field.id} on page ${field.pageNumber}`);
-                    }
-                }
-                // Handle text-based fields: text, date
-                else if (field.type === 'text' || field.type === 'date') {
-                    if (!field.value) continue;
+                const fontSize = Math.min(12 * scaleY, scaledH * 0.8);
+                const lineHeight = fontSize * 1.2;
+                const lines = wrapText(
+                    String(field.value),
+                    font,
+                    fontSize,
+                    scaledW
+                );
 
-                    // Calculate appropriate font size
-                    const fontSize = Math.min(field.height * 0.6, 14);
-                    const padding = 5;
+                let cursorY = y + scaledH - lineHeight;
 
-                    page.drawText(String(field.value), {
-                        x: field.x + padding,
-                        y: pdfY + (field.height / 2) - (fontSize / 2),
+                for (const line of lines) {
+                    if (cursorY < y) break;
+                    page.drawText(line, {
+                        x,
+                        y: cursorY,
                         size: fontSize,
-                        font: font,
-                        color: rgb(0, 0, 0),
-                        maxWidth: field.width - (padding * 2),
+                        font,
+                        ...(rotation ? { rotate: degrees(rotation) } : {}),
                     });
-                    console.log(`Drew ${field.type} field ${field.id}: "${field.value}"`);
+                    cursorY -= lineHeight;
                 }
-                // Handle checkbox
-                else if (field.type === 'checkbox') {
-                    const isChecked = field.value === 'true' || field.value === 'checked'
-
-                    if (isChecked) {
-                        const checkSize = Math.min(field.width, field.height) * 0.7;
-                        const centerX = field.x + field.width / 2;
-                        const centerY = pdfY + field.height / 2;
-
-                        // Draw checkmark with X (ASCII character)
-                        page.drawText('X', {
-                            x: centerX - checkSize / 3,
-                            y: centerY - checkSize / 3,
-                            size: checkSize,
-                            font: boldFont,
-                            color: rgb(0, 0.5, 0),
-                        });
-                        console.log(`Drew checked checkbox field ${field.id}`);
-                    } else {
-                        console.log(`Skipped unchecked checkbox field ${field.id}`);
-                    }
-                }
-                else {
-                    console.warn(`Unknown field type: ${field.type} for field ${field.id}`);
-                }
-            } catch (fieldError) {
-                console.error(`Error processing field ${field.id} (${field.type}):`, fieldError);
-                // Continue with other fields
             }
+
+            /* ---------------- IMAGE ---------------- */
+            if (
+                ['signature', 'initials', 'image', 'stamp', 'realtime_photo'].includes(
+                    field.type
+                )
+            ) {
+                if (!field.value?.startsWith('data:image')) continue;
+
+                const base64 = field.value.split(',')[1];
+                const bytes = Buffer.from(base64, 'base64');
+
+                let image;
+                try {
+                    image = field.value.includes('png')
+                        ? await pdfDoc.embedPng(bytes)
+                        : await pdfDoc.embedJpg(bytes);
+                } catch {
+                    continue;
+                }
+
+                page.drawImage(image, {
+                    x,
+                    y,
+                    width: scaledW,
+                    height: scaledH,
+                    ...(rotation ? { rotate: degrees(rotation) } : {}),
+                });
+            }
+
+            /* ---------------- CHECKBOX ---------------- */
+            if (field.type === 'checkbox' && field.value === 'true') {
+                const size = Math.min(scaledW, scaledH) * 0.8;
+                page.drawText('X', {
+                    x: x + scaledW / 4,
+                    y: y + scaledH / 6,
+                    size,
+                    font: boldFont,
+                    color: rgb(0, 0.5, 0),
+                });
+            }
+
+            page.drawText(`Signed ${dayjs().format("M/d/YYYY HH:mm:ss ZZ")}`, {
+                x: adjustedX,
+                y: adjustedY - 20 * Math.min(scaleX, scaleY),
+                size: 10,
+                color: rgb(0.074, 0.545, 0.262),
+                ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+            });
+
         }
+
 
         console.log(`Completed processing all fields for document ${documentId}`);
 

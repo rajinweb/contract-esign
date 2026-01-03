@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback, useMemo} from 'react';
+import dynamic from 'next/dynamic';
 
 // Third-party
 import { pdfjs } from "react-pdf";
@@ -11,7 +12,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
 import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import dynamic from 'next/dynamic';
+
 
 // Components
 import UploadZone from "@/components/UploadZone";

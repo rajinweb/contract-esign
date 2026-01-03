@@ -234,7 +234,7 @@ const menuItems = [
 
   return (
     <>
-      <Toaster />
+      {/* <Toaster /> */}
       <UnsavedChangesDialog
         isVisible={isUnsavedChangesDialogVisible}
         onCancel={() => setIsUnsavedChangesDialogVisible(false)}
