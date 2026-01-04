@@ -163,6 +163,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
         assignedRecipientId: field.recipientId,
         required: field.required !== false,
         placeholder: field.placeholder,
+        pageRect:field.pageRect
       } as DroppedComponent));
     }
     return internalDroppedComponents;
@@ -171,7 +172,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const setDroppedComponents = useCallback((updater: React.SetStateAction<DroppedComponent[]>) => {
     if (isSigningMode && onFieldsChange) {
       const newFields = typeof updater === 'function' ? updater(droppedComponents) : updater;
-      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType })));
+      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType, pageRect: comp.pageRect })));
     } else {
       setInternalDroppedComponents(updater);
     }
@@ -416,12 +417,12 @@ useEffect(() => {
     // Calculate the page number for the dropped component
     let targetPageNumber = currentPage;
     const dropY = e.clientY;
-    
+    let pageRect: DOMRect| null = null;
     for (let i = 0; i < pageRefs.current.length; i++) {
       const pageEl = pageRefs.current[i];
       if (!pageEl) continue;
       
-      const pageRect = pageEl.getBoundingClientRect();
+      pageRect = pageEl.getBoundingClientRect();
       if (dropY >= pageRect.top && dropY <= pageRect.bottom) {
         targetPageNumber = i + 1;
         break;
@@ -435,6 +436,7 @@ useEffect(() => {
       width: 100,
       height: 50,
       pageNumber: targetPageNumber,
+      pageRect: pageRect
     };
 
     setDroppedComponents((prev) => {
@@ -568,15 +570,15 @@ useEffect(() => {
 
   let newY = data.y;
   let newPageNumber = item.pageNumber;
-
+  let pageRect: DOMRect | null = null;
   // Check each page
   for (let i = 0; i < pageRefs.current.length; i++) {
     const pageEl = pageRefs.current[i];
     if (!pageEl) continue;
 
-    const rect = pageEl.getBoundingClientRect();
-    const pageTopAbs = rect.top + scrollY;
-    const pageBottomAbs = pageTopAbs + rect.height;
+    pageRect = pageEl.getBoundingClientRect();
+    const pageTopAbs = pageRect.top + scrollY;
+    const pageBottomAbs = pageTopAbs + pageRect.height;
 
     if (fieldTopAbs >= pageTopAbs && fieldBottomAbs <= pageBottomAbs) {
       // Fully inside this page -> no snapping
@@ -604,7 +606,7 @@ useEffect(() => {
   setDroppedComponents(prev =>{
       const newComponents = prev.map(c =>
       c.id === item.id
-        ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber }
+        ? { ...c, x: data.x, y: newY, pageNumber: newPageNumber, pageRect: pageRect }
         : c
       );
       saveState(newComponents);

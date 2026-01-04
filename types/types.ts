@@ -112,6 +112,7 @@ export interface DroppedComponent extends DroppingField {
   assignedRecipientId?: string | null;
   required?: boolean;
   placeholder?: string;
+  pageRect?: DOMRect | null;
 }
 export interface User {
   email: string;
@@ -191,6 +192,7 @@ export interface DocumentField {
   value?: string;
   placeholder?: string;
   mimeType?: string;
+  pageRect?: DOMRect | null;
 }
 
 // Document Version & History

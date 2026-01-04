@@ -99,9 +99,7 @@ export async function GET(req: NextRequest) {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-        // Overlay field values onto the PDF
-        console.log(`Processing ${version.fields.length} fields for document ${documentId}`);
-
+        // Overlay field values onto the PDF        
         for (const field of version.fields as DocumentField[]) {
 
             if (!field.pageNumber || !field) continue;
@@ -110,8 +108,13 @@ export async function GET(req: NextRequest) {
             const { width: pageWidth, height: pageHeight } = page.getSize();
 
             const rotation = page.getRotation().angle;
-            const scaleX = pageWidth / 890; // Assuming 890px is the original canvas width
-            const scaleY = pageHeight / 1500;
+
+            let scaleX = 1;
+            let scaleY = 1;
+            if (field.pageRect) {
+                scaleX = pageWidth / field.pageRect.width;
+                scaleY = pageHeight / (field.pageRect.height + field.pageRect.y + field.height);
+            }
 
             const adjustedX = field.x * scaleX;
             const adjustedY =
