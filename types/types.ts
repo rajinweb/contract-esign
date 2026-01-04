@@ -139,7 +139,7 @@ export interface Recipient {
   | 'pending'
   | 'viewed'
   | 'delivery_failed';
-  rejectedAt?:Date;
+  rejectedAt?: Date;
   signedAt?: Date;
   approvedAt?: Date;
   viewedAt?: Date;
@@ -193,16 +193,34 @@ export interface DocumentField {
   mimeType?: string;
 }
 
-export interface DocumentVersion {
-  version: number;
-  pdfData: Buffer;
+// Document Version & History
+export interface IEditHistory {
+  sessionId: string;
   fields: DocumentField[];
+  documentName?: string;
+  timestamp: Date;
+  changeLog: string;
+}
+
+export interface IDocumentVersion {
+  version: number;
+  fileUrl?: string;
+  pdfData?: Buffer;
+  fields: DocumentField[];
+  documentName: string;
+  filePath: string;
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
-  status: 'draft' | 'sent' | 'signed' | 'expired';
+  status: 'draft' | 'sent' | 'signed' | 'expired' | 'final';
   changeLog: string;
+  editHistory: IEditHistory[];
+  createdAt: Date;
+  updatedAt: Date;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
+
 export interface DocumentVersionsProps {
   documentId: string;
   currentVersion: number;
@@ -215,7 +233,7 @@ export interface SavedDocument {
   documentName: string;
   originalFileName: string;
   currentVersion: number;
-  versions: DocumentVersion[];
+  versions: IDocumentVersion[];
   recipients: Recipient[];
   status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled';
   createdAt: Date;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
-import DocumentModel, { IDocumentVersion, IDocumentRecipient } from '@/models/Document';
+import DocumentModel, { IDocumentRecipient } from '@/models/Document';
+import { IDocumentVersion } from '@/types/types';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 
 export async function POST(req: NextRequest) {

@@ -1,35 +1,10 @@
 import mongoose, { Schema } from 'mongoose';
-import { DocumentField, IDocument as BaseIDocument, Recipient } from '@/types/types';
+import { DocumentField, IDocument as BaseIDocument, Recipient, IDocumentVersion, IEditHistory } from '@/types/types';
 
 // The base IDocument from @/types/types is missing properties defined in the schema below.
 // We extend it here to create a complete interface for our Document model, resolving the type error.
 export interface IDocument extends BaseIDocument {
   templateId?: mongoose.Schema.Types.ObjectId;
-}
-
-export interface IEditHistory {
-  sessionId: string;
-  fields: DocumentField[];
-  documentName?: string;
-  timestamp: Date;
-  changeLog: string;
-}
-
-export interface IDocumentVersion {
-  version: number;
-  fileUrl?: string;
-  pdfData?: Buffer;
-  fields: DocumentField[];
-  documentName: string;
-  filePath: string;
-  sentAt?: Date;
-  signingToken?: string;
-  expiresAt?: Date;
-  status: 'draft' | 'sent' | 'signed' | 'expired' | 'final';
-  changeLog: string;
-  editHistory: IEditHistory[];
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface IDocumentRecipient extends Recipient {
@@ -117,6 +92,8 @@ export const DocumentVersionSchema = new Schema<IDocumentVersion>({
   editHistory: { type: [EditHistorySchema], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  canvasWidth: { type: Number },
+  canvasHeight: { type: Number, },
 });
 
 const DocumentSchema = new Schema<IDocument>({

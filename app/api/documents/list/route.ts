@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel, { IDocumentVersion } from '@/models/Document';
+import DocumentModel from '@/models/Document';
+import { IDocumentVersion } from '@/types/types';
 import { updateDocumentStatus } from '@/lib/statusLogic';
 
 export async function GET(req: NextRequest) {

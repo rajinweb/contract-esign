@@ -1,14 +1,14 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, FileText, Send, CheckCircle, X } from 'lucide-react';
-import { DocumentVersion, DocumentVersionsProps } from '@/types/types';
+import { IDocumentVersion, DocumentVersionsProps } from '@/types/types';
 
 const DocumentVersions: React.FC<DocumentVersionsProps> = ({
   documentId,
   currentVersion,
   onVersionSelect,
 }) => {
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [versions, setVersions] = useState<IDocumentVersion[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchVersions = useCallback(async () => {

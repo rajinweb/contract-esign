@@ -108,10 +108,8 @@ export async function GET(req: NextRequest) {
 
             const page = pages[field.pageNumber - 1];
             const { width: pageWidth, height: pageHeight } = page.getSize();
-            // const DOM_HEIGHT = pageWidth * (pageHeight / pageWidth);
-            const rotation = page.getRotation().angle;
-            const isPageRotated = page.getRotation().angle;
 
+            const rotation = page.getRotation().angle;
             const scaleX = pageWidth / 890; // Assuming 890px is the original canvas width
             const scaleY = pageHeight / 1500;
 
@@ -200,7 +198,7 @@ export async function GET(req: NextRequest) {
                 y: adjustedY - 20 * Math.min(scaleX, scaleY),
                 size: 10,
                 color: rgb(0.074, 0.545, 0.262),
-                ...(isPageRotated ? { rotate: degrees(isPageRotated) } : {})
+                ...(rotation ? { rotate: degrees(rotation) } : {})
             });
 
         }
