@@ -58,7 +58,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full  px-4">
+    <div className="w-full px-4"  data-testid="login-modal">
       {/* Login Card */}
       <div className="relative max-w-[500px]  mx-auto">
         <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-6">

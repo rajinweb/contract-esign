@@ -124,6 +124,7 @@ export interface User {
 
 /* Recipients */
 export interface Recipient {
+  captureGpsLocation?: boolean;
   id: string;
   email: string;
   name: string;
@@ -309,3 +310,5 @@ export interface HandleSavePDFOptions {
   isDownload?: boolean;
   isMergeFields?: boolean;
 }
+
+export type GpsState = "idle" | "capturing" | "captured" | "error";

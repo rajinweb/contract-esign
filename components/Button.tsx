@@ -11,6 +11,7 @@ interface ButtonProps {
   className?: string;
   icon?: React.ReactNode;
   tabIndex?:number;
+  style?: React.CSSProperties;
 }
 
 export function Button({
@@ -23,6 +24,7 @@ export function Button({
   className = "",
   icon,
   tabIndex,
+  style
 }: ButtonProps) {
   const isIconOnly = !label && !!icon;
 
@@ -49,6 +51,7 @@ export function Button({
       title={title ?? label}
       aria-label={title ?? label ?? "Button"} // Accessibility support
       tabIndex={tabIndex}
+      style={style}
     >
       {icon && <span>{icon}</span>}
       {label}

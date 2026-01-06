@@ -3,6 +3,7 @@ import { LoaderPinwheel } from 'lucide-react';
 import React, { Fragment, useMemo } from 'react';
 import { Document, Page, pdfjs } from "react-pdf";
 import { initializePdfWorker } from '@/utils/pdfjsSetup';
+import { Button } from '../Button';
 
 // Initialize PDF worker once when component is imported
 initializePdfWorker(pdfjs);
@@ -80,11 +81,15 @@ const flexBoxcenter='absolute inset-0 flex items-center w-56 justify-center  tex
       {pages.map((pageNum) => (
         <Fragment key={pageNum}>
           <div className='flex justify-between w-full items-center p-2 page-brake'>
-            <small>{pageNum} of {pages.length}</small>
-            <button onClick={() => insertBlankPageAt(pageNum)} className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> + </button>
+            <small className={`${isSigningMode && 'm-auto'}`}>{pageNum} of {pages.length}</small>
+            {!isSigningMode && (
+            <>
+            <Button onClick={() => insertBlankPageAt(pageNum)} className='bg-transparent hover:text-white !p-0.5 rounded-sm text-[inherit]' label='+'/> 
             <div className='relative' onClick={(e) => toggleMenu(e, pageNum - 1)}>
-              <button className='hover:bg-blue-500 hover:text-white p-0.5 rounded-sm'> ... </button>
+              <Button className='bg-transparent hover:text-white !p-0.5 rounded-sm text-[inherit]' label="..."/> 
             </div>
+            </>
+            )}
           </div>
           <div
             data-page={pageNum}

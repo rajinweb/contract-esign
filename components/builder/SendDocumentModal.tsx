@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { X, Send, Clock, AlertCircle } from 'lucide-react';
+import { X, Send, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
 import Input from '../forms/Input';
@@ -30,6 +30,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   const [reminderDays, setReminderDays] = useState(3);
   const [expiryDays, setExpiryDays] = useState(30);
   const [hasExpiry, setHasExpiry] = useState(true);
+  const [captureGps, setCaptureGps] = useState(false);
 
   const handleSend = async () => {
     if (recipients.length === 0) {
@@ -49,6 +50,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
         sendReminders: sendReminders,
         reminderDays: sendReminders ? reminderDays : undefined,
         expiresAt: hasExpiry ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined,
+        captureGpsLocation: captureGps,
       }));
 
       const response = await fetch('/api/documents/send-for-signing', {
@@ -94,7 +96,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Send Document</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Send `&quot;`{documentName}`&ldquo;` to {recipients.length} recipient{recipients.length > 1 ? 's' : ''}
+              Send &quot;{documentName}&quot; to {recipients.length} recipient{recipients.length > 1 ? 's' : ''}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -182,7 +184,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="text-sm font-medium text-gray-900">Automatic Reminders</h3>
-                <p className="text-xs text-gray-500">Send reminders to recipients who haven`&apos;`t signed</p>
+                <p className="text-xs text-gray-500">Send reminders to recipients who haven&apos;t signed</p>
               </div>
               <label className="flex items-center">
                 <input
@@ -248,6 +250,27 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
                 <span className="text-sm text-gray-600">from now</span>
               </div>
             )}
+          </div>
+
+          {/* Security Settings */}
+          <div className="bg-gray-50 p-4 rounded-md">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Security Settings</h3>
+                <p className="text-xs text-gray-500">Enhance document security and audit trails</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">Capture signer&apos;s GPS location</span>
+              <div className="flex-grow"></div>
+              <input
+                  type="checkbox"
+                  checked={captureGps}
+                  onChange={(e) => setCaptureGps(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+            </div>
           </div>
 
           {/* Warning for incomplete document */}

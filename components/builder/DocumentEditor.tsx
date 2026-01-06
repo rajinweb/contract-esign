@@ -35,6 +35,7 @@ import toast from 'react-hot-toast';
 import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, downloadPdf} from '@/lib/pdf';
 import {uploadToServer, getFieldTypeFromComponentLabel} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
+const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 
 export interface EditorProps {
   // Prefer resourceId going forward, but keep documentId for backward compatibility
@@ -1033,7 +1034,7 @@ useEffect(() => {
   // ==========================================================
   return (
     <>
-      {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)} />}
+      {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}><LoginPage/></Modal>}
       
       {!isSigningMode &&
       <ActionToolBar

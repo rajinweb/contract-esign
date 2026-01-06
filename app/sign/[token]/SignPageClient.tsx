@@ -1,11 +1,15 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderPinwheel, Download, X, } from "lucide-react";
+import { LoaderPinwheel, Download, X, AlertCircle, Edit2Icon } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
 import { DocumentField, Recipient, ROLES } from "@/types/types";
 import { notFound } from "next/navigation";
 import Brand from "@/components/Brand";
+import Modal from "@/components/Modal";
+import Map from "@/components/Map";
+import { IDocumentRecipient } from "@/models/Document";
+import { Button } from "@/components/Button";
 
 interface SignPageClientProps {
   token: string;
@@ -48,6 +52,29 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [recipientMetrics, setRecipientMetrics] = useState<RecipientFieldMetrics>(EMPTY_METRICS);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
   const lastFieldsRef = useRef<string>('');
+
+  const [captureData, setCaptureData] = useState<Partial<IDocumentRecipient>>({});
+  const [isGpsModalOpen, setIsGpsModalOpen] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [isGpsConfirmed, setIsGpsConfirmed] = useState(false);
+
+  const getDeviceInfo = (): { type: 'mobile' | 'desktop' | 'tablet'; os: string; browser: string; userAgent: string } => {
+    const userAgent = navigator.userAgent;
+    let type: 'mobile' | 'desktop' | 'tablet' = 'desktop';
+    
+    if (/tablet|ipad|playbook|silk|(android(?!.*mobi))/i.test(userAgent)) {
+      type = 'tablet';
+    } else if (/Mobi|Android|iPhone|iPad|iPod/i.test(userAgent)) {
+      type = 'mobile';
+    }
+
+    return {
+      type,
+      os: navigator.platform,
+      browser: navigator.appCodeName,
+      userAgent: navigator.userAgent,
+    };
+  };
 
   const deriveRecipientState = useCallback(
     (fields: DocumentField[], recipient: Recipient | null | undefined) => {
@@ -95,11 +122,11 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
       console.log('Calling signedDocument API with:', { token, recipientId, action });
 
-      const response = await fetch("/api/signedDocument", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, recipientId, action }),
-      });
+    const response = await fetch("/api/signedDocument", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, recipientId, action, ...captureData }),
+    });
 
       console.log('API response status:', response.status);
       const result = await response.json();
@@ -121,7 +148,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       });
 
       if (action === 'signed' || action === 'approved' || action === 'rejected') {
-        setIsSigned(true);
+    setIsSigned(true);
         // Update current recipient status in local state
         setCurrentRecipient(prev => prev ? { ...prev, status: action } : null);
       }
@@ -132,18 +159,14 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       console.error('Error in handleSignOrApprove:', err);
       alert(`Failed to ${action} document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  }, [token]);
-
+  }, [token, captureData]);
+  
   useEffect(() => {
     const fetchPdf = async () => {
       try {
         const recipientId = new URLSearchParams(window.location.search).get("recipient");
-        setCurrentRecipientId(recipientId ?? undefined);
-        if (!recipientId) {
-            setError("Recipient not specified.");
-            setLoading(false);
-            return;
-        }
+        if (!recipientId) throw new Error("Recipient not specified");
+        setCurrentRecipientId(recipientId);
         const res = await fetch(`/api/sign-document?token=${encodeURIComponent(token)}&recipient=${recipientId}`, {
           cache: "no-store",
         });
@@ -156,7 +179,30 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         setDoc(data.document);
         const recipient = data.document.recipients.find((r) => r.id === recipientId);
 
-        if (recipient) {
+        if (recipient) {          
+          setCaptureData({ device: getDeviceInfo() });
+          if (recipient.captureGpsLocation && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                setCaptureData(prev => ({
+                  ...prev,
+                  location: {
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracyMeters: pos.coords.accuracy,
+                    capturedAt: new Date(),
+                  },
+                  consent: {
+                    locationGranted: true,
+                    grantedAt: new Date(),
+                    method: 'system_prompt',
+                  },
+                }));
+                setIsGpsModalOpen(true);
+              },
+              () => setGpsError("Location permission denied")
+            );
+          }
           const { normalizedRecipient, metrics, isSignedLike } = deriveRecipientState(
             data.document.fields,
             recipient
@@ -192,6 +238,17 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
     fetchPdf();
   }, [token, deriveRecipientState]);
+
+  const handleGpsConfirm = () => {
+    setIsGpsConfirmed(true);
+    setIsGpsModalOpen(false);
+  };
+
+  const handleGpsCancel = () => {
+    setIsGpsConfirmed(false);
+    setIsGpsModalOpen(false);
+    setGpsError("GPS confirmation is required to sign this document.");
+  };
 
   useEffect(() => {
     if (!doc || !currentRecipientId) {
@@ -246,8 +303,25 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       </div>
     );
 
+    if (gpsError)
+      return (
+        <div className="h-screen flex flex-col items-center justify-center gap-4">
+          <AlertCircle className="text-red-500" />
+          <p>{gpsError}</p>
+          <button
+            onClick={() => {
+              setGpsError(null);
+              setIsGpsConfirmed(false);
+              setIsGpsModalOpen(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            Retry Location
+          </button>
+        </div>
+      );
   if (error)
-    return (
+        return (
       <div className="flex justify-center items-center h-full text-red-500">
         {error}
       </div>
@@ -256,7 +330,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   if (!token) return <div className="text-center mt-20 text-red-500">Invalid link</div>;
 
   return (
-    <div className="flex flex-col items-center">
+    <>
         <header className="w-full bg-white px-4 py-2 flex justify-between items-center">
         <Brand/>
         Hi, {currentRecipient?.name ?? 'Unknown Recipient'}
@@ -272,7 +346,15 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           Download
         </a>
       </header>
-      <div className="w-full">
+      {/* GPS MODAL */}
+      <Modal visible={isGpsModalOpen} onClose={handleGpsCancel} handleConfirm={handleGpsConfirm} title="Confirm your location">
+          {captureData.location && (
+            <Map
+              latitude={captureData.location.latitude}
+              longitude={captureData.location.longitude}
+            />
+          )}                
+      </Modal>
         {doc && (
           <DocumentEditor
             documentId={doc.id}
@@ -299,8 +381,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
             }}
           />
         )}
-      </div>
-
+    <footer className="fixed bottom-0 w-full h-[90px]">
       {doc && currentRecipient && (() => {
         const roleDef = ROLES.find(r => r.value === currentRecipient.role);
         const Icon = roleDef?.icon;
@@ -333,54 +414,41 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
           // Not signed yet - show progress and button
           return (
-            <div className="mt-4 text-center">
-              <small className="block text-gray-600 mb-1">
-                {filledCount} of {assignedCount} fields completed
-              </small>
-              {!allRequiredFieldsFilled && (
-                <p className="text-amber-600 text-xs mt-2">
-                  {pendingRequiredCount} required field{pendingRequiredCount > 1 ? 's' : ''} remaining
-                </p>
-              )}
-              <div className="flex justify-center gap-4 mt-2">
-                <button
-                  onClick={async () => {
-                    if (!allRequiredFieldsFilled) return; // Safety check
-                    
-                    try {
-                      // Save fields first
-                      if (saveRef.current) {
-                        console.log('Saving fields...');
-                        await saveRef.current();
-                        console.log('Fields saved successfully');
-                      }
-                      
-                      // Small delay to ensure DB save completes
-                      await new Promise(resolve => setTimeout(resolve, 500));
-                      
-                      // Then mark as signed (this must come after field save)
-                      console.log('Marking as signed...');
-                      await handleSignOrApprove('signed');
-                      console.log('Signed successfully');
-                    } catch (error) {
-                      console.error('Error during signing:', error);
-                      alert('Failed to sign document. Please try again.');
+            <div className="text-xs text-center mt-2">
+            
+                {filledCount} of {assignedCount} fields completed 
+                {!allRequiredFieldsFilled && (
+                  <><span className="px-3">|</span>{pendingRequiredCount} required field {pendingRequiredCount > 1 ? 's' : ''} remaining </>
+                )}
+             
+            <div className="space-x-2 mt-2">
+              <Button
+                onClick={async () => {
+                  if (!allRequiredFieldsFilled) return; // Safety check
+                
+                  try {
+                    // Save fields first
+                    if (saveRef.current) {
+                      await saveRef.current();
                     }
-                  }}
-                  disabled={!allRequiredFieldsFilled}
-                  className="flex items-center gap-2 text-white px-4 py-2 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-                  style={{ backgroundColor: currentRecipient.color }}
-                  title={!allRequiredFieldsFilled ? 'Please fill all required fields before signing' : 'Click to sign the document'}
-                >
-                  {Icon && <Icon size={12} />}
-                  Sign Document
-                </button>
-                <button
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await handleSignOrApprove('signed');
+                  } catch (error) {
+                    console.error('Error during signing:', error);
+                    alert('Failed to sign document. Please try again.');
+                  }
+                }}
+                disabled={!allRequiredFieldsFilled}
+                className="text-white disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                style={{ backgroundColor: currentRecipient.color }}
+                title={!allRequiredFieldsFilled ? 'Please fill all required fields before signing' : 'Click to sign the document'}
+                label="Sign Document" icon={<Edit2Icon size={12} />} />                       
+                <Button
                   onClick={() => handleSignOrApprove('rejected')}
-                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-xs"
-                >
-                  <X size={12} /> Reject
-                </button>
+                  className="bg-red-600 text-white hover:bg-red-700"
+                  icon={<X size={12} />}
+                  label="Reject"
+                />
               </div>
             </div>
           );
@@ -398,20 +466,19 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           return (
             <div className="mt-4 flex flex-col items-center gap-2">
               <div className="flex gap-4">
-                <button
+                <Button
                   onClick={() => handleSignOrApprove('approved')}
-                  className="flex items-center gap-2 text-white px-4 py-2 rounded hover:opacity-80 text-xs"
+                  className="text-white hover:opacity-80"
                   style={{backgroundColor: currentRecipient.color}}
-                >
-                  {Icon && <Icon size={12} />}
-                  Approve Document
-                </button>
-                <button
+                  icon={Icon && <Icon size={12} />}
+                  label="Approve Document"
+                />
+                <Button
                     onClick={() => handleSignOrApprove('rejected')}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
-                  >
-                  <X size={12} /> Reject
-                </button>
+                    className="bg-red-600 text-white hover:bg-red-700"
+                    label="Reject"
+                    icon={<X size={12} /> }
+                  />
               </div>
             </div>
           );
@@ -419,7 +486,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
 
         return null;
       })()}
-    </div>
+      </footer>
+    </>
   );
 };
 

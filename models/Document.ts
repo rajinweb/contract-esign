@@ -19,11 +19,46 @@ export interface IDocumentRecipient extends Recipient {
   viewedAt?: Date;     // track when the document was viewed
 
   // Additional metadata
-  ipAddress?: string;  // optional IP for audit
   token?: string;      // unique token URL for signing
   color: string;      // UI color per recipient (optional)
   isCC?: boolean;      // marks CC recipients
   order: number;      // signing order (optional for viewers)
+
+  // --- Location ---
+  location?: {
+    latitude?: number;
+    longitude?: number;
+    accuracyMeters?: number;
+    city?: string;
+    state?: string;
+    country?: string;
+    capturedAt?: Date;
+  };
+
+  // --- Device info ---
+  device?: {
+    type?: 'mobile' | 'desktop' | 'tablet';
+    os?: string;
+    browser?: string;
+    userAgent?: string;
+  };
+
+  // --- Network context ---
+  network?: {
+    ip?: string;
+    isp?: string;
+    ipLocation?: {
+      city?: string;
+      country?: string;
+    };
+  };
+
+  // --- Consent (CRITICAL) ---
+  consent?: {
+    locationGranted?: boolean;
+    grantedAt?: Date;
+    method?: 'system_prompt' | 'checkbox';
+  };
 }
 
 const DocumentFieldSchema = new Schema<DocumentField>({
@@ -47,6 +82,7 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   email: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
+  captureGpsLocation: { type: Boolean, default: false }, // ✅ REQUIRED
   //order: { type: Number, required: true },
   order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },
@@ -65,10 +101,37 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   signedAt: { type: Date },
   approvedAt: { type: Date },
   rejectedAt: { type: Date },
-  ipAddress: { type: String },
   sendReminders: { type: Boolean, default: false },
   reminderDays: { type: Number },
   expiresAt: { type: Date },
+  location: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    accuracyMeters: { type: Number },
+    city: { type: String },
+    state: { type: String },
+    country: { type: String },
+    capturedAt: { type: Date },
+  },
+  device: {
+    type: { type: String, enum: ['mobile', 'desktop', 'tablet'] },
+    os: { type: String },
+    browser: { type: String },
+    userAgent: { type: String },
+  },
+  network: {
+    ip: { type: String },
+    isp: { type: String },
+    ipLocation: {
+      city: { type: String },
+      country: { type: String },
+    },
+  },
+  consent: {
+    locationGranted: { type: Boolean },
+    grantedAt: { type: Date },
+    method: { type: String, enum: ['system_prompt', 'checkbox'] },
+  },
 });
 
 const EditHistorySchema = new Schema<IEditHistory>({
