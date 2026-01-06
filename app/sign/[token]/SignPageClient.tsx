@@ -10,6 +10,7 @@ import Modal from "@/components/Modal";
 import Map from "@/components/Map";
 import { IDocumentRecipient } from "@/models/Document";
 import { Button } from "@/components/Button";
+import PermissionHintPopover from "@/components/PermissionHintPopover";
 
 interface SignPageClientProps {
   token: string;
@@ -57,6 +58,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [isGpsModalOpen, setIsGpsModalOpen] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [isGpsConfirmed, setIsGpsConfirmed] = useState(false);
+  
+  let gpsErrorSr="Location permission denied";
 
   const getDeviceInfo = (): { type: 'mobile' | 'desktop' | 'tablet'; os: string; browser: string; userAgent: string } => {
     const userAgent = navigator.userAgent;
@@ -200,7 +203,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                 }));
                 setIsGpsModalOpen(true);
               },
-              () => setGpsError("Location permission denied")
+              () => setGpsError(gpsErrorSr)
             );
           }
           const { normalizedRecipient, metrics, isSignedLike } = deriveRecipientState(
@@ -308,16 +311,16 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         <div className="h-screen flex flex-col items-center justify-center gap-4">
           <AlertCircle className="text-red-500" />
           <p>{gpsError}</p>
-          <button
-            onClick={() => {
-              setGpsError(null);
-              setIsGpsConfirmed(false);
-              setIsGpsModalOpen(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            Retry Location
-          </button>
+          <PermissionHintPopover visible={gpsError === gpsErrorSr}/>
+          {!isGpsConfirmed && gpsError !== gpsErrorSr &&
+            <Button
+              onClick={() => {
+                setGpsError(null);
+                setIsGpsConfirmed(false);
+                setIsGpsModalOpen(true);
+              }}
+              label="Retry Location"
+            />}
         </div>
       );
   if (error)
