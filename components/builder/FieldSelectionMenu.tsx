@@ -52,16 +52,16 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
 
           {showRecipientDropdown && (
             <div className="absolute top-full left-0 mt-1 min-w-48 bg-white border border-gray-200 rounded-md shadow-lg z-60 text-xs">
-              <div className="py-1">
-                <button
+               <button
                   onClick={() => handleRecipientSelect(null)}
-                  className="w-full flex items-center gap-2 px-3 py-2  hover:bg-gray-50 text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left border-b"
                 >
                   <div className="w-4 h-4 rounded-full bg-gray-400 flex items-center justify-center">
                     <User size={10} className="text-white" />
                   </div>
                   <span>Unassigned</span>
                 </button>
+              <div className="py-1 max-h-[300px] overflow-y-auto">
                 {availableRecipients.map((recipient) => {
                    const isDisabled = recipient.role === 'viewer' || recipient.role === 'approver';
                    return(

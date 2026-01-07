@@ -10,7 +10,7 @@ const Map: React.FC<MapProps> = ({ latitude, longitude }) => {
     return <p className="text-sm text-gray-500 italic">Location data is unavailable.</p>;
   }
   
-  const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=15&size=400x400&maptype=roadmap&markers=color:red%7C${latitude},${longitude}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=15&size=400x400&maptype=roadmap&markers=color:red%7C${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAP_API}`;
 
   return (
     <div className="flex flex-col items-center gap-2 p-2">

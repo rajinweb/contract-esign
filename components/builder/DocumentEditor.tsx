@@ -1092,17 +1092,17 @@ useEffect(() => {
           </>
         )
       )}
-      <div className='bg-[#efefef] flex h-[calc(100vh-127px)]'>
+      <div className='bg-[#efefef] flex h-[calc(100vh-106px)]'>
          {!isSigningMode &&
          <>
-        <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
-        <RecipientsList recipients={recipients} onAddRecipients={handleAddRecipients} />
+        <div className="bg-white border-r w-72 flex flex-col select-none">
         <Fields
           activeComponent={draggingComponent?.component ?? null}
           mouseDown={mouseDownOnField}
           selectedFile={selectedFile as File}
         
         />
+         <RecipientsList recipients={recipients} onAddRecipients={handleAddRecipients} />
         </div>
         {!selectedFile && (<UploadZone />)}
            {draggingComponent && (
@@ -1119,7 +1119,7 @@ useEffect(() => {
         </>
         }
             <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onImgUpload}  />
-            <div className={`flex relative overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
+            <div className={`flex relative overflow-auto flex-1 pb-10 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}

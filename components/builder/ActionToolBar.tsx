@@ -241,7 +241,7 @@ const menuItems = [
         onSaveAndContinue={handleSaveAndContinue}
       />
 
-    <div className="h-16 bg-white border border-gray-300 px-3 py-3 flex items-center" data-redesign="true">
+    <div className="bg-white px-3 py-2 flex items-center">
       <div className="flex flex-1 items-center">
         {/* Left main section */}
         <div className="flex flex-1 items-center min-w-0 px-1">
@@ -373,7 +373,7 @@ const menuItems = [
       </div>
     </div>
     {/***** Toolbar *****/}
-    <div className="flex items-center gap-4 px-4 py-2 bg-white border-b text-sm font-medium">
+    <div className="flex items-center gap-4 px-3 py-2 bg-white border-t border-b">
     {/* Undo / Redo */}
     <div className="flex items-center gap-2">
       <Button 

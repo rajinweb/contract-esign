@@ -40,7 +40,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
 
   return (
     <>
-      <div className="-mx-4 px-4 text-gray-800 text-xs bg-gray-50 pt-2 border-b border-t">
+      <div className="bg-gray-50 border-b p-4 pb-0 text-xs">
         Add Fields for the recipient by placing them on the document: 
       <div className="-mx-4 grid grid-cols-2 mt-4 px-4 text-center">
         <div
@@ -65,7 +65,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
         </div>
       </div>  
       </div>    
-      <div className="grid grid-cols-2 gap-3 mt-4">
+      <div className="grid grid-cols-2 gap-3 p-4">
         {fieldTypes.map((field) => (
           <div
             key={field.id}
