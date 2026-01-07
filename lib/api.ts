@@ -11,7 +11,7 @@ export const getFieldTypeFromComponentLabel = (label: string): string => {
         'email': 'text',
         'checkbox': 'checkbox',
         'stamp': 'stamp',
-        'realtime photo': 'realtime_photo',
+        'Live Photo': 'live_photo',
     };
     const lowerCaseLabel = label ? label.toLowerCase() : '';
     return mapping[lowerCaseLabel] || 'text';

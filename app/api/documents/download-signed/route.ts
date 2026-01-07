@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
 
             /* ---------------- IMAGE ---------------- */
             if (
-                ['signature', 'initials', 'image', 'stamp', 'realtime_photo'].includes(
+                ['signature', 'initials', 'image', 'stamp', 'live_photo'].includes(
                     field.type
                 )
             ) {

@@ -144,9 +144,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               assignedRecipient ? '' : 'border border-blue-500'
             }`}>
             {item.data &&
-              (item.component == "Signature" || item.component === 'Image' || item.component === 'Realtime photo') ? <ImageField image={item.data} /> :
+              (item.component == "Signature" || item.component === 'Image' || item.component === 'Live Photo') ? <ImageField image={item.data} /> :
               item.component == "Text" ? <MultilineTextField value={item.data || ''} readOnly={isFieldReadOnly} textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} readOnly={isFieldReadOnly}/> : (item.component === 'Realtime photo' ? "Click to capture " : '') + item.component.toLowerCase()
+              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} readOnly={isFieldReadOnly}/> : (item.component === 'Live Photo' ? "Click to capture " : '') + item.component.toLowerCase()
             }
             </div>
           </Rnd>

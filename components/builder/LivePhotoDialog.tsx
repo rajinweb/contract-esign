@@ -2,12 +2,12 @@
 import React, { useState, useCallback, useRef } from 'react';
 import Webcam from 'react-webcam';
 import Image from 'next/image';
-interface RealtimePhotoDialogProps {
+interface LivePhotoDialogProps {
   onClose: () => void;
   onConfirm: (image: string) => void;
 }
 
-export const RealtimePhotoDialog: React.FC<RealtimePhotoDialogProps> = ({ onClose, onConfirm }) => {
+export const LivePhotoDialog: React.FC<LivePhotoDialogProps> = ({ onClose, onConfirm }) => {
   const [image, setImage] = useState<string | null>(null);
   const webcamRef = useRef<Webcam>(null);
 

@@ -178,7 +178,7 @@ export type DocumentFieldType =
   | 'checkbox'
   | 'image'
   | 'initials'
-  | 'realtime_photo'
+  | 'live_photo'
   | 'stamp';
 /* Document Management */
 export interface DocumentField {

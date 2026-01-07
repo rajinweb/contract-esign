@@ -100,7 +100,7 @@ export async function mergeFieldsIntoPdf(
                     page.drawText(line, { x: adjustedX, y: cursorY, size: fontSize, font: helveticaFont });
                     cursorY -= lineHeight;
                 });
-            } else if (component === "Signature" || component === "Image" || component === "Realtime Photo") {
+            } else if (component === "Signature" || component === "Image" || component === "Live Photo") {
                 try {
                     const res = await fetch(data as string);
                     const imgBytes = await res.arrayBuffer();

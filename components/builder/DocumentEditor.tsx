@@ -19,7 +19,7 @@ import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
 const AddSigDialog = dynamic(() => import('@/components/builder/AddSigDialog').then(mod => mod.AddSigDialog), { ssr: false });
-import { RealtimePhotoDialog } from "@/components/builder/RealtimePhotoDialog";
+import { LivePhotoDialog } from "@/components/builder/LivePhotoDialog";
 import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
@@ -784,7 +784,7 @@ useEffect(() => {
       case "Date":
         setSelectedFieldForDialog(item);
         break;
-      case "Realtime photo":
+      case "Live Photo":
         setSelectedFieldForDialog(item);
         setPhotoDialog(true);
         break;
@@ -1173,7 +1173,7 @@ useEffect(() => {
           />
         )}
         {photoDialog && (
-          <RealtimePhotoDialog
+          <LivePhotoDialog
             onClose={() => setPhotoDialog(false)}
             onConfirm={(data: string) => {
               if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
