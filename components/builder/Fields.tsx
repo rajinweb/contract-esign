@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Image as Pic,
   Signature,
@@ -6,13 +6,13 @@ import {
   Calendar,
   BadgeCheck,
   UserCircle,
-  Mail,
-  CheckSquare,
-  CircleDot,
-  Paperclip,
-  ChevronDown,
+  // Mail,
+  // CheckSquare,
+  // CircleDot,
+  // Paperclip,
+  // ChevronDown,
+  // FunctionSquare,
   Stamp,
-  FunctionSquare,
   Camera,
 } from 'lucide-react';
 
@@ -25,39 +25,66 @@ const fieldTypes = [
   { id: 'Date', icon: <Calendar size={18} />, label: 'Date' },
   { id: 'BadgeCheck', icon: <BadgeCheck size={18} />, label: 'Initials' },
   { id: 'UserCircle',  icon: <UserCircle size={18} />, label: 'Full Name' },
-  { id: 'Mail', icon: <Mail size={18} />, label: 'Email' },
-  { id: 'CheckSquare', icon: <CheckSquare size={18} />, label: 'Checkbox' },
-  { id: 'CircleDot', icon: <CircleDot size={18} />, label: 'Radio Buttons' },
-  { id: 'Paperclip', icon: <Paperclip size={18} />, label: 'Attachment' },
-  { id: 'ChevronDown', icon: <ChevronDown size={18} />, label: 'Dropdown' },
   { id: 'Stamp', icon: <Stamp size={18} />, label: 'Stamp' },
-  { id: 'FunctionSquare', icon: <FunctionSquare size={18} />, label: 'Formula' },
   { id: 'realtime-photo', icon: <Camera size={18} />, label: 'Realtime Photo' },
+  // { id: 'Mail', icon: <Mail size={18} />, label: 'Email' },
+  // { id: 'CheckSquare', icon: <CheckSquare size={18} />, label: 'Checkbox' },
+  // { id: 'CircleDot', icon: <CircleDot size={18} />, label: 'Radio Buttons' },
+  // { id: 'Paperclip', icon: <Paperclip size={18} />, label: 'Attachment' },
+  // { id: 'ChevronDown', icon: <ChevronDown size={18} />, label: 'Dropdown' },
+  // { id: 'FunctionSquare', icon: <FunctionSquare size={18} />, label: 'Formula' },
 ];
 
 export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
- 
+  const [activeTab, setActiveTab] = useState('recipients');
+
   return (
     <>
-        <p className="text-xs text-gray-800 uppercase my-4">Add Fields for the recipient by placing them on the document: </p>
-        <div className="flex space-x-4 mt-2 text-sm font-semibold border-b border-gray-200 -mx-4 px-4">
-          <div className="text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer">Default</div>
-          <div className="text-gray-500 cursor-pointer">Custom</div>
+      <div className="-mx-4 px-4 text-gray-800 text-xs bg-gray-50 pt-2 border-b border-t">
+        Add Fields for the recipient by placing them on the document: 
+      <div className="-mx-4 grid grid-cols-2 mt-4 px-4 text-center">
+        <div
+          className={`pb-1 cursor-pointer ${
+            activeTab === 'recipients'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500'
+          }`}
+          onClick={() => setActiveTab('recipients')}
+        >
+          Recipients
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {fieldTypes.map((field) => (
-            <div
-              key={field.id}
-              className={`flex items-center justify-start p-2 bg-blue-50 rounded hover:bg-blue-100 transition text-sm ${
-                activeComponent == field.label && 'hover:bg-blue-200 bg-blue-300'
-              }`}
-              onMouseDown={(event) => mouseDown(field.label, event)}
-            >
-              {field.icon}
-              <span className="ml-2">{field.label}</span>
-            </div>
-          ))}
+        <div
+          className={`pb-1 cursor-pointer ${
+            activeTab === 'me'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500'
+          }`}
+          onClick={() => setActiveTab('me')}
+        >
+          Me (Fill out now)
         </div>
+      </div>  
+      </div>    
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        {fieldTypes.map((field) => (
+          <div
+            key={field.id}
+            className={`flex items-center justify-start p-2 rounded transition text-sm ${
+              activeComponent === field.label
+                ? activeTab === 'me'
+                  ? 'bg-gray-300 hover:bg-gray-200'
+                  : 'bg-blue-300 hover:bg-blue-200'
+                : activeTab === 'me'
+                ? 'bg-gray-100 hover:bg-gray-200'
+                : 'bg-blue-50 hover:bg-blue-100'
+            }`}
+            onMouseDown={(event) => mouseDown(field.label, event, activeTab)}
+          >
+            {field.icon}
+            <span className="ml-2">{field.label}</span>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

@@ -1092,7 +1092,7 @@ useEffect(() => {
           </>
         )
       )}
-      <div className='bg-[#efefef] flex h-[calc(100vh-137px)]'>
+      <div className='bg-[#efefef] flex h-[calc(100vh-127px)]'>
          {!isSigningMode &&
          <>
         <div className="w-72 p-4 border-r border-gray-200 bg-white select-none">
@@ -1119,7 +1119,7 @@ useEffect(() => {
         </>
         }
             <input type="file" ref={imageRef} id="image" className="hidden"  accept="image/png, image/jpeg, image/jpg" onChange={onImgUpload}  />
-            <div className={`flex relative my-1 overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
+            <div className={`flex relative overflow-auto flex-1 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone" >
             <div style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}  onClick={clickOnDropArea}
               onMouseMove={mouseMoveOnDropArea}
               onMouseLeave={mouseLeaveOnDropArea}

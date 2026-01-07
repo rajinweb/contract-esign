@@ -85,7 +85,7 @@ export interface InputProps {
 
 
 export interface FieldsProps {
-  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>) => void;
+  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, tab: string) => void;
   activeComponent: string | null;
   handleSave?: () => void;
   handleSend?: () => void;
@@ -113,6 +113,7 @@ export interface DroppedComponent extends DroppingField {
   required?: boolean;
   placeholder?: string;
   pageRect?: DOMRect | null;
+  tab?: string;
 }
 export interface User {
   email: string;
