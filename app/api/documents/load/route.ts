@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
-import { updateDocumentStatus } from '@/lib/statusLogic';
+
 
 // GET - Load a document with its fields and recipients
 export async function GET(req: NextRequest) {

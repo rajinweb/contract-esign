@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import {
   Image as Pic,
   Signature,
@@ -16,7 +16,7 @@ import {
   Camera,
 } from 'lucide-react';
 
-import {FieldsProps} from '@/types/types';
+import {DroppingField, FieldsProps} from '@/types/types';
 
 const fieldTypes = [
   { id: 'signature', icon: <Signature size={18} />, label: 'Signature' },
@@ -35,9 +35,27 @@ const fieldTypes = [
   // { id: 'FunctionSquare', icon: <FunctionSquare size={18} />, label: 'Formula' },
 ];
 
-export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
+export default function Fields({ activeComponent, mouseDown, setActiveComponent }: FieldsProps & {
+  activeComponent: DroppingField | null;
+  setActiveComponent: Dispatch<SetStateAction<DroppingField | null>>;
+}) {
   const [activeTab, setActiveTab] = useState('recipients');
 
+  const handleTabChange = (tab: string) => {
+    setActiveComponent(null);
+    setActiveTab(tab);
+  }
+  
+  useEffect(() => {
+    if(activeComponent?.fieldOwner){
+      if (activeComponent?.fieldOwner === 'me') {
+        setActiveTab('me');
+      } else {
+        setActiveTab('recipients');
+      }
+    }
+  }, [activeComponent?.component, setActiveTab]);
+  
   return (
     <>
       <div className="bg-gray-50 border-b p-4 pb-0 text-xs">
@@ -49,7 +67,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500'
           }`}
-          onClick={() => setActiveTab('recipients')}
+          onClick={() => handleTabChange('recipients')}
         >
           Recipients
         </div>
@@ -59,7 +77,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500'
           }`}
-          onClick={() => setActiveTab('me')}
+          onClick={() => handleTabChange('me')}
         >
           Me (Fill out now)
         </div>
@@ -70,7 +88,7 @@ export default function Fields({ activeComponent, mouseDown }: FieldsProps) {
           <div
             key={field.id}
             className={`flex items-center justify-start p-2 rounded transition text-sm ${
-              activeComponent === field.label
+              activeComponent?.component === field.label
                 ? activeTab === 'me'
                   ? 'bg-gray-300 hover:bg-gray-200'
                   : 'bg-blue-300 hover:bg-blue-200'

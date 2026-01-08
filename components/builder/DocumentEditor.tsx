@@ -164,7 +164,8 @@ const DocumentEditor: React.FC<EditorProps> = ({
         assignedRecipientId: field.recipientId,
         required: field.required !== false,
         placeholder: field.placeholder,
-        pageRect:field.pageRect
+        pageRect:field.pageRect,
+        fieldOwner:field.fieldOwner
       } as DroppedComponent));
     }
     return internalDroppedComponents;
@@ -173,7 +174,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const setDroppedComponents = useCallback((updater: React.SetStateAction<DroppedComponent[]>) => {
     if (isSigningMode && onFieldsChange) {
       const newFields = typeof updater === 'function' ? updater(droppedComponents) : updater;
-      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType, pageRect: comp.pageRect })));
+      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType, pageRect: comp.pageRect, fieldOwner:comp.fieldOwner })));
     } else {
       setInternalDroppedComponents(updater);
     }
@@ -237,6 +238,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
           assignedRecipientId: field.recipientId,
           required: field.required !== false,
           placeholder: field.placeholder,
+          fieldOwner:field.fieldOwner
         }));
   
         // Restore draft if exists
@@ -254,6 +256,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
               assignedRecipientId: field.recipientId,
               required: field.required !== false,
               placeholder: field.placeholder,
+              fieldOwner:field.fieldOwner
             }))
           : [];
   
@@ -318,6 +321,7 @@ useEffect(() => {
         required: c.required,
         value: c.data,
         placeholder: c.placeholder,
+        fieldOwner: c.fieldOwner,
       })),
       recipients,
       documentName,
@@ -390,9 +394,9 @@ useEffect(() => {
     document.body.classList.add('dragging-no-select');
   };
 
-  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>) => {
+  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>, fieldOwner:string) => {
     const xy = { x: e.clientX, y: e.clientY };
-    setDraggingComponent({ ...draggingComponent, component, ...xy });
+    setDraggingComponent({ ...draggingComponent, component, ...xy, fieldOwner});
     setPosition(xy);
     handleDragStart();
   };  
@@ -437,7 +441,8 @@ useEffect(() => {
       width: 100,
       height: 50,
       pageNumber: targetPageNumber,
-      pageRect: pageRect
+      pageRect: pageRect,
+      fieldOwner:draggingComponent.fieldOwner
     };
 
     setDroppedComponents((prev) => {
@@ -761,15 +766,17 @@ useEffect(() => {
 
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
+    // Set the currently selected component
+    setDraggingComponent(item);
 
+    if(!isSigningMode && item.fieldOwner == 'recipients'){
+      return
+    }
     if (isDragging) {
       setIsDragging(false);
       return; // ignore click while dragging
     }
-
-    // Set the currently selected component
-    setDraggingComponent(item);
-
+    
     // Handle component-specific actions
     switch (item.component) {
       case "Signature":
@@ -1097,7 +1104,8 @@ useEffect(() => {
          <>
         <div className="bg-white border-r w-72 flex flex-col select-none">
         <Fields
-          activeComponent={draggingComponent?.component ?? null}
+          activeComponent={draggingComponent}
+          setActiveComponent={setDraggingComponent}
           mouseDown={mouseDownOnField}
           selectedFile={selectedFile as File}
         

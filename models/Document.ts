@@ -75,6 +75,7 @@ const DocumentFieldSchema = new Schema<DocumentField>({
   placeholder: { type: String },
   mimeType: { type: String },
   pageRect: { type: Schema.Types.Mixed },
+  fieldOwner: { type: String, default: 'recipient' },
 });
 
 const DocumentRecipientSchema = new Schema<IDocumentRecipient>({

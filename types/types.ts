@@ -85,12 +85,11 @@ export interface InputProps {
 
 
 export interface FieldsProps {
-  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, tab: string) => void;
-  activeComponent: string | null;
+  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: string) => void;
+  activeComponent: DroppingField | null;
   handleSave?: () => void;
   handleSend?: () => void;
   selectedFile: File | null;
-
 }
 
 // Define types for the dropped components
@@ -98,6 +97,7 @@ export interface DroppingField {
   component: string;
   x: number;
   y: number;
+  fieldOwner?: string,
 }
 export interface DroppedComponent extends DroppingField {
   id: number;
@@ -113,7 +113,6 @@ export interface DroppedComponent extends DroppingField {
   required?: boolean;
   placeholder?: string;
   pageRect?: DOMRect | null;
-  tab?: string;
 }
 export interface User {
   email: string;
@@ -195,6 +194,7 @@ export interface DocumentField {
   placeholder?: string;
   mimeType?: string;
   pageRect?: DOMRect | null;
+  fieldOwner?: string;
 }
 
 // Document Version & History

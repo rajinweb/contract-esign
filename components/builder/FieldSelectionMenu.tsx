@@ -32,7 +32,8 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
   const commonClasses='shadow-lg bg-white border-gray-300 hover:bg-gray-50 border rounded-md p-2';
   return (
     <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2">
-     
+     {field.fieldOwner!=="me" &&(
+      <>
         {/* Recipient Selector */}      
           <button
             onClick={(e) =>{
@@ -61,6 +62,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
                   </div>
                   <span>Unassigned</span>
                 </button>
+              {availableRecipients.length > 0 && (
               <div className="py-1 max-h-[300px] overflow-y-auto">
                 {availableRecipients.map((recipient) => {
                    const isDisabled = recipient.role === 'viewer' || recipient.role === 'approver';
@@ -85,15 +87,15 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
                   </button>
                 )}
                 )}
-                
-              </div>
+              </div>)}
               <button className='flex items-center gap-1 p-2 w-full border-t justify-center hover:text-blue-500' title="Add Recipient" onClick={(e)=>{
                 e.stopPropagation();
                 onAddRecipients();
               }}><UserRoundPlus size={14} /><span>Recipient</span></button>
             </div>
           )}
-      
+        </>
+    )}
 
         {/* Duplicate Button */}
         <button

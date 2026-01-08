@@ -79,6 +79,7 @@ export const uploadToServer = async (
             placeholder: comp.placeholder,
             mimeType: comp.mimeType,
             pageRect: comp.pageRect,
+            fieldOwner: comp.fieldOwner
         };
     });
 
@@ -99,6 +100,7 @@ export const uploadToServer = async (
         data: serverField.value,
         placeholder: serverField.placeholder,
         pageRect: serverField.pageRect,
+        fieldOwner: serverField.fieldOwner
     }));
 
     clientFieldsMapped.forEach(clientField => {
@@ -116,6 +118,7 @@ export const uploadToServer = async (
             data: clientField.value,
             placeholder: clientField.placeholder,
             pageRect: clientField.pageRect,
+            fieldOwner: clientField.fieldOwner
         };
 
         if (index !== -1) {
@@ -152,6 +155,7 @@ export const uploadToServer = async (
         placeholder: comp.placeholder,
         mimeType: comp.mimeType,
         pageRect: comp.pageRect,
+        fieldOwner: comp.fieldOwner
     }));
 
     // Merge recipients: start with server recipients, update with client changes

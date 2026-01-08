@@ -53,7 +53,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   isSigned,
   currentRecipientId
 }) => {
-  const rndFields=useRef<Rnd>(null);
+  //const rndFields=useRef<Rnd>(null);
   const getAssignedRecipient = (recipientId?: string) => {
     return recipients?.find(r => r.id === recipientId);
   };
@@ -61,15 +61,16 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   const handleFieldClick = (e: MouseEvent, field: DroppedComponent) => {
     e.stopPropagation();
     setSelectedFieldId(field.id === selectedFieldId ? null : field.id);
-     if(isSigningMode){ onClickField(e, field)}
+     onClickField(e, field)
   };
+  /*
   useEffect(()=>{
   if(!isSigningMode){
    const el = rndFields?.current?.resizableElement.current;
    if (el) { el.click() } // trigger new field dropped on pdf
    }
   }, [droppedComponents, isSigningMode])
-  
+  */
   const cornersCSS='bg-blue-500 !w-3 !h-3 rounded-full '
   const assignedLabel='after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
   return (
@@ -85,7 +86,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             key={item.id}
             scale={zoom}
             bounds="parent"
-            ref={rndFields}
+           // ref={rndFields}
             className={`absolute cursor-pointer min-w-[150px] min-h-[50px] text-center text-sm ${
               assignedRecipient  ? 'border-2 '  : 'bg-[#1ca4ff33]'
             } ${isSelected ? 'bg-[#1ca4ff66]' : ''}            
