@@ -154,7 +154,10 @@ const DocumentEditor: React.FC<EditorProps> = ({
     if (isSigningMode && initialFields) {
       return initialFields.map((field: DocumentField) => ({
         id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-        component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_',' '),
+        component: (String(field.type || ''))
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' '),
         x: field.x,
         y: field.y,
         width: field.width,
@@ -228,7 +231,10 @@ const DocumentEditor: React.FC<EditorProps> = ({
         // Server fields
         const serverFields: DroppedComponent[] = (doc?.fields || []).map((field:DocumentField) => ({
           id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-          component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
+          component: (String(field.type || ''))
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' '),
           x: field.x,
           y: field.y,
           width: field.width,
@@ -246,7 +252,10 @@ const DocumentEditor: React.FC<EditorProps> = ({
         const draftFields: DroppedComponent[] = rawDraft
           ? JSON.parse(rawDraft).fields.map((field:DocumentField) => ({
               id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-              component: (String(field.type || '')).charAt(0).toUpperCase() + String(field.type || '').slice(1).replace('_', ' '),
+              component: (String(field.type || ''))
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' '),
               x: field.x,
               y: field.y,
               width: field.width,
