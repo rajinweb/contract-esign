@@ -10,7 +10,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType } from '@/types/types';
+import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 
@@ -78,7 +78,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
   // ========= Context =========
-  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user } = useContextStore();
 
   // ========= PDF State =========
   const [pdfDoc, setPdfDoc] = useState<PDFDocument | null>(null);
@@ -403,9 +403,24 @@ useEffect(() => {
     document.body.classList.add('dragging-no-select');
   };
 
-  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>, fieldOwner:string) => {
+  const mouseDownOnField = (component: string, e: MouseEvent<HTMLDivElement>, fieldOwner:FieldOwner) => {
     const xy = { x: e.clientX, y: e.clientY };
-    setDraggingComponent({ ...draggingComponent, component, ...xy, fieldOwner});
+    let data: string | undefined = undefined;
+    if(fieldOwner === 'me') {
+      if(component === 'Full Name') {
+        data = user?.name;
+      }
+      if(component === 'Email') {
+        data = user?.email;
+      }
+      if(component === 'Initials') {
+        data = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase();
+      }
+      if(component === 'Date') {
+        data = new Date().toISOString().split('T')[0];
+      }
+    }
+    setDraggingComponent({ ...draggingComponent, component, ...xy, fieldOwner, data});
     setPosition(xy);
     handleDragStart();
   };  
@@ -451,7 +466,8 @@ useEffect(() => {
       height: 50,
       pageNumber: targetPageNumber,
       pageRect: pageRect,
-      fieldOwner:draggingComponent.fieldOwner
+      fieldOwner:draggingComponent.fieldOwner,
+      data: draggingComponent.data
     };
 
     setDroppedComponents((prev) => {
@@ -513,7 +529,12 @@ useEffect(() => {
       const newComponents = prevComponents.map((c) => {
         if (c.id === fieldId) {
           previousRecipientId = c.assignedRecipientId;
-          return { ...c, assignedRecipientId: recipientId };
+          const recipient = recipients.find(r => r.id === recipientId);
+          let data = c.data;
+          if (c.component === 'Email' && recipient) {
+            data = recipient.email;
+          }
+          return { ...c, assignedRecipientId: recipientId, data };
         }
         return c;
       });
@@ -550,7 +571,7 @@ useEffect(() => {
       // Preserve data of existing fields when a new field is assigned to a signed recipient
       const finalComponents = newComponents.map(c => {
         const recipient = recipients.find(r => r.id === c.assignedRecipientId);
-        if (recipient && recipient.status === 'signed') {
+        if (recipient && (recipient.status === 'signed' || recipient.status === 'approved')) {
           const prevComponent = prevComponents.find(pc => pc.id === c.id);
           if (prevComponent && prevComponent.data) {
             return { ...c, data: prevComponent.data };

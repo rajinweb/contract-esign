@@ -57,6 +57,7 @@ export const ROLES = [
   { value: 'viewer', label: 'Viewer', icon: Eye, description: 'Can only view the document', color: '#6B7280', isNew: false },
 ] as const;
 
+export type FieldOwner = "me" | "recipients" ;
 export interface ContextValue {
   selectedFile: Doc | File | string | null;
   setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null>>;
@@ -85,7 +86,7 @@ export interface InputProps {
 
 
 export interface FieldsProps {
-  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: string) => void;
+  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: FieldOwner) => void;
   activeComponent: DroppingField | null;
   handleSave?: () => void;
   handleSend?: () => void;
@@ -97,7 +98,8 @@ export interface DroppingField {
   component: string;
   x: number;
   y: number;
-  fieldOwner?: string,
+  fieldOwner?: FieldOwner,
+  data?: string | null;
 }
 export interface DroppedComponent extends DroppingField {
   id: number;
@@ -194,7 +196,7 @@ export interface DocumentField {
   placeholder?: string;
   mimeType?: string;
   pageRect?: DOMRect | null;
-  fieldOwner?: string;
+  fieldOwner?: FieldOwner;
 }
 
 // Document Version & History
