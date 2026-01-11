@@ -57,6 +57,7 @@ export const ROLES = [
   { value: 'viewer', label: 'Viewer', icon: Eye, description: 'Can only view the document', color: '#6B7280', isNew: false },
 ] as const;
 
+export type FieldOwner = "me" | "recipients";
 export interface ContextValue {
   selectedFile: Doc | File | string | null;
   setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null>>;
@@ -85,7 +86,7 @@ export interface InputProps {
 
 
 export interface FieldsProps {
-  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: string) => void;
+  mouseDown: (lable: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: FieldOwner) => void;
   activeComponent: DroppingField | null;
   handleSave?: () => void;
   handleSend?: () => void;
@@ -97,7 +98,8 @@ export interface DroppingField {
   component: string;
   x: number;
   y: number;
-  fieldOwner?: string,
+  fieldOwner?: FieldOwner,
+  data?: string | null;
 }
 export interface DroppedComponent extends DroppingField {
   id: number;
@@ -113,6 +115,7 @@ export interface DroppedComponent extends DroppingField {
   required?: boolean;
   placeholder?: string;
   pageRect?: DOMRect | null;
+  hasError?: boolean;
 }
 export interface User {
   email: string;
@@ -194,7 +197,7 @@ export interface DocumentField {
   placeholder?: string;
   mimeType?: string;
   pageRect?: DOMRect | null;
-  fieldOwner?: string;
+  fieldOwner?: FieldOwner;
 }
 
 // Document Version & History
@@ -313,3 +316,9 @@ export interface HandleSavePDFOptions {
 }
 
 export type GpsState = "idle" | "capturing" | "captured" | "error";
+export interface InitialItem {
+  id: string; // unique id to identify
+  value: string; // either text initials or dataURL for image
+  type: "typed" | "drawn"; // how it was created
+  isDefault: boolean;
+}

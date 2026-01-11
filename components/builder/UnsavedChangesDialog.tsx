@@ -1,6 +1,5 @@
 'use client';
-import React from 'react';
-import { Dialog } from '../Dialog'; // Assuming Dialog component is in ../Dialog
+import Modal from '../Modal';
 
 interface UnsavedChangesDialogProps {
   isVisible: boolean;
@@ -14,15 +13,16 @@ export function UnsavedChangesDialog({
   onSaveAndContinue,
 }: UnsavedChangesDialogProps) {
   return (
-    <Dialog
-      isVisible={isVisible}
+    <Modal
+      visible={isVisible}
       title="Unsaved Changes"
-      onCancel={onCancel}
-      onConfirm={onSaveAndContinue}
-      confirmTitle="Save & Continue"
+      onClose={onCancel}
+      handleCancel={onCancel}
+      handleConfirm={onSaveAndContinue}
+      ConfirmLabel="Save & Continue"
     >
       <p>You have unsaved changes.</p>
       <p>Please save your changes before sending the document to recipient(s).</p>
-    </Dialog>
+    </Modal>
   );
 }

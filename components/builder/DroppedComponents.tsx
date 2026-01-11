@@ -1,11 +1,14 @@
 "use client";
-import React, { MouseEvent, useEffect, useRef } from 'react';
+import React, { MouseEvent, useMemo, useCallback, useEffect } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
 import { DroppedComponent, Recipient } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
 import DateField from './DateField';
 import ImageField from './ImageField';
+import Input from '../forms/Input';
 import FieldSelectionMenu from './FieldSelectionMenu';
+import Initials from './Initials';
+import { validateEmail } from '@/utils/utils';
 
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
@@ -53,44 +56,129 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   isSigned,
   currentRecipientId
 }) => {
-  //const rndFields=useRef<Rnd>(null);
-  const getAssignedRecipient = (recipientId?: string) => {
-    return recipients?.find(r => r.id === recipientId);
-  };
+  /* ---------------------------------- */
+  /* Recipient lookup  */
+  /* ---------------------------------- */
+  const recipientMap = useMemo(() => {
+    const map = new Map<string, Recipient>();
+    recipients.forEach(r => map.set(r.id, r));
+    return map;
+  }, [recipients]);
 
-  const handleFieldClick = (e: MouseEvent, field: DroppedComponent) => {
-    e.stopPropagation();
-    setSelectedFieldId(field.id === selectedFieldId ? null : field.id);
-     onClickField(e, field)
-  };
-  /*
-  useEffect(()=>{
-  if(!isSigningMode){
-   const el = rndFields?.current?.resizableElement.current;
-   if (el) { el.click() } // trigger new field dropped on pdf
-   }
-  }, [droppedComponents, isSigningMode])
-  */
-  const cornersCSS='bg-blue-500 !w-3 !h-3 rounded-full '
-  const assignedLabel='after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
+  /* ---------------------------------- */
+  /* Resize handles                     */
+  /* ---------------------------------- */
+  const cornersCSS = 'bg-blue-500 !w-3 !h-3 rounded-full';
+  const resizeHandleClasses = useMemo(
+    () => ({
+      bottomLeft: cornersCSS,
+      bottomRight: cornersCSS,
+      topLeft: cornersCSS,
+      topRight: cornersCSS,
+    }),
+    []
+  );
+
+  const assignedLabel =
+    'after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
+
+  /* ---------------------------------- */
+  /* Field renderer                     */
+  /* ---------------------------------- */
+  const renderField = useCallback(
+    (item: DroppedComponent, isFieldReadOnly: boolean) => {
+      const value = item.data || '';
+
+      switch (item.component) {
+        case 'Signature':
+        case 'Image':
+        case 'Live Photo':
+          return item.data ? (
+            <ImageField image={item.data} />
+          ) : item.component === 'Live Photo' ? (
+            'Click to capture Live Photo'
+          ) : (
+            item.component.toLowerCase()
+          );
+
+        case 'Text':
+        case 'Full Name':
+          return (
+            <MultilineTextField
+              value={value}
+              readOnly={isFieldReadOnly}
+              textInput={(text) => updateField(text, item.id)}
+              ref={(el) => {
+                textFieldRefs.current[item.id] = el;
+              }}
+            />
+          );
+      case 'Initials':
+        return(          
+          <Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : 'Your initials'} width={item.width} height={item.height} />
+        )
+        case 'Email':
+          return (
+            <Input
+              value={value}
+              readOnly={isFieldReadOnly}
+              onChange={(e) => updateField(e.target.value, item.id)}
+              className="text-xs text-center w-full h-full"
+              placeholder={
+                item.fieldOwner === 'recipients'
+                  ? 'Type an email address or select recipient'
+                  : ''
+              }
+            />
+          );
+
+        case 'Date':
+          return (
+            <DateField
+              textInput={(date) => updateField(date, item.id)}
+              defaultDate={item.data ?? null}
+              readOnly={isFieldReadOnly}
+            />
+          );
+
+        default:
+          return item.component.toLowerCase();
+      }
+    },
+    [updateField, textFieldRefs]
+  );
+  /* ---------------------------------- */
+  /* Render                             */
+  /* ---------------------------------- */
   return (
     <>
       {droppedComponents.map((item) => {
-        const assignedRecipient = getAssignedRecipient(item.assignedRecipientId || undefined);
+        const assignedRecipient = item.assignedRecipientId ? recipientMap.get(item.assignedRecipientId) : undefined;
         const isSelected = selectedFieldId === item.id;
         const isCurrentUserField = isSigningMode ? item.assignedRecipientId === currentRecipientId : true;
-        const isFieldReadOnly = (isSigningMode && (!isCurrentUserField || isSigned));
-        
+        const isFieldReadOnlyInSigning = isSigningMode && (!isCurrentUserField || isSigned);
+        const isReadOnlyMeField = item.fieldOwner === 'me' && [''].includes(item.component);
+        const isFieldReadOnly = isFieldReadOnlyInSigning || isReadOnlyMeField;
+        const handleClick = (e: React.MouseEvent) => {
+          if (!isCurrentUserField || isFieldReadOnly) return;
+          e.stopPropagation();
+          setSelectedFieldId(isSelected ? null : item.id);
+          onClickField(e, item);
+        };
+       
+        let checkEmail = false;
+        if (item.data && item.component === 'Email') {
+          checkEmail = !validateEmail(item.data);
+        }
         return (
           <Rnd
             key={item.id}
             scale={zoom}
             bounds="parent"
-           // ref={rndFields}
-            className={`absolute cursor-pointer min-w-[150px] min-h-[50px] text-center text-sm ${
-              assignedRecipient  ? 'border-2 '  : 'bg-[#1ca4ff33]'
-            } ${isSelected ? 'bg-[#1ca4ff66]' : ''}            
-            ${ assignedRecipient && assignedLabel}
+            className={`absolute cursor-pointer min-w-[150px] min-h-[50px] text-center text-sm
+              ${assignedRecipient ? 'border-2' : 'bg-[#1ca4ff33]'}
+              ${isSelected ? 'bg-[#1ca4ff66]' : ''}
+            ${assignedRecipient ? assignedLabel : ''}
             ${!isCurrentUserField ? 'opacity-50' : ''}
             `}
             style={{
@@ -98,6 +186,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               ...(assignedRecipient && {
                 backgroundColor: `${assignedRecipient.color}33`,
                 borderColor: assignedRecipient.color,
+              }),
+              ...((item.hasError || !item.data || checkEmail) && {
+                backgroundColor: `#ff000033`,            
+                border: '1px solid red',
               }),
             }}
             position={{ x: item.x, y: item.y }}
@@ -121,13 +213,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 })
               }
             )}
-            onClick={(e: React.MouseEvent) => {
-              if (isCurrentUserField && !isFieldReadOnly) {
-                handleFieldClick(e as unknown as MouseEvent, item);
-              }
-            }}
-            disableDragging={isSigningMode}  
-            enableResizing={!isSigningMode}  
+            onClick={handleClick}
+            disableDragging={isSigningMode}
+            enableResizing={!isSigningMode}
             data-name={assignedRecipient?.name}
           >
             {/* Field Selection Menu */}
@@ -144,11 +232,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             <div className={`flex items-center justify-center h-full w-full p-1 ${
               assignedRecipient ? '' : 'border border-blue-500'
             }`}>
-            {item.data &&
-              (item.component == "Signature" || item.component === 'Image' || item.component === 'Live Photo') ? <ImageField image={item.data} /> :
-              item.component == "Text" ? <MultilineTextField value={item.data || ''} readOnly={isFieldReadOnly} textInput={(text) => updateField(text, item.id)} ref={(el) => { textFieldRefs.current[item.id] = el; }} /> :
-              item.component == "Date" ? <DateField textInput={(value) => updateField(value, item.id)} defaultDate={item.data ?? null} readOnly={isFieldReadOnly}/> : (item.component === 'Live Photo' ? "Click to capture " : '') + item.component.toLowerCase()
-            }
+              {renderField(item, isFieldReadOnly)}
             </div>
           </Rnd>
         );
