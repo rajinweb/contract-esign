@@ -1,6 +1,7 @@
 'use client';
 import React from "react";
 
+type ButtonType = 'button' | 'submit' | 'reset';
 interface ButtonProps {
   title?: string;
   label?: string; // Optional now
@@ -12,6 +13,7 @@ interface ButtonProps {
   icon?: React.ReactNode;
   tabIndex?:number;
   style?: React.CSSProperties;
+  type?: ButtonType;
 }
 
 export function Button({
@@ -24,7 +26,8 @@ export function Button({
   className = "",
   icon,
   tabIndex,
-  style
+  style,
+  type
 }: ButtonProps) {
   const isIconOnly = !label && !!icon;
 
@@ -44,12 +47,12 @@ export function Button({
   return (
     <button
       id={id}
-      // type="button" todo: consider if needed
+      {...(type && { type })} 
       className={`${baseClasses} ${variantClass} ${cursorClass} ${iconOnlyClass} ${className}  ${label ? "gap-2" : ""}`}
       disabled={disabled}
       onClick={onClick}
       title={title ?? label}
-      aria-label={title ?? label ?? "Button"} // Accessibility support
+      aria-label={title ?? label ?? "Button"} 
       tabIndex={tabIndex}
       style={style}
     >

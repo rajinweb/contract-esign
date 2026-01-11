@@ -4,8 +4,6 @@ import {
   Signature,
   Type,
   Calendar,
-  BadgeCheck,
-  UserCircle,
   Mail,
   // CheckSquare,
   // CircleDot,
@@ -14,6 +12,8 @@ import {
   // FunctionSquare,
   Stamp,
   Camera,
+  CaseUpper,
+  User,
 } from 'lucide-react';
 
 import {DroppingField, FieldOwner, FieldsProps} from '@/types/types';
@@ -23,8 +23,8 @@ const fieldTypes = [
   { id: 'image', icon: <Pic size={18} />, label: 'Image' },
   { id: 'text', icon: <Type size={18} />, label: 'Text' },
   { id: 'date', icon: <Calendar size={18} />, label: 'Date' },
-  { id: 'badgeCheck', icon: <BadgeCheck size={18} />, label: 'Initials' },
-  { id: 'userCircle',  icon: <UserCircle size={18} />, label: 'Full Name' },
+  { id: 'caseUpper', icon: <CaseUpper size={18} />, label: 'Initials' },
+  { id: 'user', icon: <User size={18} />, label: 'Full Name' },
   { id: 'stamp', icon: <Stamp size={18} />, label: 'Stamp' },
   { id: 'live-photo', icon: <Camera size={18} />, label: 'Live Photo' },
   { id: 'Mail', icon: <Mail size={18} />, label: 'Email' },
@@ -110,7 +110,7 @@ export default function Fields({ activeComponent, mouseDown, setActiveComponent 
             onMouseDown={(event) => mouseDown(field.label, event, activeTab)}
           >
             {field.icon}
-            <span className="ml-2">{field.label}</span>
+            <span className="ml-2">{ activeTab === 'me' &&  field.label == "Initials"   ? `My ${field.label}` : field.label }</span>
           </div>
         );
         })}

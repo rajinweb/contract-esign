@@ -57,7 +57,7 @@ export const ROLES = [
   { value: 'viewer', label: 'Viewer', icon: Eye, description: 'Can only view the document', color: '#6B7280', isNew: false },
 ] as const;
 
-export type FieldOwner = "me" | "recipients" ;
+export type FieldOwner = "me" | "recipients";
 export interface ContextValue {
   selectedFile: Doc | File | string | null;
   setSelectedFile: React.Dispatch<React.SetStateAction<Doc | File | string | null>>;
@@ -115,6 +115,7 @@ export interface DroppedComponent extends DroppingField {
   required?: boolean;
   placeholder?: string;
   pageRect?: DOMRect | null;
+  hasError?: boolean;
 }
 export interface User {
   email: string;
@@ -315,3 +316,9 @@ export interface HandleSavePDFOptions {
 }
 
 export type GpsState = "idle" | "capturing" | "captured" | "error";
+export interface InitialItem {
+  id: string; // unique id to identify
+  value: string; // either text initials or dataURL for image
+  type: "typed" | "drawn"; // how it was created
+  isDefault: boolean;
+}

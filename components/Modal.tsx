@@ -13,6 +13,8 @@ interface ModalProps {
   closeOnEsc?: boolean;
   handleCancel?: () => void; 
   handleConfirm?: () => void;
+  ConfirmLabel?: string;
+  CancelLabel?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -24,7 +26,9 @@ const Modal: React.FC<ModalProps> = ({
   closeOnBackdrop = true,
   closeOnEsc = false,
   handleConfirm,
-  handleCancel
+  handleCancel,
+  ConfirmLabel = "Confirm",
+  CancelLabel = "Cancel",
 }) => {
   // ESC key support
   useEffect(() => {
@@ -53,14 +57,12 @@ const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
       >
         {/* Header */}
-        <header className="flex justify-between mb-3 p-4 border-b">
-          {title ? <h3 className="text-sm font-semibold">{title}</h3> : <div />}
-          <button onClick={onClose} aria-label="Close modal" className="flex items-top">
-            <X className="h-4 w-4 text-gray-500 hover:text-gray-800" />
-          </button>
+        <header className="flex justify-between p-4 border-b">
+          {title ? <h3 className="font-semibold leading-8">{title}</h3> : <div />}
+          <Button onClick={onClose} inverted aria-label="Close modal" className="flex items-top" icon={<X size={16} />}/>
         </header>
         {/* Content */}
-        <div>{children}</div>
+        <div className="p-4">{children}</div>
         {/* Footer */}
         {handleConfirm &&
          <footer className="flex justify-end gap-2 p-4 bg-gray-50 border-t rounded-b-[inherit]">
@@ -68,8 +70,8 @@ const Modal: React.FC<ModalProps> = ({
             if(handleCancel){
                handleCancel();
              }
-            onClose()}} label="Cancel"/>
-          <Button onClick={handleConfirm} label="Confirm"/>
+            onClose()}} label={CancelLabel} inverted/>
+          <Button onClick={handleConfirm} label={ConfirmLabel}/>
         </footer>
         }
       </div>

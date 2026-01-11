@@ -49,6 +49,7 @@ interface ActionToolBarProps {
   onSaveAsTemplate?: () => void;
   isLoggedIn?: boolean;
   setShowModal?: (show: boolean) => void;
+  checkFieldError: (updater: (prev: DroppedComponent[]) => DroppedComponent[]) => void;
 }  
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   documentName,
@@ -67,6 +68,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   onSaveAsTemplate,
   isLoggedIn = true,
   setShowModal,
+  checkFieldError,
 }) => {
 const menuItems = [
   { label: 'Save as Template', icon: Heart,  action:() => onSaveAsTemplate && onSaveAsTemplate()},
@@ -170,13 +172,34 @@ const menuItems = [
   }, [selectedFile]);
 
 
-  const validateAndSend = () => {
-    const unassignedField = droppedItems.find(
-      (item) => !item.assignedRecipientId || item.assignedRecipientId.trim() === ''
-    );
+ const validateAndSend = () => {
+    const invalidFields: DroppedComponent[] = [];
+    let isRecipientFieldInvalid, isMeFieldInvalid;
 
-    if (unassignedField) {
-      toast.error("All fields must be assigned to a signer before sending.");
+    droppedItems.forEach((item) => {
+       isRecipientFieldInvalid = item.fieldOwner !== "me" && (!item.assignedRecipientId || item.assignedRecipientId.trim() === "");
+       isMeFieldInvalid = item.fieldOwner === "me" && (!item.data?.length || item.data.trim() === "");
+       
+      if (isRecipientFieldInvalid || isMeFieldInvalid) {
+        invalidFields.push({ ...item, hasError: true });
+      }
+    });
+
+    if (invalidFields.length > 0) {
+      // Update all invalid fields in state
+      checkFieldError((prev) => [
+        ...prev.filter((f) => !invalidFields.find((u) => u.id === f.id)),
+        ...invalidFields,
+      ]);
+
+      // Show separate alerts
+      if (isRecipientFieldInvalid) {
+        toast.error("All fields must be assigned and completed before sending.");
+      }
+      if (isMeFieldInvalid) {
+          toast.error(`Fill in your input field(s) before send.`);
+      }
+
       return;
     }
 

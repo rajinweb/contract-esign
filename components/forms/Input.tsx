@@ -16,7 +16,7 @@ const Input: React.FC<Props> = (props) => {
       {label && <div className="text-sm text-gray-600 mb-1">{label}</div>}
       <input
         ref={inputRef}
-        className={`mt-1 block w-full border px-3 py-2 rounded ${readOnly ? 'cursor-default bg-transparent' : 'cursor-text bg-white'} ${className} ${error ? 'border-red-500' : ''}`}
+        className={`block w-full border px-3 py-2 rounded ${readOnly ? 'cursor-default bg-transparent' : 'cursor-text bg-white'} ${className} ${error ? 'border-red-500' : ''}`}
         {...rest}
         readOnly={readOnly}
       />

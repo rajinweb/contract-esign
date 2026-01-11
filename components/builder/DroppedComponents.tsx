@@ -1,5 +1,5 @@
 "use client";
-import React, { MouseEvent, useMemo, useCallback } from 'react';
+import React, { MouseEvent, useMemo, useCallback, useEffect } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
 import { DroppedComponent, Recipient } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
@@ -7,6 +7,8 @@ import DateField from './DateField';
 import ImageField from './ImageField';
 import Input from '../forms/Input';
 import FieldSelectionMenu from './FieldSelectionMenu';
+import Initials from './Initials';
+import { validateEmail } from '@/utils/utils';
 
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
@@ -101,7 +103,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
 
         case 'Text':
         case 'Full Name':
-        case 'Initials':
           return (
             <MultilineTextField
               value={value}
@@ -112,7 +113,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }}
             />
           );
-
+      case 'Initials':
+        return(          
+          <Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : 'Your initials'} width={item.width} height={item.height} />
+        )
         case 'Email':
           return (
             <Input
@@ -143,7 +147,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
     },
     [updateField, textFieldRefs]
   );
-
   /* ---------------------------------- */
   /* Render                             */
   /* ---------------------------------- */
@@ -154,7 +157,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const isSelected = selectedFieldId === item.id;
         const isCurrentUserField = isSigningMode ? item.assignedRecipientId === currentRecipientId : true;
         const isFieldReadOnlyInSigning = isSigningMode && (!isCurrentUserField || isSigned);
-        const isReadOnlyMeField = item.fieldOwner === 'me' && ['Full Name', 'Email', 'Initials'].includes(item.component);
+        const isReadOnlyMeField = item.fieldOwner === 'me' && [''].includes(item.component);
         const isFieldReadOnly = isFieldReadOnlyInSigning || isReadOnlyMeField;
         const handleClick = (e: React.MouseEvent) => {
           if (!isCurrentUserField || isFieldReadOnly) return;
@@ -162,6 +165,11 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
           setSelectedFieldId(isSelected ? null : item.id);
           onClickField(e, item);
         };
+       
+        let checkEmail = false;
+        if (item.data && item.component === 'Email') {
+          checkEmail = !validateEmail(item.data);
+        }
         return (
           <Rnd
             key={item.id}
@@ -178,6 +186,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               ...(assignedRecipient && {
                 backgroundColor: `${assignedRecipient.color}33`,
                 borderColor: assignedRecipient.color,
+              }),
+              ...((item.hasError || !item.data || checkEmail) && {
+                backgroundColor: `#ff000033`,            
+                border: '1px solid red',
               }),
             }}
             position={{ x: item.x, y: item.y }}
