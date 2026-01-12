@@ -8,6 +8,11 @@ import connectDB from '@/utils/db';
 interface UpdateUser {
   name?: string;
   picture?: string;
+  initials?: {
+    type: "typed" | "drawn";
+    value: string;
+    isDefault: boolean;
+  }[];
 }
 
 export async function PATCH(req: NextRequest) {
@@ -19,11 +24,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, picture } = body;
+    const { name, picture, initials } = body;
 
     const update: UpdateUser = {};
     if (typeof name === 'string') update.name = name;
     if (typeof picture === 'string') update.picture = picture;
+    if (Array.isArray(initials)) update.initials = initials;
 
     const user = await Users.findByIdAndUpdate(new mongoose.Types.ObjectId(userId), update, { new: true }).lean();
     if (!user || Array.isArray(user)) {
@@ -36,6 +42,7 @@ export async function PATCH(req: NextRequest) {
       name: user.name || '',
       picture: user.picture || '',
       id: user._id,
+      initials: user.initials || [],
     };
 
     return NextResponse.json({ user: safe });

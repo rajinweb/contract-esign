@@ -12,6 +12,14 @@ const UserSchema = new mongoose.Schema({
     token: { type: String },
     expires: { type: Date },
   },
+  initials: [
+    {
+      id: { type: String },
+      type: { type: String, required: true },
+      value: { type: String, required: true },
+      isDefault: { type: Boolean, required: true },
+    },
+  ],
 });
 
 export default mongoose.models.Users || mongoose.model('Users', UserSchema);

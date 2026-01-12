@@ -1237,6 +1237,7 @@ useEffect(() => {
       
         {signDialog && (
           <AddSigDialog
+            value={selectedFieldForDialog?.data}
             autoDate={autoDate}
             setAutoDate={setAutoDate}
             onClose={() => setSignDialog(false)}

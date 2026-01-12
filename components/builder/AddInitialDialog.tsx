@@ -8,20 +8,25 @@ import { Type, ArrowLeft, PlusCircle, LineSquiggle } from "lucide-react";
 import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { InitialItem } from "@/types/types";
+import { v4 as uuidv4 } from "uuid";
+import { api } from "@/lib/api-client";
 
 type Screen = "select" | "create";
 type CreateMode = "type" | "draw";
 
 interface AddInitialDialogProps {
   onClose: () => void;
-  onAddInitial: (initial: InitialItem) => void; 
+  onAddInitial: (initial: InitialItem) => void;
 }
 
 const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 150;
 
-const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddInitial }) => {
-  const { user } = useContextStore();
+const AddInitialDialog: React.FC<AddInitialDialogProps> = ({
+  onClose,
+  onAddInitial,
+}) => {
+  const { user, setUser } = useContextStore();
   const canvasRef = useRef<SignatureCanvas>(null);
 
   const [userInitials, setUserInitials] = useState<InitialItem[]>([]);
@@ -34,7 +39,7 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Default initial from user name 
+  // Default initial from user name
   const defaultInitial = React.useMemo(() => {
     if (!user?.name) return "";
     return user.name
@@ -49,35 +54,60 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
   useEffect(() => {
     if (!user) return;
 
-    // Initialize with default initial if no initials exist
-    setUserInitials((prev) => {
-      if (prev.length === 0) {
-        const defaultItem: InitialItem = {
-          id: "default",
-          value: defaultInitial,
-          type: "typed",
-          isDefault: true,
-        };
-        setSelectedId(defaultItem.id);
-        return [defaultItem];
+    let defaultFound = false;
+    const initials = (user.initials || []).map((i: any) => {
+      const isDefault = i.isDefault && !defaultFound;
+      if (isDefault) {
+        defaultFound = true;
       }
-      const defaultItem = prev.find((i) => i.isDefault);
-      if (defaultItem) setSelectedId(defaultItem.id);
-      return prev;
+      return { ...i, id: i.id || i._id?.toString() || uuidv4(), isDefault };
     });
-  }, [user]);
+    setUserInitials(initials);
+
+    if (initials.length > 0) {
+      const defaultItem = initials.find((i) => i.isDefault);
+      if (defaultItem) {
+        setSelectedId(defaultItem.id);
+      } else {
+        setSelectedId(initials[0].id);
+      }
+    } else {
+      // If no initials, create a default one
+      const defaultItem: InitialItem = {
+        id: uuidv4(),
+        value: defaultInitial,
+        type: "typed",
+        isDefault: true,
+      };
+      setSelectedId(defaultItem.id);
+      setUserInitials([defaultItem]);
+    }
+  }, [user, defaultInitial]);
 
   useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-      setOpenMenuId(null);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const updateUserInitials = async (newInitials: InitialItem[]) => {
+    if (!user) return;
+    try {
+      const response = await api.patch("/user/profile", {
+        initials: newInitials,
+      });
+      if (response.user) {
+        setUser(response.user);
+      }
+    } catch (error) {
+      console.error("Failed to update initials:", error);
     }
   };
-
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-
 
   // Canvas end
   const handleCanvasEnd = () => {
@@ -87,31 +117,33 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
 
   // Add or select initial
   const handleInitialConfirm = (initial: InitialItem) => {
+    let newInitials;
     const exists = userInitials.find((i) => i.id === initial.id);
 
     if (!exists) {
-      // New initial
-      setUserInitials((prev) => [
-        ...prev.map((i) => ({ ...i, isDefault: initial.isDefault ? false : i.isDefault })),
-        initial,
-      ]);
-      setSelectedId(initial.id);
-    } else {
-      // Selecting existing initial as default
-      setUserInitials((prev) =>
-        prev.map((i) => ({
+      newInitials = [
+        ...userInitials.map((i) => ({
           ...i,
-          isDefault: i.id === initial.id ? true : i.isDefault,
-        }))
-      );
-      setSelectedId(initial.id);
+          isDefault: initial.isDefault ? false : i.isDefault,
+        })),
+        initial,
+      ];
+    } else {
+      newInitials = userInitials.map((i) => ({
+        ...i,
+        isDefault: i.id === initial.id,
+      }));
     }
+
+    setUserInitials(newInitials);
+    updateUserInitials(newInitials);
+    setSelectedId(initial.id);
   };
 
   // // When user clicks confirm in create screen
   const handleAddInitials = () => {
     const newInitial: InitialItem = {
-      id: `${Date.now()}`,
+      id: uuidv4(),
       value: createMode === "type" ? typedValue : drawnValue || "",
       type: createMode === "type" ? "typed" : "drawn",
       isDefault: makeDefault,
@@ -127,6 +159,11 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
     setScreen("select");
   };
 
+  const handleDeleteInitial = (id: string) => {
+    const newInitials = userInitials.filter((i) => i.id !== id);
+    setUserInitials(newInitials);
+    updateUserInitials(newInitials);
+  };
 
   const handleConfirmSelect = () => {
     const selected = userInitials.find((i) => i.id === selectedId);
@@ -141,7 +178,9 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
   if (!user) {
     return (
       <Modal visible title="Add Initials" onClose={onClose}>
-        <div className="p-6 text-center text-gray-600">Loading signer info…</div>
+        <div className="p-6 text-center text-gray-600">
+          Loading signer info…
+        </div>
       </Modal>
     );
   }
@@ -152,7 +191,9 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
       title="Select Your Initials"
       onClose={() => onClose()}
       handleCancel={() => onClose()}
-      handleConfirm={() => screen === "select" ? handleConfirmSelect() : handleAddInitials()}
+      handleConfirm={() =>
+        screen === "select" ? handleConfirmSelect() : handleAddInitials()
+      }
       width="700px"
       ConfirmLabel={screen === "select" ? "Use Initials" : "Add Initials"}
     >
@@ -160,9 +201,11 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
         {/* ================= SCREEN 1 ================= */}
         {screen === "select" && (
           <>
-            <p className="text-gray-700">Select your initial or add a new one:</p>
+            <p className="text-gray-700">
+              Select your initial or add a new one:
+            </p>
             <div className="grid grid-cols-3 gap-4 mb-4">
-                 {/* Add New Initial */}
+              {/* Add New Initial */}
               <Button
                 onClick={() => {
                   setScreen("create");
@@ -176,82 +219,90 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
                 label="Add New Initials"
                 className="flex-col gap-0"
               />
-            {userInitials.map((initial) => (
-              <div key={initial.id} className="relative">
-                <button
-                  onClick={() => setSelectedId(initial.id)}
-                  className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 transition-all ${
-                    selectedId === initial.id
-                      ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  {initial.isDefault && (
-                    <span className="absolute left-2 top-2 rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                      Default
-                    </span>
-                  )}
-                  {initial.type === "typed" ? (
-                    <span
-                      className="text-5xl text-gray-800"
-                      style={{ fontFamily: "'Dancing Script', cursive" }}
-                    >
-                      {initial.value || "-"}
-                    </span>
-                  ) : (
-                    <img src={initial.value} alt="Initial Signature" className="max-h-24 max-w-full" />
-                  )}
-                </button>
-
-                {/* Menu */}
-                <div ref={menuRef} className="absolute top-2 right-2">
+              {userInitials.map((initial) => (
+                <div key={initial.id} className="relative">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // don't trigger card selection
-                      setOpenMenuId((prev) => (prev === initial.id ? null : initial.id));
-                    }}
-                    className="p-1 rounded-full hover:bg-gray-200"
+                    onClick={() => setSelectedId(initial.id)}
+                    className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 transition-all ${
+                      selectedId === initial.id
+                        ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
                   >
-                    ⋮
+                    {initial.isDefault && (
+                      <span className="absolute left-2 top-2 rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                        Default
+                      </span>
+                    )}
+                    {initial.type === "typed" ? (
+                      <span
+                        className="text-5xl text-gray-800"
+                        style={{ fontFamily: "'Dancing Script', cursive" }}
+                      >
+                        {initial.value || "-"}
+                      </span>
+                    ) : (
+                      <img
+                        src={initial.value}
+                        alt="Initial Signature"
+                        className="max-h-24 max-w-full"
+                      />
+                    )}
                   </button>
 
-                  {openMenuId === initial.id && (
-                    <div className="absolute right-0 mt-1 w-32 rounded-md border bg-white shadow-lg z-10">
-                      <button
-                        onClick={() => {
-                          handleInitialConfirm({ ...initial, isDefault: true });
-                          setOpenMenuId(null);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-                      >
-                        Make Default
-                      </button>
-                      <button
-                        onClick={() => {
-                          setUserInitials((prev) => prev.filter((i) => i.id !== initial.id));
-                          setOpenMenuId(null);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                  {/* Menu */}
+                  <div ref={menuRef} className="absolute top-2 right-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // don't trigger card selection
+                        setOpenMenuId((prev) =>
+                          prev === initial.id ? null : initial.id
+                        );
+                      }}
+                      className="p-1 rounded-full hover:bg-gray-200"
+                    >
+                      ⋮
+                    </button>
 
+                    {openMenuId === initial.id && (
+                      <div className="absolute right-0 mt-1 w-32 rounded-md border bg-white shadow-lg z-10">
+                        <button
+                          onClick={() => {
+                            handleInitialConfirm({ ...initial, isDefault: true });
+                            setOpenMenuId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                        >
+                          Make Default
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeleteInitial(initial.id)
+                            setOpenMenuId(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
             {/* Default Checkbox */}
             {selectedId && (
               <DefaultCheckbox
                 selectedId={selectedId}
                 initials={userInitials}
-                onChange={(checked) =>
-                  setUserInitials((prev) =>
-                    prev.map((i) => ({ ...i, isDefault: i.id === selectedId ? checked : false }))
-                  )
-                }
+                onChange={(checked) => {
+                  const newInitials = userInitials.map((i) => ({
+                    ...i,
+                    isDefault: i.id === selectedId ? checked : (checked ? false : i.isDefault),
+                  }));
+                  setUserInitials(newInitials);
+                  updateUserInitials(newInitials);
+                }}
               />
             )}
           </>
@@ -262,25 +313,28 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
           <>
             {/* Mode Switch */}
             <div className="flex gap-4 mb-4">
-              <Button 
+              <Button
                 onClick={() => setCreateMode("type")}
                 className={`flex-1 ${
-                  createMode === "type" ? "!bg-gray-200 text-gray-600 border-none" : "border-gray-300"
+                  createMode === "type"
+                    ? "!bg-gray-200 text-gray-600 border-none"
+                    : "border-gray-300"
                 }`}
-                icon={<Type/>}
+                icon={<Type />}
                 label="Type Initials"
                 inverted
               />
               <Button
                 onClick={() => setCreateMode("draw")}
                 className={`flex-1 rounded-lg border p-4 text-center font-semibold ${
-                  createMode === "draw" ? "!bg-gray-200 text-gray-600 border-none" : "border-gray-300"
+                  createMode === "draw"
+                    ? "!bg-gray-200 text-gray-600 border-none"
+                    : "border-gray-300"
                 }`}
                 icon={<LineSquiggle />}
                 label="Draw Initials"
                 inverted
               />
-            
             </div>
 
             {/* Type Initials */}
@@ -290,14 +344,20 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
                   value={typedValue}
                   onChange={(e) =>
                     setTypedValue(
-                      e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4)
+                      e.target.value
+                        .toUpperCase()
+                        .replace(/[^A-Z]/g, "")
+                        .slice(0, 4)
                     )
                   }
                   className="text-center text-2xl font-bold"
                   placeholder="Your Initials"
                 />
                 <div className="flex h-32 items-center justify-center rounded-md bg-gray-50">
-                  <span className="text-5xl" style={{ fontFamily: "'Dancing Script', cursive" }}>
+                  <span
+                    className="text-5xl"
+                    style={{ fontFamily: "'Dancing Script', cursive" }}
+                  >
                     {typedValue}
                   </span>
                 </div>
@@ -310,7 +370,11 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
                 <SignatureCanvas
                   ref={canvasRef}
                   penColor="black"
-                  canvasProps={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, className: "bg-white" }}
+                  canvasProps={{
+                    width: CANVAS_WIDTH,
+                    height: CANVAS_HEIGHT,
+                    className: "bg-white",
+                  }}
                   onEnd={handleCanvasEnd}
                 />
                 <div className="flex justify-end border-t border-dashed bg-gray-50 p-2">
@@ -328,8 +392,11 @@ const AddInitialDialog: React.FC<AddInitialDialogProps> = ({ onClose, onAddIniti
             )}
 
             {/* Default Checkbox */}
-            <DefaultCheckbox makeDefault={makeDefault} setMakeDefault={setMakeDefault} />
-               <Button
+            <DefaultCheckbox
+              makeDefault={makeDefault}
+              setMakeDefault={setMakeDefault}
+            />
+            <Button
               type="button"
               onClick={() => setScreen("select")}
               label="Back"
@@ -360,10 +427,15 @@ const DefaultCheckbox = ({
 }) => {
   // Select screen
   if (selectedId && initials && onChange) {
-    const isDefault = initials.find((i) => i.id === selectedId)?.isDefault || false;
+    const isDefault =
+      initials.find((i) => i.id === selectedId)?.isDefault || false;
     return (
       <label className="inline-flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={isDefault} onChange={(e) => onChange(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={isDefault}
+          onChange={(e) => onChange(e.target.checked)}
+        />
         Make this my default initial
       </label>
     );
@@ -373,7 +445,11 @@ const DefaultCheckbox = ({
   if (makeDefault !== undefined && setMakeDefault) {
     return (
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={makeDefault}
+          onChange={(e) => setMakeDefault(e.target.checked)}
+        />
         Make this my default initial
       </label>
     );
