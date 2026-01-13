@@ -90,7 +90,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
       const value = item.data || '';
 
       switch (item.component) {
-        case 'Signature':
         case 'Image':
         case 'Live Photo':
           return item.data ? (
@@ -113,9 +112,12 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }}
             />
           );
+      case 'Signature':
       case 'Initials':
-        return(          
-          <Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : 'Your initials'} width={item.width} height={item.height} />
+        return(<>
+        {console.log("ok ", item.data)}
+          <Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : `Add ${item.component}` } width={item.width} height={item.height} />
+          </>      
         )
         case 'Email':
           return (

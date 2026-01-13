@@ -83,7 +83,7 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   email: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
-  captureGpsLocation: { type: Boolean, default: false }, // ✅ REQUIRED
+  captureGpsLocation: { type: Boolean, default: false }, 
   //order: { type: Number, required: true },
   order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },

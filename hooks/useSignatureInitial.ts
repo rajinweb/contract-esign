@@ -1,26 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DroppedComponent, InitialItem } from "@/types/types";
+import { DroppedComponent, SignatureInitial } from "@/types/types";
 import useContextStore from "@/hooks/useContextStore";
 
-const STORAGE_KEY_PREFIX = "user-default-initials";
+const STORAGE_KEY_PREFIX = "user-defaults";
 
 function getStorageKey(userId?: string) {
   return `${STORAGE_KEY_PREFIX}:${userId || "anonymous"}`;
 }
 
-export function useInitials(
+export function useSignatureInitial(
   droppedComponents: DroppedComponent[],
   setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>
 ) {
   const { user } = useContextStore();
   const storageKey = useMemo(() => getStorageKey(user?.id), [user?.id]);
 
-  const [defaultInitial, setDefaultInitial] = useState<InitialItem | null>(null);
+  const [defaultSigIn, setDefaultSigIn] = useState<SignatureInitial | null>(null);
 
   /* ----------------------------------
-   Load persisted default initials
+   Load persisted default Signature and Initials
   -----------------------------------*/
   useEffect(() => {
     if (!user) return;
@@ -28,7 +28,7 @@ export function useInitials(
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
-        setDefaultInitial(JSON.parse(raw));
+        setDefaultSigIn(JSON.parse(raw));
       }
     } catch {
       /* ignore */
@@ -36,21 +36,21 @@ export function useInitials(
   }, [storageKey, user]);
 
   /* ----------------------------------
-   Persist default initials
+   Persist default Signature and Initials
   -----------------------------------*/
-  const persistDefaultInitial = useCallback(
-    (initial: InitialItem) => {
-      setDefaultInitial(initial);
+  const persistdefaultSigIn = useCallback(
+    (initial: SignatureInitial) => {
+      setDefaultSigIn(initial);
       localStorage.setItem(storageKey, JSON.stringify(initial));
     },
     [storageKey]
   );
 
   /* ----------------------------------
-   Apply initials to ONE field
+   Apply Signature and Initials to ONE field
   -----------------------------------*/
-  const applyInitialToField = useCallback(
-    (fieldId: number, initial: InitialItem) => {
+  const applySigInToField = useCallback(
+    (fieldId: number, initial: SignatureInitial) => {
       setDroppedComponents(prev =>
         prev.map(dc =>
           dc.id === fieldId
@@ -63,13 +63,13 @@ export function useInitials(
   );
 
   /* ----------------------------------
-   Apply initials to ALL EMPTY fields
+   Apply Signature and Initials to ALL EMPTY fields
   -----------------------------------*/
-  const applyInitialToAllEmpty = useCallback(
-    (initial: InitialItem) => {
+  const applySigInToAllEmpty = useCallback(
+    (initial: SignatureInitial) => {
       setDroppedComponents(prev =>
         prev.map(dc =>
-          dc.component === "Initials" && !dc.data
+          (dc.component === "Initials" || dc.component === "Signature") && !dc.data
             ? { ...dc, data: initial.value }
             : dc
         )
@@ -79,24 +79,24 @@ export function useInitials(
   );
 
   /* ----------------------------------
-   Auto-apply default initials when fields appear
+   Auto-apply default Signature and Initials when fields appear
   -----------------------------------*/
   useEffect(() => {
-    if (!defaultInitial) return;
+    if (!defaultSigIn) return;
 
-    const hasEmptyInitials = droppedComponents.some(
-      dc => dc.component === "Initials" && !dc.data
+    const hasEmptySigIn = droppedComponents.some(
+      dc => (dc.component === "Initials" || dc.component === "Signature") && !dc.data
     );
 
-    if (hasEmptyInitials) {
-      applyInitialToAllEmpty(defaultInitial);
+    if (hasEmptySigIn) {
+      applySigInToAllEmpty(defaultSigIn);
     }
-  }, [droppedComponents, defaultInitial, applyInitialToAllEmpty]);
+  }, [droppedComponents, defaultSigIn, applySigInToAllEmpty]);
 
   return {
-    defaultInitial,
-    setDefaultInitial: persistDefaultInitial,
-    applyInitialToField,
-    applyInitialToAllEmpty,
+    defaultSigIn,
+    setDefaultSigIn: persistdefaultSigIn,
+    applySigInToField,
+    applySigInToAllEmpty,
   };
 }

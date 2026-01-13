@@ -123,7 +123,8 @@ export interface User {
   name?: string;
   picture?: string;
   id?: string;
-  initials?: InitialItem[];
+  initials?: SignatureInitial[];
+  signatures?:SignatureInitial[];
 }
 
 /* Recipients */
@@ -317,7 +318,7 @@ export interface HandleSavePDFOptions {
 }
 
 export type GpsState = "idle" | "capturing" | "captured" | "error";
-export interface InitialItem {
+export interface SignatureInitial {
   id: string; // unique id to identify
   value: string; // either text initials or dataURL for image
   type: "typed" | "drawn"; // how it was created
