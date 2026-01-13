@@ -1,102 +1,177 @@
 "use client";
 
+import { DroppedComponent, SignatureInitial, SignatureInitialType } from "@/types/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DroppedComponent, SignatureInitial } from "@/types/types";
-import useContextStore from "@/hooks/useContextStore";
 
-const STORAGE_KEY_PREFIX = "user-defaults";
 
-function getStorageKey(userId?: string) {
-  return `${STORAGE_KEY_PREFIX}:${userId || "anonymous"}`;
+interface UseSignatureInitialProps {
+  userId?: string;
+  user?: any;
+  setUser?: (user: any) => void;
+  droppedComponents: DroppedComponent[];
+  updateComponentData: (
+    id: DroppedComponent["id"],
+    data: SignatureInitial
+  ) => void;
 }
 
-export function useSignatureInitial(
-  droppedComponents: DroppedComponent[],
-  setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>
-) {
-  const { user } = useContextStore();
-  const storageKey = useMemo(() => getStorageKey(user?.id), [user?.id]);
 
-  const [defaultSigIn, setDefaultSigIn] = useState<SignatureInitial | null>(null);
+/* -------------------------------------------------------
+   Hook
+------------------------------------------------------- */
 
-  /* ----------------------------------
-   Load persisted default Signature and Initials
-  -----------------------------------*/
-  useEffect(() => {
-    if (!user) return;
+export function useSignatureInitial({
+  userId,
+  user,
+  setUser,
+  droppedComponents,
+  updateComponentData,
+}: UseSignatureInitialProps) {
+  /* -----------------------------
+     Local storage
+  ----------------------------- */
 
+  const storageKey = useMemo(
+    () => `user-defaults:${userId}`,
+    [userId]
+  );
+
+  /* -----------------------------
+     Defaults state
+  ----------------------------- */
+
+  const [defaults, setDefaults] = useState<{
+    signature: SignatureInitial | null;
+    initial: SignatureInitial | null;
+  }>(() => {
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        setDefaultSigIn(JSON.parse(raw));
-      }
+      const stored = localStorage.getItem(storageKey);
+      return stored
+        ? JSON.parse(stored)
+        : { signature: null, initial: null };
     } catch {
-      /* ignore */
+      return { signature: null, initial: null };
     }
-  }, [storageKey, user]);
+  });
 
-  /* ----------------------------------
-   Persist default Signature and Initials
-  -----------------------------------*/
-  const persistdefaultSigIn = useCallback(
-    (initial: SignatureInitial) => {
-      setDefaultSigIn(initial);
-      localStorage.setItem(storageKey, JSON.stringify(initial));
+  /* -----------------------------
+     Persist defaults
+  ----------------------------- */
+
+  const persistDefaults = useCallback(
+    (next: typeof defaults) => {
+      setDefaults(next);
+      localStorage.setItem(storageKey, JSON.stringify(next));
     },
     [storageKey]
   );
 
-  /* ----------------------------------
-   Apply Signature and Initials to ONE field
-  -----------------------------------*/
-  const applySigInToField = useCallback(
-    (fieldId: number, initial: SignatureInitial) => {
-      setDroppedComponents(prev =>
-        prev.map(dc =>
-          dc.id === fieldId
-            ? { ...dc, data: initial.value }
-            : dc
-        )
-      );
+  /* -----------------------------
+     Apply default to empty fields
+  ----------------------------- */
+
+  const applyToAllEmpty = useCallback(
+    (kind: SignatureInitialType, value: SignatureInitial) => {
+      droppedComponents.forEach(dc => {
+        if (
+          dc.component === kind &&
+          !dc.data &&
+          dc.fieldOwner === "me"
+        ) {
+          updateComponentData(dc.id, value);
+        }
+      });
     },
-    [setDroppedComponents]
+    [droppedComponents, updateComponentData]
   );
 
-  /* ----------------------------------
-   Apply Signature and Initials to ALL EMPTY fields
-  -----------------------------------*/
-  const applySigInToAllEmpty = useCallback(
-    (initial: SignatureInitial) => {
-      setDroppedComponents(prev =>
-        prev.map(dc =>
-          (dc.component === "Initials" || dc.component === "Signature") && !dc.data
-            ? { ...dc, data: initial.value }
-            : dc
-        )
-      );
+  /* -----------------------------
+     Set default (SINGLE SOURCE)
+  ----------------------------- */
+
+  const setDefault = useCallback(
+    (kind: SignatureInitialType, value: SignatureInitial) => {
+      const key = kind === "Initials" ? "initial" : "signature";
+
+      const nextDefaults = {
+        ...defaults,
+        [key]: value,
+      };
+
+      /* 1️⃣ local state + storage */
+      persistDefaults(nextDefaults);
+
+      /* 2️⃣ user context (UI sync) */
+      if (user && setUser) {
+        const collectionKey =
+          kind === "Initials" ? "initials" : "signatures";
+
+        const updatedCollection = (user[collectionKey] || []).map(
+          (item: SignatureInitial) => ({
+            ...item,
+            isDefault: item.id === value.id,
+          })
+        );
+
+        setUser({
+          ...user,
+          [collectionKey]: updatedCollection,
+        });
+      }
+
+      /* 3️⃣ immediate editor apply */
+      applyToAllEmpty(kind, value);
     },
-    [setDroppedComponents]
+    [
+      defaults,
+      persistDefaults,
+      user,
+      setUser,
+      applyToAllEmpty,
+    ]
   );
 
-  /* ----------------------------------
-   Auto-apply default Signature and Initials when fields appear
-  -----------------------------------*/
+  /* -----------------------------
+     Auto-apply when defaults change
+  ----------------------------- */
+
   useEffect(() => {
-    if (!defaultSigIn) return;
-
-    const hasEmptySigIn = droppedComponents.some(
-      dc => (dc.component === "Initials" || dc.component === "Signature") && !dc.data
-    );
-
-    if (hasEmptySigIn) {
-      applySigInToAllEmpty(defaultSigIn);
+    if (defaults.signature) {
+      applyToAllEmpty("Signature", defaults.signature);
     }
-  }, [droppedComponents, defaultSigIn, applySigInToAllEmpty]);
+    if (defaults.initial) {
+      applyToAllEmpty("Initials", defaults.initial);
+    }
+  }, [defaults, applyToAllEmpty]);
+
+  /* -----------------------------
+     Initialize from user profile
+  ----------------------------- */
+
+  useEffect(() => {
+    if (!user) return;
+
+    const signature =
+      user.signatures?.find((s: any) => s.isDefault) || null;
+    const initial =
+      user.initials?.find((i: any) => i.isDefault) || null;
+
+    const hasStored = localStorage.getItem(storageKey);
+
+    if (!hasStored && (signature || initial)) {
+      persistDefaults({
+        signature,
+        initial,
+      });
+    }
+  }, [user, storageKey, persistDefaults]);
+
+  /* -----------------------------
+     Public API
+  ----------------------------- */
 
   return {
-    defaultSigIn,
-    setDefaultSigIn: persistdefaultSigIn,
-    applySigInToField,
-    applySigInToAllEmpty,
+    defaults,
+    setDefault,
   };
 }

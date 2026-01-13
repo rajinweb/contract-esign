@@ -80,7 +80,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
   // ========= Context =========
-  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user, setUser } = useContextStore();
 
   // ========= PDF State =========
   const [pdfDoc, setPdfDoc] = useState<PDFDocument | null>(null);
@@ -185,12 +185,13 @@ const DocumentEditor: React.FC<EditorProps> = ({
     }
   }, [isSigningMode, onFieldsChange, droppedComponents]);
 
-  const {
-    defaultSigIn,
-    setDefaultSigIn,
-    applySigInToField,
-    applySigInToAllEmpty,
-  } = useSignatureInitial(droppedComponents, setDroppedComponents);
+  const { defaults, setDefault } = useSignatureInitial({
+    userId: user?.id,
+    user,
+    setUser,
+    droppedComponents,
+    updateComponentData: (id, data) => setDroppedComponents(prev => prev.map(comp => comp.id === id ? { ...comp, data: data.value } : comp))
+  });
   // ========= Undo/Redo =========
   const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(internalDroppedComponents);
 
@@ -422,13 +423,15 @@ useEffect(() => {
         data = user?.email;
       }
       if(component === 'Initials') {
-        data = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase();
+        data = defaults.initial?.value || user?.name?.split(' ').map(n => n[0]).join('').toUpperCase();
+      } else if (component === 'Signature') { // Add this block for Signature component
+        data = defaults.signature?.value;
       }
       if(component === 'Date') {
         data = new Date().toISOString().split('T')[0];
       }
     }
-    setDraggingComponent({ ...draggingComponent, component, ...xy, fieldOwner, data});
+    setDraggingComponent({ component, ...xy, fieldOwner, data: data || null });
     setPosition(xy);
     handleDragStart();
   };  
@@ -801,28 +804,6 @@ useEffect(() => {
       draggingEle.current.style.display = 'none';
     }
   };
-  const updatedInitials = useCallback(
-  (initial: SignatureInitial) => {
-    if (!selectedFieldForDialog) return;
-
-    // Apply to clicked field
-    applySigInToField(selectedFieldForDialog.id, initial);
-
-    // Auto-apply to all empty initials
-    applySigInToAllEmpty(initial);
-
-    // Persist if default
-    if (initial.isDefault) {
-      setDefaultSigIn(initial);
-    }
-  },
-  [
-    selectedFieldForDialog,
-    applySigInToField,
-    applySigInToAllEmpty,
-    setDefaultSigIn,
-  ]
-);
 
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
@@ -1241,7 +1222,17 @@ useEffect(() => {
           />
         )}
         {signatureInitialDialog && (
-         <AddSignatureInitialDialog onClose={() => setSignatureInitialDialog(false)} onAddInitial={updatedInitials} component={draggingComponent}/>
+         <AddSignatureInitialDialog
+            onClose={() => setSignatureInitialDialog(false)}
+            onAddInitial={(value) => {
+              if (draggingComponent?.component === "Initials") {
+                setDefault("Initials", value);
+              } else {
+                setDefault("Signature", value);
+              }
+            }}
+            component={draggingComponent}
+          />
         )}
         {!isSigningMode && (
         <>

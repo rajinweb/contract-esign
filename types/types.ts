@@ -324,3 +324,4 @@ export interface SignatureInitial {
   type: "typed" | "drawn"; // how it was created
   isDefault: boolean;
 }
+export type SignatureInitialType = "Signature" | "Initials";

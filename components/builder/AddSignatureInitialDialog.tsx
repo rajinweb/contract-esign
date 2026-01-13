@@ -271,21 +271,6 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 </div>
               ))}
             </div>
-            {/* Default Checkbox */}
-            {selectedId && (
-              <DefaultCheckbox
-                selectedId={selectedId}
-                initials={userInitials}
-                onChange={(checked) => {
-                  const newInitials = userInitials.map((i) => ({
-                    ...i,
-                    isDefault: i.id === selectedId ? checked : (checked ? false : i.isDefault),
-                  }));
-                  setUserInitials(newInitials);
-                  updateUserInitialsOrSignatures(newInitials, isInitial ? "initials" : "signatures");
-                }}
-              />
-            )}
           </>
         )}
 
@@ -405,7 +390,7 @@ const DefaultCheckbox = ({
   onChange?: (checked: boolean) => void;
 }) => {
   // Select screen
-  if (selectedId && initials && onChange) {
+/* if (selectedId && initials && onChange) {
     const isDefault =
       initials.find((i) => i.id === selectedId)?.isDefault || false;
     return (
@@ -418,7 +403,7 @@ const DefaultCheckbox = ({
         Make this my default initial
       </label>
     );
-  }
+  })*/
 
   // Create screen
   if (makeDefault !== undefined && setMakeDefault) {
@@ -429,7 +414,7 @@ const DefaultCheckbox = ({
           checked={makeDefault}
           onChange={(e) => setMakeDefault(e.target.checked)}
         />
-        Make this my default initial
+        Make this my default
       </label>
     );
   }

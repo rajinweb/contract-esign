@@ -114,11 +114,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
           );
       case 'Signature':
       case 'Initials':
-        return(<>
-        {console.log("ok ", item.data)}
-          <Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : `Add ${item.component}` } width={item.width} height={item.height} />
-          </>      
-        )
+        return(<Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : `Add ${item.component}` } width={item.width} height={item.height} />)
         case 'Email':
           return (
             <Input
@@ -172,6 +168,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         if (item.data && item.component === 'Email') {
           checkEmail = !validateEmail(item.data);
         }
+        const shouldValidate = item.fieldOwner === 'me' || (item.fieldOwner === 'recipients' && isSigningMode);
+        const hasError = shouldValidate && (item.hasError || !item.data || checkEmail);
+
         return (
           <Rnd
             key={item.id}
@@ -189,8 +188,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 backgroundColor: `${assignedRecipient.color}33`,
                 borderColor: assignedRecipient.color,
               }),
-              ...((item.hasError || !item.data || checkEmail) && {
-                backgroundColor: `#ff000033`,            
+              ...(hasError && {
+                backgroundColor: `#ff000033`,
                 border: '1px solid red',
               }),
             }}
