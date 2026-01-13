@@ -9,21 +9,10 @@ import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "@/lib/api-client";
+import { DroppingField, SignatureInitial } from "@/types/types";
 
 type Screen = "select" | "create";
 type CreateMode = "type" | "draw";
-
-interface SignatureInitial {
-  id: string;
-  value: string;
-  type: "typed" | "drawn";
-  isDefault: boolean;
-}
-
-interface DroppingField {
-  fieldOwner: "me" | "other";
-  component: "Signature" | "Initial";
-}
 
 interface AddSignatureInitialDialogProps {
   onClose: () => void;
@@ -54,7 +43,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const isOwner = component?.fieldOwner === "me";
   const isSignature = component?.component === "Signature";
   const isInitial = !isSignature;
-console.log('isOwner', isOwner)
+
   // Default initials
   const defaultInitial = React.useMemo(() => {
     if (!user?.name) return "";

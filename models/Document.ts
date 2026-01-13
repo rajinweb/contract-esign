@@ -71,7 +71,7 @@ const DocumentFieldSchema = new Schema<DocumentField>({
   pageNumber: { type: Number, required: true },
   recipientId: { type: String },
   required: { type: Boolean, default: true },
-  value: { type: String, default: '' },
+  value: { type: String, default: null },
   placeholder: { type: String },
   mimeType: { type: String },
   pageRect: { type: Schema.Types.Mixed },
