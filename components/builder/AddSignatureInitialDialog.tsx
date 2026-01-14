@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/Button";
 import SignatureCanvas from "react-signature-canvas";
-import { Type, ArrowLeft, PlusCircle, LineSquiggle } from "lucide-react";
+import { Type, ArrowLeft, PlusCircle, LineSquiggle, Signature } from "lucide-react";
 import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
@@ -54,6 +54,36 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
       .map((n) => n[0]?.toUpperCase())
       .join("");
   }, [user?.name]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const newSignature: SignatureInitial = {
+        id: uuidv4(),
+        value: reader.result as string,
+        type: "drawn", // Treating uploaded image as drawn for now
+        isDefault: false, // Default to not being default
+      };
+
+      const newItems = [
+        ...userDefaults.map(i => ({ ...i, isDefault: false })), // Ensure only one default if makeDefault is true
+        newSignature,
+      ];
+
+      setUserInitials(newItems);
+      setSelectedId(newSignature.id);
+      updateUserInitialsOrSignatures(newItems, "signatures"); // Always "signatures" for image upload
+
+      setScreen("select"); // Go back to select screen
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   useEffect(() => {
     if (!user) return;
@@ -190,7 +220,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
       width="700px"
       ConfirmLabel={screen === "select" ? `Use ${isSignature ? "Signature" : "Initials"}` : `Add ${isSignature ? "Signature" : "Initials"}`}
     >
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* ================= SCREEN 1 ================= */}
         {screen === "select" && (
           <>
@@ -206,8 +236,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 }}
                 inverted
                 icon={<PlusCircle className="mb-2 text-blue-600" />}
-                label={`Add New ${isSignature ? "Signature" : "Initials"}`}
-                className="flex-col gap-0"
+                label={`Add New ${isSignature ? "Signature" : "Initials"}     `}
+                className="flex-col gap-0 border-dashed border-gray-500"
               />
               {userDefaults.map((item) => (
                 <div key={item.id} className="relative">
@@ -281,7 +311,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
         {screen === "create" && (
           <>
             {/* Mode Switch */}
-            <div className="flex gap-4 mb-4">
+            <div className="flex gap-4">
               <Button
                 onClick={() => setCreateMode("type")}
                 className={`flex-1 ${
@@ -310,15 +340,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
               <>
                 <Input
                   value={typedValue}
-                  onChange={(e) =>
-                    setTypedValue(
-                      e.target.value
-                        .toUpperCase()
-                        .replace(/[^A-Z]/g, "")
-                        .slice(0, 4)
-                    )
-                  }
-                  className="text-center text-2xl font-bold"
+                  onChange={(e) => setTypedValue(e.target.value) }
+                    className="text-center"
                   placeholder={`Your ${isSignature ? "Signature" : "Initials"}`}
                 />
                 <div className="flex h-32 items-center justify-center rounded-md bg-gray-50">
@@ -357,7 +380,39 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 </div>
               </div>
             )}
+            {isSignature && (
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/png, image/jpeg"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <Button
+                      type="button"
+                      aria-label="Upload Your Signature"
+                      className="flex w-full rounded-md border border-dashed border-gray-300 bg-white p-6 text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      data-testid="upload"
+                      inverted
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                  <div className="flex items-center">
+                       <Signature size={36}/>
 
+                  {/* Text */}
+                  <div className="ml-5">
+                    <span className="block font-semibold text-gray-900">
+                      Upload Your Signature
+                    </span>
+                    <small className=" text-gray-600">
+                      Upload an image of your handwritten signature here.
+                    </small>
+                  </div>
+                </div>
+              </Button>
+              </>
+            )}
             {/* Default Checkbox */}
             <DefaultCheckbox
               makeDefault={makeDefault}

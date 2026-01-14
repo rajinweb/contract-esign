@@ -14,6 +14,7 @@ interface ButtonProps {
   tabIndex?:number;
   style?: React.CSSProperties;
   type?: ButtonType;
+  children?: React.ReactNode
 }
 
 export function Button({
@@ -27,7 +28,8 @@ export function Button({
   icon,
   tabIndex,
   style,
-  type
+  type,
+  children
 }: ButtonProps) {
   const isIconOnly = !label && !!icon;
 
@@ -57,7 +59,7 @@ export function Button({
       style={style}
     >
       {icon && <span>{icon}</span>}
-      {label}
+      {label ?? children}
     </button>
   );
 }
