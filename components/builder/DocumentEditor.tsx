@@ -10,7 +10,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
-import { DroppingField, DroppedComponent,  Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner, InitialItem } from '@/types/types';
+import { DroppingField, DroppedComponent, Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner, SignatureInitial } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 
@@ -20,7 +20,7 @@ import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
 const AddSigDialog = dynamic(() => import('@/components/builder/AddSigDialog').then(mod => mod.AddSigDialog), { ssr: false });
 import { LivePhotoDialog } from "@/components/builder/LivePhotoDialog";
-import AddInitialDialog from '@/components/builder/AddInitialDialog';
+import AddSignatureInitialDialog from '@/components/builder/AddSignatureInitialDialog';
 import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
@@ -36,7 +36,7 @@ import toast from 'react-hot-toast';
 import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, downloadPdf} from '@/lib/pdf';
 import {uploadToServer, getFieldTypeFromComponentLabel} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
-import { useInitials } from '@/hooks/useInitials';
+import { useSignatureInitial } from '@/hooks/useSignatureInitial';
 const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 
 export interface EditorProps {
@@ -80,7 +80,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
   // ========= Context =========
-  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user } = useContextStore();
+  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user, setUser } = useContextStore();
 
   // ========= PDF State =========
   const [pdfDoc, setPdfDoc] = useState<PDFDocument | null>(null);
@@ -102,9 +102,8 @@ const DocumentEditor: React.FC<EditorProps> = ({
 
   // ========= UI State =========
   const [error, setError] = useState<string | null>(null);
-  const [signDialog, setSignDialog] = useState<boolean>(false);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
-  const [initialDialog, setInitialDialog] = useState<boolean>(false)
+  const [signatureInitialDialog, setSignatureInitialDialog] = useState<boolean>(false)
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
@@ -186,12 +185,12 @@ const DocumentEditor: React.FC<EditorProps> = ({
     }
   }, [isSigningMode, onFieldsChange, droppedComponents]);
 
-  const {
-  defaultInitial,
-  setDefaultInitial,
-  applyInitialToField,
-  applyInitialToAllEmpty,
-} = useInitials(droppedComponents, setDroppedComponents);
+  const { defaults, setDefault } = useSignatureInitial({
+    user,
+    setUser,
+    droppedComponents,
+    updateComponentData: (id, data) => setDroppedComponents(prev => prev.map(comp => comp.id === id ? { ...comp, data: data.value } : comp))
+  });
   // ========= Undo/Redo =========
   const { saveState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo(internalDroppedComponents);
 
@@ -423,13 +422,15 @@ useEffect(() => {
         data = user?.email;
       }
       if(component === 'Initials') {
-        data = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase();
+        data = defaults.initial?.value || user?.name?.split(' ').map(n => n[0]).join('').toUpperCase();
+      } else if (component === 'Signature') { // Add this block for Signature component
+        data = defaults.signature?.value;
       }
       if(component === 'Date') {
         data = new Date().toISOString().split('T')[0];
       }
     }
-    setDraggingComponent({ ...draggingComponent, component, ...xy, fieldOwner, data});
+    setDraggingComponent({ component, ...xy, fieldOwner, data: data || null });
     setPosition(xy);
     handleDragStart();
   };  
@@ -802,28 +803,6 @@ useEffect(() => {
       draggingEle.current.style.display = 'none';
     }
   };
-  const updatedInitials = useCallback(
-  (initial: InitialItem) => {
-    if (!selectedFieldForDialog) return;
-
-    // Apply to clicked field
-    applyInitialToField(selectedFieldForDialog.id, initial);
-
-    // Auto-apply to all empty initials
-    applyInitialToAllEmpty(initial);
-
-    // Persist if default
-    if (initial.isDefault) {
-      setDefaultInitial(initial);
-    }
-  },
-  [
-    selectedFieldForDialog,
-    applyInitialToField,
-    applyInitialToAllEmpty,
-    setDefaultInitial,
-  ]
-);
 
   const clickField = (event: MouseEvent, item: DroppedComponent) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
@@ -840,17 +819,14 @@ useEffect(() => {
     
     // Handle component-specific actions
     switch (item.component) {
-      case "Signature":
-         setSelectedFieldForDialog(item);
-        setSignDialog(true); // open signature modal
-        break;
       case "Image":
         setSelectedFieldForDialog(item);
         imageRef.current?.click(); // trigger file input
         break;
+      case "Signature":
       case "Initials":
         setSelectedFieldForDialog(item); // Set the field for which initials are being added
-        setInitialDialog(true); 
+        setSignatureInitialDialog(true); 
         break;
       case "Text":
       case "Date":
@@ -1235,17 +1211,6 @@ useEffect(() => {
             />
          
       
-        {signDialog && (
-          <AddSigDialog
-            autoDate={autoDate}
-            setAutoDate={setAutoDate}
-            onClose={() => setSignDialog(false)}
-            onConfirm={(data: string | null) => {
-             if (selectedFieldForDialog) updateField(data, selectedFieldForDialog.id);
-             setSignDialog(false);
-            }}
-          />
-        )}
         {photoDialog && (
           <LivePhotoDialog
             onClose={() => setPhotoDialog(false)}
@@ -1255,8 +1220,17 @@ useEffect(() => {
             }}
           />
         )}
-        {initialDialog && user && (
-          <AddInitialDialog onClose={() => setInitialDialog(false)} onAddInitial={updatedInitials}/>
+        {signatureInitialDialog && (
+         <AddSignatureInitialDialog
+            onClose={() => setSignatureInitialDialog(false)}
+            onAddInitial={(value) => {
+              if (selectedFieldForDialog) {
+                // Update the specific dropped component's data
+                updateField(value.value, selectedFieldForDialog.id);
+              }
+            }}
+            component={selectedFieldForDialog}
+          />
         )}
         {!isSigningMode && (
         <>

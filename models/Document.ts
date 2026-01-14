@@ -71,7 +71,7 @@ const DocumentFieldSchema = new Schema<DocumentField>({
   pageNumber: { type: Number, required: true },
   recipientId: { type: String },
   required: { type: Boolean, default: true },
-  value: { type: String, default: '' },
+  value: { type: String, default: null },
   placeholder: { type: String },
   mimeType: { type: String },
   pageRect: { type: Schema.Types.Mixed },
@@ -83,7 +83,7 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   email: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
-  captureGpsLocation: { type: Boolean, default: false }, // ✅ REQUIRED
+  captureGpsLocation: { type: Boolean, default: false }, 
   //order: { type: Number, required: true },
   order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },
