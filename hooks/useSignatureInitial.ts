@@ -1,11 +1,11 @@
 "use client";
 
 import { DroppedComponent, SignatureInitial, SignatureInitialType } from "@/types/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { api } from "@/lib/api-client";
 
 interface UseSignatureInitialProps {
-  userId?: string;
   user?: any;
   setUser?: (user: any) => void;
   droppedComponents: DroppedComponent[];
@@ -15,66 +15,36 @@ interface UseSignatureInitialProps {
   ) => void;
 }
 
-
 /* -------------------------------------------------------
    Hook
 ------------------------------------------------------- */
 
 export function useSignatureInitial({
-  userId,
   user,
   setUser,
   droppedComponents,
   updateComponentData,
 }: UseSignatureInitialProps) {
-  /* -----------------------------
-     Local storage
-  ----------------------------- */
-
-  const storageKey = useMemo(
-    () => `user-defaults:${userId}`,
-    [userId]
-  );
 
   /* -----------------------------
-     Defaults state
+     Defaults (derived from user)
   ----------------------------- */
-
   const [defaults, setDefaults] = useState<{
     signature: SignatureInitial | null;
     initial: SignatureInitial | null;
-  }>(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      return stored
-        ? JSON.parse(stored)
-        : { signature: null, initial: null };
-    } catch {
-      return { signature: null, initial: null };
-    }
+  }>({
+    signature: null,
+    initial: null,
   });
-
-  /* -----------------------------
-     Persist defaults
-  ----------------------------- */
-
-  const persistDefaults = useCallback(
-    (next: typeof defaults) => {
-      setDefaults(next);
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    },
-    [storageKey]
-  );
 
   /* -----------------------------
      Apply default to empty fields
   ----------------------------- */
-
   const applyToAllEmpty = useCallback(
-    (kind: SignatureInitialType, value: SignatureInitial) => {
+    (fieldsType: SignatureInitialType, value: SignatureInitial) => {
       droppedComponents.forEach(dc => {
         if (
-          dc.component === kind &&
+          dc.component === fieldsType &&
           !dc.data &&
           dc.fieldOwner === "me"
         ) {
@@ -86,55 +56,22 @@ export function useSignatureInitial({
   );
 
   /* -----------------------------
-     Set default (SINGLE SOURCE)
+     Sync defaults from USER
   ----------------------------- */
+  useEffect(() => {
+    if (!user) return;
 
-  const setDefault = useCallback(
-    (kind: SignatureInitialType, value: SignatureInitial) => {
-      const key = kind === "Initials" ? "initial" : "signature";
-
-      const nextDefaults = {
-        ...defaults,
-        [key]: value,
-      };
-
-      /* 1️⃣ local state + storage */
-      persistDefaults(nextDefaults);
-
-      /* 2️⃣ user context (UI sync) */
-      if (user && setUser) {
-        const collectionKey =
-          kind === "Initials" ? "initials" : "signatures";
-
-        const updatedCollection = (user[collectionKey] || []).map(
-          (item: SignatureInitial) => ({
-            ...item,
-            isDefault: item.id === value.id,
-          })
-        );
-
-        setUser({
-          ...user,
-          [collectionKey]: updatedCollection,
-        });
-      }
-
-      /* 3️⃣ immediate editor apply */
-      applyToAllEmpty(kind, value);
-    },
-    [
-      defaults,
-      persistDefaults,
-      user,
-      setUser,
-      applyToAllEmpty,
-    ]
-  );
+    setDefaults({
+      signature:
+        user.signatures?.find((s: SignatureInitial) => s.isDefault) || null,
+      initial:
+        user.initials?.find((i: SignatureInitial) => i.isDefault) || null,
+    });
+  }, [user]);
 
   /* -----------------------------
-     Auto-apply when defaults change
+     Auto-apply defaults
   ----------------------------- */
-
   useEffect(() => {
     if (defaults.signature) {
       applyToAllEmpty("Signature", defaults.signature);
@@ -145,30 +82,40 @@ export function useSignatureInitial({
   }, [defaults, applyToAllEmpty]);
 
   /* -----------------------------
-     Initialize from user profile
+     SET DEFAULT (PUBLIC API)
+     - persists to backend
+     - updates context
+     - updates editor
   ----------------------------- */
+  const setDefault = useCallback(
+    async (type: SignatureInitialType, value: SignatureInitial) => {
+      if (!user) return;
 
-  useEffect(() => {
-    if (!user) return;
+      const key = type === "Signature" ? "signatures" : "initials";
+      const items: SignatureInitial[] = user[key] || [];
 
-    const signature =
-      user.signatures?.find((s: any) => s.isDefault) || null;
-    const initial =
-      user.initials?.find((i: any) => i.isDefault) || null;
+      const updated = items.map(item => ({
+        ...item,
+        isDefault: item.id === value.id,
+      }));
 
-    const hasStored = localStorage.getItem(storageKey);
+      try {
+        const response = await api.patch("/user/profile", {
+          [key]: updated,
+        });
 
-    if (!hasStored && (signature || initial)) {
-      persistDefaults({
-        signature,
-        initial,
-      });
-    }
-  }, [user, storageKey, persistDefaults]);
+        if (response.user) {
+          setUser?.(response.user);
+        }
 
-  /* -----------------------------
-     Public API
-  ----------------------------- */
+        // Immediate editor apply
+        applyToAllEmpty(type, value);
+      } catch (err) {
+        console.error(`Failed to update default ${key}`, err);
+      }
+    },
+    [user, setUser, applyToAllEmpty]
+  );
 
   return {
     defaults,

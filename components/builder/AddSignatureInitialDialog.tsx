@@ -31,7 +31,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const { user, setUser } = useContextStore();
   const canvasRef = useRef<SignatureCanvas>(null);
 
-  const [userInitials, setUserInitials] = useState<SignatureInitial[]>([]);
+  const [userDefaults, setUserInitials] = useState<SignatureInitial[]>([]);
   const [screen, setScreen] = useState<Screen>("select");
   const [createMode, setCreateMode] = useState<CreateMode>("type");
   const [typedValue, setTypedValue] = useState("");
@@ -104,18 +104,18 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   // Add or select initial
   const handleInitialConfirm = (userItem: SignatureInitial) => {
     let item;
-    const exists = userInitials.find((i) => i.id === userItem.id);
+    const exists = userDefaults.find((i) => i.id === userItem.id);
 
     if (!exists) {
       item = [
-        ...userInitials.map((i) => ({
+        ...userDefaults.map((i) => ({
           ...i,
           isDefault: userItem.isDefault ? false : i.isDefault,
         })),
         userItem,
       ];
     } else {
-      item = userInitials.map((i) => ({
+      item = userDefaults.map((i) => ({
         ...i,
         isDefault: i.id === userItem.id,
       }));
@@ -138,7 +138,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
     };
 
     const newItems = [
-      ...userInitials.map(i => ({ ...i, isDefault: newItem.isDefault ? false : i.isDefault })),
+      ...userDefaults.map(i => ({ ...i, isDefault: newItem.isDefault ? false : i.isDefault })),
       newItem,
     ];
 
@@ -154,16 +154,16 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   };
 
   const handleDeleteInitial = (id: string) => {
-    const newInitials = userInitials.filter((i) => i.id !== id);
-    setUserInitials(newInitials);
-    updateUserInitialsOrSignatures(newInitials, isInitial ? "initials" : "signatures");
+    const newDefaults = userDefaults.filter((i) => i.id !== id);
+    setUserInitials(newDefaults);
+    updateUserInitialsOrSignatures(newDefaults, isInitial ? "initials" : "signatures");
   };
 
   const handleConfirmSelect = () => {
-    const selected = userInitials.find((i) => i.id === selectedId);
+    const selected = userDefaults.find((i) => i.id === selectedId);
     if (selected) {
       updateUserInitialsOrSignatures(
-        userInitials.map(i => ({ ...i, isDefault: i.id === selected.id })),
+        userDefaults.map(i => ({ ...i, isDefault: i.id === selected.id })),
         isInitial ? "initials" : "signatures"
       );
       onAddInitial(selected);
@@ -206,7 +206,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 label={`Add New ${isSignature ? "Signature" : "Initials"}`}
                 className="flex-col gap-0"
               />
-              {userInitials.map((item) => (
+              {userDefaults.map((item) => (
                 <div key={item.id} className="relative">
                   <button
                     onClick={() => setSelectedId(item.id)}

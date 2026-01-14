@@ -186,7 +186,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
   }, [isSigningMode, onFieldsChange, droppedComponents]);
 
   const { defaults, setDefault } = useSignatureInitial({
-    userId: user?.id,
     user,
     setUser,
     droppedComponents,
