@@ -1224,13 +1224,12 @@ useEffect(() => {
          <AddSignatureInitialDialog
             onClose={() => setSignatureInitialDialog(false)}
             onAddInitial={(value) => {
-              if (draggingComponent?.component === "Initials") {
-                setDefault("Initials", value);
-              } else {
-                setDefault("Signature", value);
+              if (selectedFieldForDialog) {
+                // Update the specific dropped component's data
+                updateField(value.value, selectedFieldForDialog.id);
               }
             }}
-            component={draggingComponent}
+            component={selectedFieldForDialog}
           />
         )}
         {!isSigningMode && (

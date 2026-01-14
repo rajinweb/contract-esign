@@ -69,7 +69,14 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
 
     setUserInitials(normalized);
 
-    if (normalized.length > 0) setSelectedId(normalized.find(i => i.isDefault)?.id || normalized[0].id);
+    if (normalized.length > 0) {
+      const previouslySelected = normalized.find(item => item.value === component?.data);
+      if (previouslySelected) {
+        setSelectedId(previouslySelected.id);
+      } else {
+        setSelectedId(normalized[0].id);
+      }
+    }
     else if (isInitial) {
       const defaultItem: SignatureInitial = {
         id: uuidv4(),
@@ -162,10 +169,6 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const handleConfirmSelect = () => {
     const selected = userDefaults.find((i) => i.id === selectedId);
     if (selected) {
-      updateUserInitialsOrSignatures(
-        userDefaults.map(i => ({ ...i, isDefault: i.id === selected.id })),
-        isInitial ? "initials" : "signatures"
-      );
       onAddInitial(selected);
       onClose();
     }
@@ -389,21 +392,6 @@ const DefaultCheckbox = ({
   setMakeDefault?: (val: boolean) => void;
   onChange?: (checked: boolean) => void;
 }) => {
-  // Select screen
-/* if (selectedId && initials && onChange) {
-    const isDefault =
-      initials.find((i) => i.id === selectedId)?.isDefault || false;
-    return (
-      <label className="inline-flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={isDefault}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        Make this my default initial
-      </label>
-    );
-  })*/
 
   // Create screen
   if (makeDefault !== undefined && setMakeDefault) {
@@ -414,7 +402,7 @@ const DefaultCheckbox = ({
           checked={makeDefault}
           onChange={(e) => setMakeDefault(e.target.checked)}
         />
-        Make this my default
+        Make this default
       </label>
     );
   }
