@@ -42,7 +42,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const isOwner = component?.fieldOwner === "me";
   const isSignature = component?.component === "Signature";
-  const isInitial = !isSignature;
+  const isStamp = component?.component === "Stamp";
+  const isInitial = !isSignature && !isStamp;
 
   // Default initials
   const defaultInitial = React.useMemo(() => {
@@ -77,7 +78,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
 
       setUserInitials(newItems);
       setSelectedId(newSignature.id);
-      updateUserInitialsOrSignatures(newItems, "signatures"); // Always "signatures" for image upload
+      updateUserInitialsOrSignatures( newItems, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
 
       setScreen("select"); // Go back to select screen
     };
@@ -88,7 +89,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   useEffect(() => {
     if (!user) return;
 
-    const items = isInitial ? (user.initials || []) : (user.signatures || []);
+    const items = isInitial ? user.initials || [] : isStamp ? user.stamps || [] : user.signatures || [];
     let defaultFound = false;
 
     const normalized = items.map((i) => {
@@ -121,11 +122,11 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
 
   const updateUserInitialsOrSignatures = async (
     newItems: SignatureInitial[],
-    type: "initials" | "signatures"
+    type: "initials" | "signatures" | "stamps"
   ) => {
     if (!user) return;
     try {
-      const payload = type === "initials" ? { initials: newItems } : { signatures: newItems };
+      const payload = type === "initials" ? { initials: newItems } : type === "signatures" ? { signatures: newItems } : { stamps: newItems };
       const response = await api.patch("/user/profile", payload);
       if (response.user) setUser(response.user);
     } catch (error) {
@@ -159,7 +160,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
     }
 
     setUserInitials(item);
-    updateUserInitialsOrSignatures(item, isInitial ? "initials" : "signatures");
+    updateUserInitialsOrSignatures(item, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
     setSelectedId(userItem.id);
   };
 
@@ -181,7 +182,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
 
     setUserInitials(newItems);
     setSelectedId(newItem.id);
-    updateUserInitialsOrSignatures(newItems, isInitial ? "initials" : "signatures");
+    updateUserInitialsOrSignatures(newItems, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
 
     setTypedValue("");
     setDrawnValue(null);
@@ -193,7 +194,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const handleDeleteInitial = (id: string) => {
     const newDefaults = userDefaults.filter((i) => i.id !== id);
     setUserInitials(newDefaults);
-    updateUserInitialsOrSignatures(newDefaults, isInitial ? "initials" : "signatures");
+    updateUserInitialsOrSignatures(newDefaults, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
   };
 
   const handleConfirmSelect = () => {
@@ -205,7 +206,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   };
 
   if (!user) return (
-    <Modal visible title={`Add ${isSignature ? "Signature" : "Initials"}`} onClose={onClose}>
+    <Modal visible title={`Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`} onClose={onClose}>
       <div className="p-6 text-center text-gray-600">Loading signer info…</div>
     </Modal>
   );
@@ -213,18 +214,18 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   return (
     <Modal
       visible
-      title={`Select Your ${isSignature ? "Signature" : "Initials"}`}
+      title={`Select Your ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
       onClose={onClose}
       handleCancel={onClose}
       handleConfirm={screen === "select" ? handleConfirmSelect : handleAddInitials}
       width="700px"
-      ConfirmLabel={screen === "select" ? `Use ${isSignature ? "Signature" : "Initials"}` : `Add ${isSignature ? "Signature" : "Initials"}`}
+      ConfirmLabel={screen === "select" ? `Use ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}` : `Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
     >
       <div className="space-y-3">
         {/* ================= SCREEN 1 ================= */}
         {screen === "select" && (
           <>
-            <p className="text-gray-700">Select your {isSignature ? "signature" : "initial"} or add a new one:</p>
+            <p className="text-gray-700">Select your {isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"} or add a new one:</p>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <Button
                 onClick={() => {
@@ -236,8 +237,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 }}
                 inverted
                 icon={<PlusCircle className="mb-2 text-blue-600" />}
-                label={`Add New ${isSignature ? "Signature" : "Initials"}     `}
-                className="flex-col gap-0 border-dashed border-gray-500"
+                label={`Add New ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
+                className="flex-col gap-0 border-dashed border-gray-500 h-32"
               />
               {userDefaults.map((item) => (
                 <div key={item.id} className="relative">
@@ -260,7 +261,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                         {item.value || "-"}
                       </span>
                     ) : (
-                      <img src={item.value} alt={isSignature ? "Signature" : "Initial"} className="max-h-24 max-w-full" />
+                      <img src={item.value} alt={isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"} className="max-h-24 max-w-full" />
                     )}
                   </button>
 
@@ -310,6 +311,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
         {/* ================= SCREEN 2 ================= */}
         {screen === "create" && (
           <>
+            {!isStamp && (
+              <>
             {/* Mode Switch */}
             <div className="flex gap-4">
               <Button
@@ -380,7 +383,9 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 </div>
               </div>
             )}
-            {isSignature && (
+            </>
+            )}
+            {isSignature || isStamp && (
               <>
                 <input
                   type="file"
@@ -391,8 +396,8 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                 />
                 <Button
                       type="button"
-                      aria-label="Upload Your Signature"
-                      className="flex w-full rounded-md border border-dashed border-gray-300 bg-white p-6 text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label={`Upload Your ${isStamp ? "Stamp" : "Signature"}`}
+                      className={`flex w-full rounded-md border border-dashed border-gray-300 bg-white p-6 text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${ isStamp && 'h-48'}`}
                       data-testid="upload"
                       inverted
                       onClick={() => fileInputRef.current?.click()}
@@ -403,10 +408,10 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
                   {/* Text */}
                   <div className="ml-5">
                     <span className="block font-semibold text-gray-900">
-                      Upload Your Signature
+                      Upload Your {isStamp ? "Stamp" : "Signature"}
                     </span>
                     <small className=" text-gray-600">
-                      Upload an image of your handwritten signature here.
+                      Upload an image of your {isStamp ? "stamp" : "handwritten signature"} here.
                     </small>
                   </div>
                 </div>

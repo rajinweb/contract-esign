@@ -28,6 +28,10 @@ const UserSchema = new mongoose.Schema({
     type: [SignatureItemSchema],
     default: [],
   },
+  stamps: {
+    type: [SignatureItemSchema],
+    default: [],
+  },
 });
 
 export default mongoose.models.Users || mongoose.model('Users', UserSchema);

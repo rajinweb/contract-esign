@@ -112,6 +112,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }}
             />
           );
+      case 'Stamp':
       case 'Signature':
       case 'Initials':
         return(<Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : `Add ${item.component}` } width={item.width} height={item.height} />)
