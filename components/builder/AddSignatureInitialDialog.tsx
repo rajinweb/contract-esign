@@ -1,52 +1,89 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/Button";
 import SignatureCanvas from "react-signature-canvas";
-import { Type, ArrowLeft, PlusCircle, LineSquiggle, Signature } from "lucide-react";
+import { Type, ArrowLeft, PlusCircle, LineSquiggle, Signature, EllipsisVertical } from "lucide-react";
 import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "@/lib/api-client";
 import { DroppingField, SignatureInitial } from "@/types/types";
 
+/* ================= Types ================= */
+
 type Screen = "select" | "create";
-type CreateMode = "type" | "draw";
+type CreateMode = "typed" | "drawn";
 
 interface AddSignatureInitialDialogProps {
   onClose: () => void;
   onAddInitial: (initial: SignatureInitial) => void;
-  component:DroppingField | null;
+  component: DroppingField | null;
 }
+
+interface SelectScreenProps {
+  items: SignatureInitial[];
+  selectedId: string | null;
+  isSignature: boolean;
+  isStamp: boolean;
+  onSelect: (id: string) => void;
+  onAddNew: () => void;
+  onMakeDefault: (item: SignatureInitial) => void;
+  onDelete: (id: string) => void;
+}
+
+interface CreateScreenProps {
+  isSignature: boolean;
+  isStamp: boolean;
+  createMode: CreateMode;
+  typedValue: string;
+  drawnValue: string | null;
+  makeDefault: boolean;
+  canvasRef: React.RefObject<SignatureCanvas>;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  setCreateMode: (m: CreateMode) => void;
+  setTypedValue: (v: string) => void;
+  setDrawnValue: (v: string | null) => void;
+  setMakeDefault: (v: boolean) => void;
+  onCanvasEnd: () => void;
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBack: () => void;
+}
+
+/* ================= Constants ================= */
 
 const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 150;
 
+/* ================= Main Component ================= */
+
 const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   onClose,
   onAddInitial,
-  component
+  component,
 }) => {
   const { user, setUser } = useContextStore();
-  const canvasRef = useRef<SignatureCanvas>(null);
 
-  const [userDefaults, setUserInitials] = useState<SignatureInitial[]>([]);
+  const canvasRef = useRef<SignatureCanvas>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [userDefaults, setUserDefaults] = useState<SignatureInitial[]>([]);
   const [screen, setScreen] = useState<Screen>("select");
-  const [createMode, setCreateMode] = useState<CreateMode>("type");
+  const [createMode, setCreateMode] = useState<CreateMode>("typed");
   const [typedValue, setTypedValue] = useState("");
   const [drawnValue, setDrawnValue] = useState<string | null>(null);
   const [makeDefault, setMakeDefault] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+
   const isOwner = component?.fieldOwner === "me";
   const isSignature = component?.component === "Signature";
   const isStamp = component?.component === "Stamp";
   const isInitial = !isSignature && !isStamp;
 
-  // Default initials
-  const defaultInitial = React.useMemo(() => {
+  /* ================= Derived ================= */
+
+  const defaultInitial = useMemo(() => {
     if (!user?.name) return "";
     return user.name
       .trim()
@@ -56,40 +93,16 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
       .join("");
   }, [user?.name]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const newSignature: SignatureInitial = {
-        id: uuidv4(),
-        value: reader.result as string,
-        type: "drawn", // Treating uploaded image as drawn for now
-        isDefault: false, // Default to not being default
-      };
-
-      const newItems = [
-        ...userDefaults.map(i => ({ ...i, isDefault: false })), // Ensure only one default if makeDefault is true
-        newSignature,
-      ];
-
-      setUserInitials(newItems);
-      setSelectedId(newSignature.id);
-      updateUserInitialsOrSignatures( newItems, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
-
-      setScreen("select"); // Go back to select screen
-    };
-    reader.readAsDataURL(file);
-  };
-
+  /* ================= Effects ================= */
 
   useEffect(() => {
     if (!user) return;
 
-    const items = isInitial ? user.initials || [] : isStamp ? user.stamps || [] : user.signatures || [];
+    const items =
+      isInitial ? user.initials || [] :
+      isStamp ? user.stamps || [] :
+      user.signatures || [];
+
     let defaultFound = false;
 
     const normalized = items.map((i) => {
@@ -98,40 +111,52 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
       return { ...i, id: i.id || uuidv4(), isDefault };
     });
 
-    setUserInitials(normalized);
+    setUserDefaults(normalized);
 
-    if (normalized.length > 0) {
-      const previouslySelected = normalized.find(item => item.value === component?.data);
-      if (previouslySelected) {
-        setSelectedId(previouslySelected.id);
-      } else {
-        setSelectedId(normalized[0].id);
+    /* ✅ KEY FIX: match against component.data */
+    if (component?.data) {
+      const matched = normalized.find(
+        (i) => i.value === component.data
+      );
+
+      if (matched) {
+        setSelectedId(matched.id);
+        return;
       }
     }
-    else if (isInitial) {
-      const defaultItem: SignatureInitial = {
+
+    /* fallback */
+    if (normalized.length) {
+      setSelectedId(normalized[0].id);
+    } else if (isInitial) {
+      const fallback: SignatureInitial = {
         id: uuidv4(),
         value: defaultInitial,
         type: "typed",
         isDefault: true,
       };
-      setUserInitials([defaultItem]);
-      setSelectedId(defaultItem.id);
+      setUserDefaults([fallback]);
+      setSelectedId(fallback.id);
     }
-  }, [user, defaultInitial, isInitial]);
+  }, [user, component?.data, defaultInitial, isInitial, isStamp]);
 
-  const updateUserInitialsOrSignatures = async (
-    newItems: SignatureInitial[],
+
+  /* ================= Helpers ================= */
+
+  const updateUserItems = async (
+    items: SignatureInitial[],
     type: "initials" | "signatures" | "stamps"
   ) => {
     if (!user) return;
-    try {
-      const payload = type === "initials" ? { initials: newItems } : type === "signatures" ? { signatures: newItems } : { stamps: newItems };
-      const response = await api.patch("/user/profile", payload);
-      if (response.user) setUser(response.user);
-    } catch (error) {
-      console.error(`Failed to update ${type}:`, error);
-    }
+    const payload =
+      type === "initials"
+        ? { initials: items }
+        : type === "signatures"
+        ? { signatures: items }
+        : { stamps: items };
+
+    const res = await api.patch("/user/profile", payload);
+    if (res.user) setUser(res.user);
   };
 
   const handleCanvasEnd = () => {
@@ -139,62 +164,26 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
     setDrawnValue(canvasRef.current.getTrimmedCanvas().toDataURL("image/png"));
   };
 
-  // Add or select initial
-  const handleInitialConfirm = (userItem: SignatureInitial) => {
-    let item;
-    const exists = userDefaults.find((i) => i.id === userItem.id);
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (!exists) {
-      item = [
-        ...userDefaults.map((i) => ({
-          ...i,
-          isDefault: userItem.isDefault ? false : i.isDefault,
-        })),
-        userItem,
-      ];
-    } else {
-      item = userDefaults.map((i) => ({
-        ...i,
-        isDefault: i.id === userItem.id,
-      }));
-    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const newItem: SignatureInitial = {
+        id: uuidv4(),
+        value: reader.result as string,
+        type: "drawn",
+        isDefault: false,
+      };
 
-    setUserInitials(item);
-    updateUserInitialsOrSignatures(item, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
-    setSelectedId(userItem.id);
-  };
-
-  // // When user clicks confirm in create screen
-  const handleAddInitials = () => {
-    if (!typedValue && !drawnValue) return;
-
-    const newItem: SignatureInitial = {
-      id: uuidv4(),
-      value: createMode === "type" ? typedValue : drawnValue || "",
-      type: createMode === "type" ? "typed" : "drawn",
-      isDefault: makeDefault,
+      const updated = [...userDefaults, newItem];
+      setUserDefaults(updated);
+      setSelectedId(newItem.id);
+      updateUserItems(updated, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
+      setScreen("select");
     };
-
-    const newItems = [
-      ...userDefaults.map(i => ({ ...i, isDefault: newItem.isDefault ? false : i.isDefault })),
-      newItem,
-    ];
-
-    setUserInitials(newItems);
-    setSelectedId(newItem.id);
-    updateUserInitialsOrSignatures(newItems, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
-
-    setTypedValue("");
-    setDrawnValue(null);
-    setMakeDefault(false);
-    setCreateMode("type");
-    setScreen("select");
-  };
-
-  const handleDeleteInitial = (id: string) => {
-    const newDefaults = userDefaults.filter((i) => i.id !== id);
-    setUserInitials(newDefaults);
-    updateUserInitialsOrSignatures(newDefaults, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
+    reader.readAsDataURL(file);
   };
 
   const handleConfirmSelect = () => {
@@ -205,11 +194,38 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
     }
   };
 
-  if (!user) return (
-    <Modal visible title={`Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`} onClose={onClose}>
-      <div className="p-6 text-center text-gray-600">Loading signer info…</div>
-    </Modal>
-  );
+  const handleAddNew = () => {
+    if (!typedValue && !drawnValue) return;
+
+    const newItem: SignatureInitial = {
+      id: uuidv4(),
+      value: createMode === "typed" ? typedValue : drawnValue || "",
+      type: createMode,
+      isDefault: makeDefault,
+    };
+
+    const updated = [
+      ...userDefaults.map((i) => ({ ...i, isDefault: newItem.isDefault ? false : i.isDefault })),
+      newItem,
+    ];
+
+    setUserDefaults(updated);
+    updateUserItems(updated, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
+    setScreen("select");
+    setTypedValue("");
+    setDrawnValue(null);
+    setMakeDefault(false);
+  };
+
+  /* ================= Render ================= */
+
+  if (!user) {
+    return (
+      <Modal visible title="Loading…" onClose={onClose}>
+        <div className="p-6 text-center text-gray-600">Loading signer info…</div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -217,257 +233,400 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
       title={`Select Your ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
       onClose={onClose}
       handleCancel={onClose}
-      handleConfirm={screen === "select" ? handleConfirmSelect : handleAddInitials}
+      handleConfirm={screen === "select" ? handleConfirmSelect : handleAddNew}
       width="700px"
       ConfirmLabel={screen === "select" ? `Use ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}` : `Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
     >
-      <div className="space-y-3">
-        {/* ================= SCREEN 1 ================= */}
-        {screen === "select" && (
-          <>
-            <p className="text-gray-700">Select your {isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"} or add a new one:</p>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <Button
-                onClick={() => {
-                  setScreen("create");
-                  setCreateMode("type");
-                  setTypedValue("");
-                  setDrawnValue(null);
-                  setMakeDefault(false);
-                }}
-                inverted
-                icon={<PlusCircle className="mb-2 text-blue-600" />}
-                label={`Add New ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
-                className="flex-col gap-0 border-dashed border-gray-500 h-32"
-              />
-              {userDefaults.map((item) => (
-                <div key={item.id} className="relative">
-                  <button
-                    onClick={() => setSelectedId(item.id)}
-                    className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 transition-all ${
-                      selectedId === item.id ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600" : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    {item.isDefault && (
-                     <span className="absolute left-2 top-2 rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                       Default
-                     </span>
-                    )}
-                    {item.type === "typed" ? (
-                      <span
-                        className="text-5xl text-gray-800"
-                        style={{ fontFamily: "'Dancing Script', cursive" }}
-                      >
-                        {item.value || "-"}
-                      </span>
-                    ) : (
-                      <img src={item.value} alt={isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"} className="max-h-24 max-w-full" />
-                    )}
-                  </button>
-
-                  {/* Menu */}
-                  <div ref={menuRef} className="absolute top-2 right-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation(); // don't trigger card selection
-                        setOpenMenuId((prev) =>
-                          prev === item.id ? null : item.id
-                        );
-                      }}
-                      className="p-1 rounded-full hover:bg-gray-200"
-                    >
-                      ⋮
-                    </button>
-
-                    {openMenuId === item.id && (
-                      <div className="absolute right-0 mt-1 w-32 rounded-md border bg-white shadow-lg z-10">
-                        <button
-                          onClick={() => {
-                            handleInitialConfirm({ ...item, isDefault: true });
-                            setOpenMenuId(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-                        >
-                          Make Default
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleDeleteInitial(item.id)
-                            setOpenMenuId(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* ================= SCREEN 2 ================= */}
-        {screen === "create" && (
-          <>
-            {!isStamp && (
-              <>
-            {/* Mode Switch */}
-            <div className="flex gap-4">
-              <Button
-                onClick={() => setCreateMode("type")}
-                className={`flex-1 ${
-                  createMode === "type"
-                    ? "!bg-gray-200 text-gray-600 border-none"
-                    : "border-gray-300"
-                }`}
-                icon={<Type />}
-                label="Type"
-                inverted
-              />
-              <Button
-                onClick={() => setCreateMode("draw")}
-                className={`flex-1 rounded-lg border p-4 text-center font-semibold ${
-                  createMode === "draw"
-                    ? "!bg-gray-200 text-gray-600 border-none"
-                    : "border-gray-300"
-                }`}
-                icon={<LineSquiggle />}
-                label="Draw"
-                inverted
-              />
-            </div>
-
-            {createMode === "type" && (
-              <>
-                <Input
-                  value={typedValue}
-                  onChange={(e) => setTypedValue(e.target.value) }
-                    className="text-center"
-                  placeholder={`Your ${isSignature ? "Signature" : "Initials"}`}
-                />
-                <div className="flex h-32 items-center justify-center rounded-md bg-gray-50">
-                  <span
-                    className="text-5xl"
-                    style={{ fontFamily: "'Dancing Script', cursive" }}
-                  >
-                    {typedValue}
-                  </span>
-                </div>
-              </>
-            )}
-
-            {createMode === "draw" && (
-              <div className="rounded-md border border-dashed">
-                <SignatureCanvas
-                  ref={canvasRef}
-                  penColor="black"
-                  canvasProps={{
-                    width: CANVAS_WIDTH,
-                    height: CANVAS_HEIGHT,
-                    className: "bg-white",
-                  }}
-                  onEnd={handleCanvasEnd}
-                />
-                <div className="flex justify-end border-t border-dashed bg-gray-50 p-2">
-                  <Button
-                    inverted
-                    label="Clear"
-                    onClick={() => {
-                      canvasRef.current?.clear();
-                      setDrawnValue(null);
-                    }}
-                    className="!text-xs !py-2"
-                  />
-                </div>
-              </div>
-            )}
-            </>
-            )}
-            {isSignature || isStamp && (
-              <>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/png, image/jpeg"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-                <Button
-                      type="button"
-                      aria-label={`Upload Your ${isStamp ? "Stamp" : "Signature"}`}
-                      className={`flex w-full rounded-md border border-dashed border-gray-300 bg-white p-6 text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${ isStamp && 'h-48'}`}
-                      data-testid="upload"
-                      inverted
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                  <div className="flex items-center">
-                       <Signature size={36}/>
-
-                  {/* Text */}
-                  <div className="ml-5">
-                    <span className="block font-semibold text-gray-900">
-                      Upload Your {isStamp ? "Stamp" : "Signature"}
-                    </span>
-                    <small className=" text-gray-600">
-                      Upload an image of your {isStamp ? "stamp" : "handwritten signature"} here.
-                    </small>
-                  </div>
-                </div>
-              </Button>
-              </>
-            )}
-            {/* Default Checkbox */}
-            <DefaultCheckbox
-              makeDefault={makeDefault}
-              setMakeDefault={setMakeDefault}
-            />
-            <Button
-              type="button"
-              onClick={() => setScreen("select")}
-              label="Back"
-              icon={<ArrowLeft size={16} />}
-              inverted
-              className="absolute bottom-4 left-4"
-            />
-          </>
-        )}
-      </div>
+      {screen === "select" ? (
+        <SelectScreen
+          items={userDefaults}
+          selectedId={selectedId}
+          isSignature={isSignature}
+          isStamp={isStamp}
+          onSelect={setSelectedId}
+          onAddNew={() => setScreen("create")}
+          onMakeDefault={(item) =>
+            updateUserItems(
+              userDefaults.map((i) => ({ ...i, isDefault: i.id === item.id })),
+              isInitial ? "initials" : isStamp ? "stamps" : "signatures"
+            )
+          }
+          onDelete={(id) =>
+            updateUserItems(
+              userDefaults.filter((i) => i.id !== id),
+              isInitial ? "initials" : isStamp ? "stamps" : "signatures"
+            )
+          }
+        />
+      ) : (
+        <CreateScreen
+          isSignature={isSignature}
+          isStamp={isStamp}
+          createMode={createMode}
+          typedValue={typedValue}
+          drawnValue={drawnValue}
+          makeDefault={makeDefault}
+          canvasRef={canvasRef}
+          fileInputRef={fileInputRef}
+          setCreateMode={setCreateMode}
+          setTypedValue={setTypedValue}
+          setDrawnValue={setDrawnValue}
+          setMakeDefault={setMakeDefault}
+          onCanvasEnd={handleCanvasEnd}
+          onUpload={handleUpload}
+          onBack={() => setScreen("select")}
+        />
+      )}
     </Modal>
   );
 };
 
-/* ================= Reusable DefaultCheckbox ================= */
-const DefaultCheckbox = ({
+export default AddSignatureInitialDialog;
+
+/* ================= Child Components ================= */
+
+const SelectScreen: React.FC<SelectScreenProps> = ({
+  items,
   selectedId,
-  initials,
-  makeDefault,
-  setMakeDefault,
-  onChange,
-}: {
-  selectedId?: string | null;
-  initials?: SignatureInitial[];
-  makeDefault?: boolean;
-  setMakeDefault?: (val: boolean) => void;
-  onChange?: (checked: boolean) => void;
+  isSignature,
+  isStamp,
+  onSelect,
+  onAddNew,
+  onMakeDefault,
+  onDelete,
 }) => {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Create screen
-  if (makeDefault !== undefined && setMakeDefault) {
-    return (
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={makeDefault}
-          onChange={(e) => setMakeDefault(e.target.checked)}
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="space-y-2 p-3 pt-0 overflow-auto max-h-[350px]">
+      <p className="text-gray-700 text-sm">
+        Select your {isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"} or add a new one:
+      </p>
+
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <Button
+          onClick={onAddNew}
+          inverted
+          icon={<PlusCircle className="mb-2 text-blue-600" />}
+          label={`Add New ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
+          className="flex-col gap-0 border-dashed border-gray-500 h-32"
         />
-        Make this default
-      </label>
-    );
-  }
 
-  return null;
+        {items.map((item) => (
+          <Cards
+            key={item.id}
+            item={item}
+            selected={selectedId === item.id}
+            isSignature={isSignature}
+            isStamp={isStamp}
+            isMenuOpen={openMenuId === item.id}
+            menuRef={openMenuId === item.id ? menuRef : null}
+            onSelect={() => {
+              onSelect(item.id);
+            }}
+            onToggleMenu={() =>
+              setOpenMenuId((prev) => (prev === item.id ? null : item.id))
+            }
+            onMakeDefault={() => {
+              onMakeDefault(item);
+              setOpenMenuId(null);
+            }}
+            onDelete={() => {
+              onDelete(item.id);
+              setOpenMenuId(null);
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 };
 
-export default AddSignatureInitialDialog;
+
+
+
+const Cards = ({
+  item,
+  selected,
+  isSignature,
+  isStamp,
+  isMenuOpen,
+  menuRef,
+  onSelect,
+  onToggleMenu,
+  onMakeDefault,
+  onDelete,
+}: {
+  item: SignatureInitial;
+  selected: boolean;
+  isSignature: boolean;
+  isStamp: boolean;
+  isMenuOpen: boolean;
+  menuRef: React.RefObject<HTMLDivElement> | null;
+  onSelect: () => void;
+  onToggleMenu: () => void;
+  onMakeDefault: () => void;
+  onDelete: () => void;
+}) => {
+  return (
+    <div className="relative">
+      {/* 🔴 THIS MUST BE THE CLICK TARGET */}
+      <Button
+        inverted
+        onClick={onSelect}
+        className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 transition-all ${
+          selected
+            ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600"
+            : "border-gray-200 hover:border-gray-300"
+        }`}
+      >
+        {item.isDefault && (
+          <span className="absolute left-2 top-2 rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+            Default
+          </span>
+        )}
+
+        {item.type === "typed" ? (
+          <span
+            className="text-5xl text-gray-800"
+            style={{ fontFamily: "'Dancing Script', cursive" }}
+          >
+            {item.value || "-"}
+          </span>
+        ) : (
+          <img
+            src={item.value}
+            alt={isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}
+            className="max-h-24 max-w-full"
+          />
+        )}
+      </Button>
+
+      {/* MENU */}
+      <div className="absolute right-2 top-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation(); // 🔴 MUST stop selection
+            onToggleMenu();
+          }}
+          className="p-1 rounded-full hover:bg-gray-200"
+        >
+          ⋮
+        </button>
+
+        {isMenuOpen && (
+          <div
+            ref={menuRef}
+            className="absolute right-0 mt-1 w-32 rounded-md border bg-white shadow-lg z-10"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMakeDefault();
+              }}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+            >
+              Make Default
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+
+
+const CreateScreen: React.FC<CreateScreenProps> = ({
+  isSignature,
+  isStamp,
+  createMode,
+  typedValue,
+  drawnValue,
+  makeDefault,
+  canvasRef,
+  fileInputRef,
+  setCreateMode,
+  setTypedValue,
+  setDrawnValue,
+  setMakeDefault,
+  onCanvasEnd,
+  onUpload,
+  onBack,
+}) => {
+  return (
+    <>
+      {!isStamp && (
+        <>
+          {/* Mode Switch */}
+          <div className="flex gap-4">
+            <Button
+              onClick={() => setCreateMode("typed")}
+              className={`flex-1 ${
+                createMode === "typed"
+                  ? "!bg-gray-200 text-gray-600 border-none"
+                  : "border-gray-300"
+              }`}
+              icon={<Type />}
+              label="Type"
+              inverted
+            />
+            <Button
+              onClick={() => setCreateMode("drawn")}
+              className={`flex-1 ${
+                createMode === "drawn"
+                  ? "!bg-gray-200 text-gray-600 border-none"
+                  : "border-gray-300"
+              }`}
+              icon={<LineSquiggle />}
+              label="Draw"
+              inverted
+            />
+          </div>
+
+          {createMode === "typed" && (
+            <>
+              <Input
+                value={typedValue}
+                onChange={(e) => setTypedValue(e.target.value)}
+                className="text-center my-3"
+                placeholder={`Your ${isSignature ? "Signature" : "Initials"}`}
+              />
+              <div className="flex h-32 items-center justify-center border border-dashed rounded-md bg-gray-50 mb-3">
+                <span
+                  className="text-5xl"
+                  style={{ fontFamily: "'Dancing Script', cursive" }}
+                >
+                  {typedValue}
+                </span>
+              </div>
+            </>
+          )}
+
+          {createMode === "drawn" && (
+            <div className="rounded-md border border-dashed border-gray-300 my-3">
+              <SignatureCanvas
+                ref={canvasRef}
+                penColor="black"
+                canvasProps={{
+                  width: 500,
+                  height: 150,
+                  className: "bg-white",
+                }}
+                onEnd={onCanvasEnd}
+              />
+              <div className="flex justify-end border-t border-dashed bg-gray-50 p-2">
+                <Button
+                  inverted
+                  label="Clear"
+                  onClick={() => {
+                    canvasRef.current?.clear();
+                    setDrawnValue(null);
+                  }}
+                  className="!text-xs !py-2"
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {(isSignature || isStamp) && (
+        <>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/png, image/jpeg"
+            onChange={onUpload}
+            style={{ display: "none" }}
+          />
+          <Button
+            type="button"
+            aria-label={`Upload Your ${isStamp ? "Stamp" : "Signature"}`}
+            className={`flex w-full rounded-md border border-dashed border-gray-300 bg-white p-6 text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isStamp && "h-48"
+            }`}
+            inverted
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="flex items-center">
+              <Signature size={36} />
+              <div className="ml-5">
+                <span className="block font-semibold text-gray-900">
+                  Upload Your {isStamp ? "Stamp" : "Signature"}
+                </span>
+                <small className="text-gray-600">
+                  Upload an image of your{" "}
+                  {isStamp ? "stamp" : "handwritten signature"} here.
+                </small>
+              </div>
+            </div>
+          </Button>
+        </>
+      )}
+
+      <DefaultCheckbox
+        makeDefault={makeDefault}
+        setMakeDefault={setMakeDefault}
+      />
+
+      <Button
+        type="button"
+        onClick={onBack}
+        label="Back"
+        icon={<ArrowLeft size={16} />}
+        inverted
+        className="absolute bottom-4 left-4"
+      />
+    </>
+  );
+};
+
+
+/* ================= Default Checkbox ================= */
+
+const DefaultCheckbox = ({
+  makeDefault,
+  setMakeDefault,
+}: {
+  makeDefault?: boolean;
+  setMakeDefault?: (val: boolean) => void;
+}) => {
+  if (makeDefault === undefined || !setMakeDefault) return null;
+
+  return (
+    <label className="flex items-center gap-2 text-sm mt-3">
+      <input
+        type="checkbox"
+        checked={makeDefault}
+        onChange={(e) => setMakeDefault(e.target.checked)}
+      />
+      Make this default
+    </label>
+  );
+};

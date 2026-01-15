@@ -8,13 +8,15 @@ interface InitialsProps {
   readOnly?: boolean;
   width?: number;
   height?: number;
+  className?:string
 }
 
 const Initials: React.FC<InitialsProps> = ({
   value,
   readOnly = true,
   width = 150,
-  height = 50
+  height = 50,
+  className
 }) => {
   const canvasRef = useRef<SignatureCanvas>(null);
 
@@ -70,7 +72,7 @@ const Initials: React.FC<InitialsProps> = ({
       canvasProps={{
         width,
         height,
-        className: "bg-white w-full h-full rounded pointer-events-none",
+        className: `bg-white w-full h-full rounded pointer-events-none ${className}`,
         onMouseDown: handleMouseDown,
       }}
     />

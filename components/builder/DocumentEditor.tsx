@@ -10,7 +10,7 @@ import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
 import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
-import { DroppingField, DroppedComponent, Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner, SignatureInitial } from '@/types/types';
+import { DroppingField, DroppedComponent, Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 
@@ -1220,7 +1220,7 @@ useEffect(() => {
             }}
           />
         )}
-        {signatureInitialDialog && (
+        {signatureInitialDialog && draggingComponent?.fieldOwner=="me" && (
          <AddSignatureInitialDialog
             onClose={() => setSignatureInitialDialog(false)}
             onAddInitial={(value) => {

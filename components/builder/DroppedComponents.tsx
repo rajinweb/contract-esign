@@ -191,7 +191,9 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }),
               ...(hasError && {
                 backgroundColor: `#ff000033`,
-                border: '1px solid red',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'red',
               }),
             }}
             position={{ x: item.x, y: item.y }}

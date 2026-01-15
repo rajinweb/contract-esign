@@ -5,7 +5,7 @@ type ButtonType = 'button' | 'submit' | 'reset';
 interface ButtonProps {
   title?: string;
   label?: string; // Optional now
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   inverted?: boolean;
   id?: string;
