@@ -57,7 +57,7 @@ export default function UploadZone() {
               </div>
           </label>
     
-          {/* Sign My Own Document Form */}
+          {/* Sign Own Document Form */}
           <div className="grid grid-cols-2 items-center gap-6 bg-[#f2f7ff] rounded-lg">
             <div className="h-full p-6">
               <h2 className="text-2xl font-medium text-gray-800">Create and Sign my own document</h2>

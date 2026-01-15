@@ -110,7 +110,7 @@ export default function Fields({ activeComponent, mouseDown, setActiveComponent 
             onMouseDown={(event) => mouseDown(field.label, event, activeTab)}
           >
             {field.icon}
-            <span className="ml-2">{ activeTab === 'me' &&  field.label == "Initials"   ? `My ${field.label}` : field.label }</span>
+            <span className="ml-2">{/* activeTab === 'me' &&  field.label == "Initials"   ? `My ${field.label}` :*/ field.label }</span>
           </div>
         );
         })}

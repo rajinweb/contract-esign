@@ -124,7 +124,8 @@ export interface User {
   picture?: string;
   id?: string;
   initials?: SignatureInitial[];
-  signatures?:SignatureInitial[];
+  signatures?: SignatureInitial[];
+  stamps?: SignatureInitial[];
 }
 
 /* Recipients */
@@ -324,4 +325,4 @@ export interface SignatureInitial {
   type: "typed" | "drawn"; // how it was created
   isDefault: boolean;
 }
-export type SignatureInitialType = "Signature" | "Initials";
+export type userDefaultsType = "Signature" | "Initials" | "Stamp";

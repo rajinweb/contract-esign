@@ -1,6 +1,6 @@
 "use client";
 
-import { DroppedComponent, SignatureInitial, SignatureInitialType } from "@/types/types";
+import { DroppedComponent, SignatureInitial, userDefaultsType } from "@/types/types";
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
@@ -32,16 +32,18 @@ export function useSignatureInitial({
   const [defaults, setDefaults] = useState<{
     signature: SignatureInitial | null;
     initial: SignatureInitial | null;
+    stamp: SignatureInitial | null;
   }>({
     signature: null,
     initial: null,
+    stamp: null,
   });
 
   /* -----------------------------
      Apply default to empty fields
   ----------------------------- */
   const applyToAllEmpty = useCallback(
-    (fieldsType: SignatureInitialType, value: SignatureInitial) => {
+    (fieldsType: userDefaultsType, value: SignatureInitial) => {
       droppedComponents.forEach(dc => {
         if (
           dc.component === fieldsType &&
@@ -66,6 +68,8 @@ export function useSignatureInitial({
         user.signatures?.find((s: SignatureInitial) => s.isDefault) || null,
       initial:
         user.initials?.find((i: SignatureInitial) => i.isDefault) || null,
+      stamp:
+        user.stamps?.find((s: SignatureInitial) => s.isDefault) || null,
     });
   }, [user]);
 
@@ -79,6 +83,9 @@ export function useSignatureInitial({
     if (defaults.initial) {
       applyToAllEmpty("Initials", defaults.initial);
     }
+    if (defaults.stamp) {
+      applyToAllEmpty("Stamp", defaults.stamp);
+    }
   }, [defaults, applyToAllEmpty]);
 
   /* -----------------------------
@@ -88,10 +95,10 @@ export function useSignatureInitial({
      - updates editor
   ----------------------------- */
   const setDefault = useCallback(
-    async (type: SignatureInitialType, value: SignatureInitial) => {
+    async (type: userDefaultsType, value: SignatureInitial) => {
       if (!user) return;
 
-      const key = type === "Signature" ? "signatures" : "initials";
+      const key = type === "Signature" ? "signatures" : type === "Stamp" ? "stamps" : "initials";
       const items: SignatureInitial[] = user[key] || [];
 
       const updated = items.map(item => ({

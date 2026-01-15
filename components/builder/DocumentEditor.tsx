@@ -18,7 +18,6 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
-const AddSigDialog = dynamic(() => import('@/components/builder/AddSigDialog').then(mod => mod.AddSigDialog), { ssr: false });
 import { LivePhotoDialog } from "@/components/builder/LivePhotoDialog";
 import AddSignatureInitialDialog from '@/components/builder/AddSignatureInitialDialog';
 import Modal from '../Modal';
@@ -823,6 +822,7 @@ useEffect(() => {
         setSelectedFieldForDialog(item);
         imageRef.current?.click(); // trigger file input
         break;
+      case "Stamp":
       case "Signature":
       case "Initials":
         setSelectedFieldForDialog(item); // Set the field for which initials are being added

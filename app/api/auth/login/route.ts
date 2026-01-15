@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      user: { email: user.email, name: user.name, picture: user.picture, initials: user.initials || [], signatures: user.signatures || [] },
+      user: { email: user.email, name: user.name, picture: user.picture, initials: user.initials || [], signatures: user.signatures || [], stamps: user.stamps || [] },
       token: appToken
     });
 
