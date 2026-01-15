@@ -16,7 +16,7 @@ import { DroppingField, SignatureInitial } from "@/types/types";
 type Screen = "select" | "create";
 type CreateMode = "typed" | "drawn";
 
-interface AddSignatureInitialDialogProps {
+interface UserItemsProps {
   onClose: () => void;
   onAddInitial: (initial: SignatureInitial) => void;
   component: DroppingField | null;
@@ -51,14 +51,9 @@ interface CreateScreenProps {
   onBack: () => void;
 }
 
-/* ================= Constants ================= */
-
-const CANVAS_WIDTH = 500;
-const CANVAS_HEIGHT = 150;
-
 /* ================= Main Component ================= */
 
-const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
+const UserItems: React.FC<UserItemsProps> = ({
   onClose,
   onAddInitial,
   component,
@@ -76,7 +71,6 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   const [makeDefault, setMakeDefault] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const isOwner = component?.fieldOwner === "me";
   const isSignature = component?.component === "Signature";
   const isStamp = component?.component === "Stamp";
   const isInitial = !isSignature && !isStamp;
@@ -281,7 +275,7 @@ const AddSignatureInitialDialog: React.FC<AddSignatureInitialDialogProps> = ({
   );
 };
 
-export default AddSignatureInitialDialog;
+export default UserItems;
 
 /* ================= Child Components ================= */
 

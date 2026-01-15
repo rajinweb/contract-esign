@@ -19,7 +19,7 @@ import UploadZone from "@/components/UploadZone";
 import Fields from '@/components/builder/Fields';
 import useContextStore from '@/hooks/useContextStore';
 import { LivePhotoDialog } from "@/components/builder/LivePhotoDialog";
-import AddSignatureInitialDialog from '@/components/builder/AddSignatureInitialDialog';
+import UserItems from '@/components/builder/UserItems';
 import Modal from '../Modal';
 import AddRecipientModal from './AddRecipientModal';
 import SendDocumentModal from './SendDocumentModal';
@@ -1221,7 +1221,7 @@ useEffect(() => {
           />
         )}
         {signatureInitialDialog && draggingComponent?.fieldOwner=="me" && (
-         <AddSignatureInitialDialog
+         <UserItems
             onClose={() => setSignatureInitialDialog(false)}
             onAddInitial={(value) => {
               if (selectedFieldForDialog) {
