@@ -18,7 +18,7 @@ type CreateMode = "typed" | "drawn";
 
 interface UserItemsProps {
   onClose: () => void;
-  onAddInitial: (initial: SignatureInitial) => void;
+  onAdd: (initial: SignatureInitial) => void;
   component: DroppingField | null;
 }
 
@@ -55,7 +55,7 @@ interface CreateScreenProps {
 
 const UserItems: React.FC<UserItemsProps> = ({
   onClose,
-  onAddInitial,
+  onAdd,
   component,
 }) => {
   const { user, setUser } = useContextStore();
@@ -183,7 +183,7 @@ const UserItems: React.FC<UserItemsProps> = ({
   const handleConfirmSelect = () => {
     const selected = userDefaults.find((i) => i.id === selectedId);
     if (selected) {
-      onAddInitial(selected);
+      onAdd(selected);
       onClose();
     }
   };

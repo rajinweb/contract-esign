@@ -90,32 +90,47 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
       const value = item.data || '';
 
       switch (item.component) {
-        case 'Image':
-        case 'Live Photo':
-          return item.data ? (
-            <ImageField image={item.data} />
-          ) : item.component === 'Live Photo' ? (
-            'Click to capture Live Photo'
-          ) : (
-            item.component.toLowerCase()
-          );
+      case 'Image':
+      case 'Live Photo':
+        return item.data ? (
+          <ImageField image={item.data} />
+        ) : item.component === 'Live Photo' ? (
+          'Click to capture Live Photo'
+        ) : (
+          item.component.toLowerCase()
+        );
 
-        case 'Text':
-        case 'Full Name':
-          return (
-            <MultilineTextField
-              value={value}
-              readOnly={isFieldReadOnly}
-              textInput={(text) => updateField(text, item.id)}
-              ref={(el) => {
-                textFieldRefs.current[item.id] = el;
-              }}
-            />
-          );
+      case 'Text':
+      case 'Full Name':
+        return (
+          <MultilineTextField
+            value={value}
+            readOnly={isFieldReadOnly}
+            textInput={(text) => updateField(text, item.id)}
+            ref={(el) => {
+              textFieldRefs.current[item.id] = el;
+            }}
+          />
+        );
       case 'Stamp':
       case 'Signature':
       case 'Initials':
-        return(<Initials key={`${item.id}-${item.data}`} value={item.fieldOwner === 'me' ? item.data : `Add ${item.component}` } width={item.width} height={item.height} />)
+        return(
+          <Initials
+            key={`${item.id}-${item.data}`}
+            value={
+              item.fieldOwner === "me"
+                ? item.data // your own signature
+                : item.fieldOwner === "recipients" && item.data
+                ? item.data // recipient already signed
+                : isSigningMode
+                ? value // currently signing
+                : `Add ${item.component}` // placeholder
+            }
+            width={item.width}
+            height={item.height}
+          />
+        )
         case 'Email':
           return (
             <Input

@@ -1,6 +1,6 @@
 "use client";
 
-import { DroppedComponent, SignatureInitial, userDefaultsType } from "@/types/types";
+import { DroppedComponent, SignatureInitial, itemTypes } from "@/types/types";
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
@@ -43,7 +43,7 @@ export function useSignatureInitial({
      Apply default to empty fields
   ----------------------------- */
   const applyToAllEmpty = useCallback(
-    (fieldsType: userDefaultsType, value: SignatureInitial) => {
+    (fieldsType: itemTypes, value: SignatureInitial) => {
       droppedComponents.forEach(dc => {
         if (
           dc.component === fieldsType &&
@@ -95,7 +95,7 @@ export function useSignatureInitial({
      - updates editor
   ----------------------------- */
   const setDefault = useCallback(
-    async (type: userDefaultsType, value: SignatureInitial) => {
+    async (type: itemTypes, value: SignatureInitial) => {
       if (!user) return;
 
       const key = type === "Signature" ? "signatures" : type === "Stamp" ? "stamps" : "initials";

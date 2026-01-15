@@ -325,4 +325,4 @@ export interface SignatureInitial {
   type: "typed" | "drawn"; // how it was created
   isDefault: boolean;
 }
-export type userDefaultsType = "Signature" | "Initials" | "Stamp";
+export type itemTypes = "Signature" | "Initials" | "Stamp";

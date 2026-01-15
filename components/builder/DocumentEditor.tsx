@@ -36,6 +36,7 @@ import {loadPdf, sanitizeFileName, blobToURL, mergeFieldsIntoPdf, savePdfBlob, d
 import {uploadToServer, getFieldTypeFromComponentLabel} from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
 import { useSignatureInitial } from '@/hooks/useSignatureInitial';
+import RecipientItems from './RecipientItems';
 const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 
 export interface EditorProps {
@@ -102,7 +103,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // ========= UI State =========
   const [error, setError] = useState<string | null>(null);
   const [photoDialog, setPhotoDialog] = useState<boolean>(false);
-  const [signatureInitialDialog, setSignatureInitialDialog] = useState<boolean>(false)
+  const [canvasFields, setCanvasFields] = useState<boolean>(false)
   const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [selectedFieldForDialog, setSelectedFieldForDialog] = useState<DroppedComponent | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(null);
@@ -826,7 +827,7 @@ useEffect(() => {
       case "Signature":
       case "Initials":
         setSelectedFieldForDialog(item); // Set the field for which initials are being added
-        setSignatureInitialDialog(true); 
+        setCanvasFields(true); 
         break;
       case "Text":
       case "Date":
@@ -1220,10 +1221,10 @@ useEffect(() => {
             }}
           />
         )}
-        {signatureInitialDialog && draggingComponent?.fieldOwner=="me" && (
-         <UserItems
-            onClose={() => setSignatureInitialDialog(false)}
-            onAddInitial={(value) => {
+        {canvasFields && draggingComponent?.fieldOwner === "me" &&
+          <UserItems
+            onClose={() => setCanvasFields(false)}
+            onAdd={(value) => {
               if (selectedFieldForDialog) {
                 // Update the specific dropped component's data
                 updateField(value.value, selectedFieldForDialog.id);
@@ -1231,7 +1232,20 @@ useEffect(() => {
             }}
             component={selectedFieldForDialog}
           />
-        )}
+        }
+        {canvasFields && isSigningMode && draggingComponent?.fieldOwner !== "me" &&
+           <RecipientItems
+            component={draggingComponent as DroppingField}
+            value={selectedFieldForDialog?.data ?? null} 
+            onAdd={(value) => {
+              if (selectedFieldForDialog) {
+                // Update the specific dropped component's data
+                updateField(value.value, selectedFieldForDialog.id);
+              }
+            }}
+            onClose={() => setCanvasFields(false)}
+          />
+        } 
         {!isSigningMode && (
         <>
         {/* Add Recipients Modal */}
