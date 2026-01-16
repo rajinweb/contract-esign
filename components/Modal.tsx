@@ -11,10 +11,16 @@ interface ModalProps {
   width?: string; // e.g. "400px", "600px", "90%"
   closeOnBackdrop?: boolean;
   closeOnEsc?: boolean;
-  handleCancel?: () => void; 
+  handleCancel?: () => void;
   handleConfirm?: () => void;
-  ConfirmLabel?: string;
-  CancelLabel?: string;
+  confirmLabel?: string | React.ReactNode;
+  cancelLabel?: string | React.ReactNode;
+  confirmDisabled?: boolean;
+  cancelDisabled?: boolean;
+  confirmClass?: string;
+  cancelClass?: string;
+  cancelIcon?: React.ReactNode;
+  confirmIcon?: React.ReactNode;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -27,8 +33,14 @@ const Modal: React.FC<ModalProps> = ({
   closeOnEsc = false,
   handleConfirm,
   handleCancel,
-  ConfirmLabel = "Confirm",
-  CancelLabel = "Cancel",
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  confirmDisabled,
+  cancelDisabled,
+  confirmClass,
+  cancelClass,
+  cancelIcon,
+  confirmIcon
 }) => {
   // ESC key support
   useEffect(() => {
@@ -59,20 +71,21 @@ const Modal: React.FC<ModalProps> = ({
         {/* Header */}
         <header className="flex justify-between p-4 border-b">
           {title ? <h3 className="font-semibold leading-8">{title}</h3> : <div />}
-          <Button onClick={onClose} inverted aria-label="Close modal" className="flex items-top" icon={<X size={16} />}/>
+          <Button onClick={onClose} inverted aria-label="Close modal" className="flex items-top" icon={<X size={16} />} />
         </header>
         {/* Content */}
         <div className="p-4">{children}</div>
         {/* Footer */}
         {handleConfirm &&
-         <footer className="flex justify-end gap-2 p-4 bg-gray-50 border-t rounded-b-[inherit]">
-          <Button onClick={()=>{
-            if(handleCancel){
-               handleCancel();
-             }
-            onClose()}} label={CancelLabel} inverted/>
-          <Button onClick={handleConfirm} label={ConfirmLabel}/>
-        </footer>
+          <footer className="flex justify-end gap-2 p-4 bg-gray-50 border-t rounded-b-[inherit]">
+            <Button onClick={() => {
+              if (handleCancel) {
+                handleCancel();
+              }
+              onClose()
+            }} inverted disabled={cancelDisabled} className={cancelClass} icon={cancelIcon}>{cancelLabel}</Button>
+            <Button onClick={handleConfirm} disabled={confirmDisabled} className={confirmClass} icon={confirmIcon}>{confirmLabel}</Button>
+          </footer>
         }
       </div>
     </div>,
