@@ -9,7 +9,7 @@ import { DraggableData } from 'react-rnd';
 import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
-import { areDroppedComponentsEqual, areRecipientsEqual } from './comparison';
+import { areDroppedComponentsEqual, areRecipientsEqual } from '@/utils/comparison';
 import { DroppingField, DroppedComponent, Recipient, HandleSavePDFOptions, DocumentField, DocumentFieldType, FieldOwner } from '@/types/types';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 

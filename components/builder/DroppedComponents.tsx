@@ -120,7 +120,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             key={`${item.id}-${item.data}`}
             value={
               item.fieldOwner === "me"
-                ? item.data // your own signature
+                ? item.data ? item.data : `Add ${item.component}`// your own signature
                 : item.fieldOwner === "recipients" && item.data
                 ? item.data // recipient already signed
                 : isSigningMode
