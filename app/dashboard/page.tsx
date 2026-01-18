@@ -24,13 +24,12 @@ import { DOCUMENT_CONFIG } from '@/config/document.config';
 const SIDEBAR_ROUTE_MAP: Array<{ match: string; sidebar: SidebarType }> = [
   { match: '/dashboard/my-account', sidebar: 'account' },
   { match: '/dashboard/contacts', sidebar: 'contacts' },
-  { match: '/dashboard', sidebar: 'documents' }
 ];
 
 const accountViewMap: Record<string, React.ComponentType<any>> = ACCOUNT_CONFIG.reduce((acc, item) => {
-  acc[item.id] = item.component;
-  return acc;
-}, {} as Record<string, React.ComponentType<any>>);
+    acc[item.id] = item.component;
+    return acc;
+  }, {} as Record<string, React.ComponentType<any>>);
 
 const documentViewMap: Record<string, React.ComponentType<any>> = {};
 
@@ -77,11 +76,13 @@ export default function Dashboard() {
     const match = SIDEBAR_ROUTE_MAP.find((r) =>
       pathname.startsWith(r.match)
     );
+    const view = searchParams.get('view');
+    const isAccountView = view === 'profile' || view === 'settings';
     if (match) {
       setActiveSidebar(match.sidebar);
-    } else if (searchParams.get('view') === 'profile' || searchParams.get('view') === 'settings') {
-      setActiveSidebar('account');
-      setActiveSecondarybar(searchParams.get('view') as SecondarySidebarType);
+    } else if (isAccountView) {
+      setActiveSidebar('account');  
+      setActiveSecondarybar((view as SecondarySidebarType) || 'profile');
     } else {
       setActiveSidebar('documents');
     }
