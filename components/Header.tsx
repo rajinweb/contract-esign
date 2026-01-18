@@ -1,5 +1,5 @@
 'use client'
-import React, { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link'
 import useContextStore from '@/hooks/useContextStore';

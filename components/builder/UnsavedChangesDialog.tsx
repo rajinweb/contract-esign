@@ -19,7 +19,7 @@ export function UnsavedChangesDialog({
       onClose={onCancel}
       handleCancel={onCancel}
       handleConfirm={onSaveAndContinue}
-      ConfirmLabel="Save & Continue"
+      confirmLabel="Save & Continue"
     >
       <p>You have unsaved changes.</p>
       <p>Please save your changes before sending the document to recipient(s).</p>

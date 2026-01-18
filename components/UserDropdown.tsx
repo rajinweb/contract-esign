@@ -68,14 +68,14 @@ const UserDropdown = () => {
           Dashboard
         </Link>
         <Link
-          href="/profile"
+          href="dashboard?view=profile"
           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
         >
           <User className="w-4 h-4 mr-2 text-gray-500" />
           Profile
-        </Link>
+        </Link> 
         <Link
-          href="/settings"
+          href="dashboard?view=settings"
           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
         >
           <Settings className="w-4 h-4 mr-2 text-gray-500" />

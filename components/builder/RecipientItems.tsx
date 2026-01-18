@@ -1,6 +1,5 @@
 "use client";
-
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/Button";
 import SignatureCanvas from "react-signature-canvas";
@@ -88,27 +87,26 @@ const RecipientItems: React.FC<
 
     if (createMode === "drawn" && drawnValue) {
       onAdd({
-          id: uuidv4(),
-          type: "drawn",
-          value: drawnValue,
-          isDefault: false
+        id: uuidv4(),
+        type: "drawn",
+        value: drawnValue,
+        isDefault: false
       });
-      
+
       onClose();
     }
   };
- useRenderCanvas(canvasRef, value ?? undefined);
+  useRenderCanvas(canvasRef, value ?? undefined);
   /* ================= Render ================= */
   return (
     <Modal
       visible
-      title={`Add ${
-        isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"
-      }`}
+      title={`Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"
+        }`}
       onClose={onClose}
       handleCancel={onClose}
       handleConfirm={handleConfirm}
-      ConfirmLabel="Use"
+      confirmLabel="Use"
       width="700px"
     >
       {/* MODE SWITCH */}
@@ -120,21 +118,19 @@ const RecipientItems: React.FC<
               icon={<Type />}
               label="Type"
               onClick={() => setCreateMode("typed")}
-              className={`flex-1 ${
-                createMode === "typed" && "!bg-gray-200"
-              }`}
+              className={`flex-1 ${createMode === "typed" && "!bg-gray-200"
+                }`}
             />
           )}
 
-          {allowDrawn && (  
+          {allowDrawn && (
             <Button
               inverted
               icon={<LineSquiggle />}
               label="Draw"
               onClick={() => setCreateMode("drawn")}
-              className={`flex-1 ${ 
-                createMode === "drawn" && "!bg-gray-200"
-              }`}
+              className={`flex-1 ${createMode === "drawn" && "!bg-gray-200"
+                }`}
             />
           )}
         </div>
@@ -200,9 +196,8 @@ const RecipientItems: React.FC<
           <Button
             inverted
             onClick={() => fileInputRef.current?.click()}
-            className={`w-full border border-dashed p-6 ${
-              isStamp && "h-48"
-            }`}
+            className={`w-full border border-dashed p-6 ${isStamp && "h-48"
+              }`}
           >
             <div className="flex items-center gap-4">
               <Signature size={36} />

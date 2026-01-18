@@ -2,6 +2,8 @@
 import { CheckCircle, Eye, PenTool } from "lucide-react";
 import { ReactNode } from "react";
 
+export type SidebarType = 'documents' | 'contacts' | 'account';
+export type SecondarySidebarType = 'dash-documents' | 'archive' | 'my-templates' | 'trash' | 'profile';
 export interface Doc {
   [x: string]: any;
   id: string;

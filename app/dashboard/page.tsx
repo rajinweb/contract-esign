@@ -1,136 +1,198 @@
 'use client';
-import {useEffect, useState, useCallback } from 'react';
-import DocumentList from '@/components/DocumentList';
-import UploadZone from '@/components/UploadZone';
-import {PrimarySidebar, SecondarySidebar} from '@/components/dashboard/Sidebar';
-import { Doc } from '@/types/types';
-import useContextStore from '@/hooks/useContextStore';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import React, { useEffect, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
+
+import UploadZone from '@/components/UploadZone';
+import { PrimarySidebar, SecondarySidebar } from '@/components/dashboard/Sidebar';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import SearchInput from '@/components/dashboard/DocSearch';
 import Contacts from '@/components/contacts/Contacts';
-import { useTemplates } from '@/hooks/useTemplates';
-import { Templates } from '@/components/templates/Templates';
 import TemplateSearch from '@/components/templates/TemplateSearch';
 
-function Dashboard() {
+import { useTemplates } from '@/hooks/useTemplates';
+import useContextStore from '@/hooks/useContextStore';
+
+import { Doc, SecondarySidebarType, SidebarType } from '@/types/types';
+import { ACCOUNT_CONFIG } from '@/config/account.config';
+import { DOCUMENT_CONFIG } from '@/config/document.config';
+
+/* ------------------------------------------------------------------ */
+/* Constants */
+/* ------------------------------------------------------------------ */
+
+const SIDEBAR_ROUTE_MAP: Array<{ match: string; sidebar: SidebarType }> = [
+  { match: '/dashboard/my-account', sidebar: 'account' },
+  { match: '/dashboard/contacts', sidebar: 'contacts' },
+  { match: '/dashboard', sidebar: 'documents' }
+];
+
+const accountViewMap: Record<string, React.ComponentType<any>> = ACCOUNT_CONFIG.reduce((acc, item) => {
+  acc[item.id] = item.component;
+  return acc;
+}, {} as Record<string, React.ComponentType<any>>);
+
+const documentViewMap: Record<string, React.ComponentType<any>> = {};
+
+const registerDocumentViews = (items: readonly any[]) => {
+  items.forEach(item => {
+    if (item.component) {
+      documentViewMap[item.id] = item.component;
+    }
+    if (item.children) {
+      registerDocumentViews(item.children);
+    }
+  });
+};
+
+registerDocumentViews(DOCUMENT_CONFIG);
+/* ------------------------------------------------------------------ */
+/* component */
+/* ------------------------------------------------------------------ */
+
+export default function Dashboard() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { documents, setDocuments, isLoggedIn } = useContextStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [activeSidebar, setActiveSidebar] = useState<'documents' | 'contacts' | 'reports'>('documents');
-  const [activeSecondarybar, setActiveSecondarybar] = useState<'dash-documents' | 'archive' | 'my-templates' | 'trash'>('dash-documents');
-  
-  const { 
-    templates, 
-    loading: templatesLoading, 
-    error: templatesError, 
+  const [activeSidebar, setActiveSidebar] = useState<SidebarType>('documents');
+  const [activeSecondarybar, setActiveSecondarybar] = useState<SecondarySidebarType>('dash-documents');
+
+  const {
+    templates,
     fetchTemplates,
-    duplicateTemplate,
-    deleteTemplate,
-    createDocumentFromTemplate,
   } = useTemplates();
 
-  const fetchDocs = useCallback(async () => {
+  /* ------------------------------------------------------------------ */
+  /* effects */
+  /* ------------------------------------------------------------------ */
+
+  useEffect(() => {
+    localStorage.removeItem('currentDocumentId');
+    localStorage.removeItem('currentSessionId');
+  }, []);
+
+  useEffect(() => {
+    const match = SIDEBAR_ROUTE_MAP.find((r) =>
+      pathname.startsWith(r.match)
+    );
+    if (match) {
+      setActiveSidebar(match.sidebar);
+    } else if (searchParams.get('view') === 'profile' || searchParams.get('view') === 'settings') {
+      setActiveSidebar('account');
+      setActiveSecondarybar(searchParams.get('view') as SecondarySidebarType);
+    } else {
+      setActiveSidebar('documents');
+    }
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (activeSidebar === 'account') {
+      setActiveSecondarybar('profile');
+    }
+    if (activeSidebar === 'documents') {
+      setActiveSecondarybar('dash-documents');
+    }
+
+  }, [activeSidebar]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const controller = new AbortController();
+
+    const fetchDocs = async () => {
       try {
         const res = await fetch('/api/documents/list', {
+          signal: controller.signal,
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('AccessToken') || ''}`,
+            Authorization: `Bearer ${localStorage.getItem('AccessToken') ?? ''}`,
           },
         });
 
-        if (!res.ok) {
-          console.error('Failed to fetch documents:', res.status);
-          setDocuments([]);
-          return;
-        }
+        if (!res.ok) throw new Error('Failed to fetch documents');
 
-        let data: { success: boolean; documents: unknown[] } = { success: false, documents: [] };
-        try {
-          data = await res.json();
-        } catch (err) {
-          console.error('Failed to parse JSON:', err);
-          setDocuments([]);
-          return;
-        }
+        const { success, documents = [] } = await res.json();
+        if (!success || !Array.isArray(documents)) throw new Error('Invalid response');
 
-        if (!data.success || !Array.isArray(data.documents)) {
-          console.error('Invalid response format');
-          setDocuments([]);
-          return;
-        }
-
-        const mappedDocs: Doc[] = (data.documents as Record<string, unknown>[]).map((doc) => {
-          const documentId = String(doc.id || '');
-          const fileUrl = documentId ? `/api/documents/${encodeURIComponent(documentId)}` : undefined;
-
-          return {
-            id: documentId,
-            name: String(doc.name || doc.originalFileName || 'Untitled'),
+        setDocuments(
+          documents.map((doc: any): Doc => ({
+            id: String(doc.id),
+            documentId: String(doc.id),
+            name: doc.name ?? doc.originalFileName ?? 'Untitled',
             folder: '',
-            status: String(doc.status || 'saved') as Doc['status'],
-            createdAt: new Date(doc.createdAt as string),
+            status: doc.status ?? 'saved',
+            createdAt: new Date(doc.createdAt),
             file: undefined,
-            url: fileUrl,
-            fileUrl,
-            documentId,
-          };
-        });
-
-        setDocuments(mappedDocs);
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setDocuments([]);
+            url: `/api/documents/${doc.id}`,
+            fileUrl: `/api/documents/${doc.id}`,
+          }))
+        );
+      } catch (e) {
+        if ((e as any).name !== 'AbortError') {
+          console.error(e);
+          setDocuments([]);
+        }
       }
-  }, [setDocuments]);
+    };
 
-  useEffect(() => {
-    localStorage.removeItem('currentDocumentId'); // remove stored doc id   
-    localStorage.removeItem('currentSessionId'); // remove currentFileSessionId    
-    
-    if (isLoggedIn) {
-      fetchDocs();
-    }
-  }, [isLoggedIn, fetchDocs]);
-  
+    fetchDocs();
+
+    return () => controller.abort();
+  }, [isLoggedIn, setDocuments]);
+
+
+  /* ------------------------------------------------------------------ */
+  /* derived state */
+  /* ------------------------------------------------------------------ */
+
+  const showUploadZone =
+    activeSidebar === 'documents' &&
+    activeSecondarybar === 'dash-documents' &&
+    documents.length === 0;
+
+  const isTemplateView = activeSecondarybar === 'my-templates';
+
+  /* ------------------------------------------------------------------ */
+  /* render */
+  /* ------------------------------------------------------------------ */
+
   return (
     <div className="flex h-screen">
-       <div className="min-h-screen flex flex-col w-[300px] bg-white border-r border-gray-200">
-          <header className="border-b border-gray-200 px-5 flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-lg">
-                S
-              </div>
-              <div className="leading-tight">
-                <div className="text-sm font-medium text-slate-900">
-                  rajuxdesigns@gmail.com
-                </div>
-                <div className="text-xs text-slate-500">Personal Account</div>
-              </div>
+      {/* Sidebar */}
+      <aside className="flex flex-col w-[300px] border-r bg-white">
+        <header className="flex items-center justify-between h-16 px-5 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+              S
             </div>
-        
-            <button
-              className="text-slate-400 hover:text-slate-600"
-              aria-label="account menu"
-            >
-              <ChevronDown className="w-5 h-5" />
-            </button>
-          </header>
+            <div>
+              <div className="text-sm font-medium">rajuxdesigns@gmail.com</div>
+              <div className="text-xs text-slate-500">Personal Account</div>
+            </div>
+          </div>
+          <ChevronDown className="w-5 h-5 text-slate-400" />
+        </header>
         <main className="flex flex-1">
-          <PrimarySidebar active={activeSidebar} setActive={setActiveSidebar} />
-          <SecondarySidebar 
-            active={activeSidebar} 
-            activeSecondarybar={activeSecondarybar} 
+          <PrimarySidebar
+            active={activeSidebar}
+            setActive={setActiveSidebar}
+          />
+          <SecondarySidebar
+            active={activeSidebar}
+            activeSecondarybar={activeSecondarybar}
             secondaryActive={setActiveSecondarybar}
             templates={templates}
             fetchTemplates={fetchTemplates}
           />
         </main>
-      </div>
-  
-      <div className="flex-1">
+      </aside>
 
-        <header className="flex items-center justify-end  border-b  gap-4 px-6  bg-white h-16">
-          {activeSecondarybar === 'my-templates' ? (
+      {/* Content */}
+      <section className="flex-1">
+        <header className="flex items-center justify-end gap-4 px-6 h-16 border-b bg-white">
+          {isTemplateView ? (
             <TemplateSearch
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -141,48 +203,32 @@ function Dashboard() {
             <SearchInput
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
-              placeholder={activeSidebar === 'contacts' ? 'Search contacts...' : 'Search documents and forms'}
+              placeholder={
+                activeSidebar === 'contacts'
+                  ? 'Search contacts...'
+                  : 'Search documents and forms'
+              }
             />
           )}
-          <DashboardHeader/>
+          <DashboardHeader />
         </header>
 
-        {documents.length === 0 && activeSidebar === 'documents' && activeSecondarybar === 'dash-documents' ? (
+        {showUploadZone ? (
           <UploadZone />
         ) : (
-
-          <div className='p-4 overflow-auto h-[calc(100vh-65px)] bg-gray-100'>
-          
-            {activeSidebar === 'documents' && activeSecondarybar == 'dash-documents' && (<DocumentList searchQuery={searchQuery}/>)}
-            {activeSidebar === 'documents' && activeSecondarybar === 'archive' && (<>Archive page</>)}
-            {activeSidebar === 'documents' && activeSecondarybar === 'my-templates' && (
-              <Templates
-                initialViewMode='my'
-                templates={templates}
-                loading={templatesLoading}
-                error={templatesError}
-                fetchTemplates={fetchTemplates}
-                duplicateTemplate={duplicateTemplate}
-                deleteTemplate={deleteTemplate}
-                createDocumentFromTemplate={createDocumentFromTemplate}
-                onTemplateDeleted={() => {
-                  fetchDocs();
-                  fetchTemplates();
-                }}
-                searchQuery={searchQuery}
-                selectedCategory={selectedCategory}
-              />
-            )}
-            {activeSidebar === 'documents' && activeSecondarybar === 'trash' && (<>All Trash</>)}
-
-            {activeSidebar === 'contacts' && <Contacts searchQuery={searchQuery}/>}
-            {activeSidebar === 'reports' &&  <>Report page</>}    
+          <div className="p-4 h-[calc(100vh-65px)] overflow-auto bg-gray-100">
+            {activeSidebar === 'documents' && (() => {
+              const DocumentComponent = documentViewMap[activeSecondarybar];
+              return DocumentComponent ? <DocumentComponent searchQuery={searchQuery} /> : null;
+            })()}
+            {activeSidebar === 'contacts' && <Contacts searchQuery={searchQuery} />}
+            {activeSidebar === 'account' && (() => {
+              const AccountComponent = accountViewMap[activeSecondarybar];
+              return AccountComponent ? <AccountComponent /> : null;
+            })()}
           </div>
-
         )}
-      </div>
+      </section>
     </div>
   );
 }
-
-export default Dashboard;
