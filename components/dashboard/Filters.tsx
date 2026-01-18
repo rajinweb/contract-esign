@@ -69,8 +69,7 @@ export default function Filters({
           onChange={(e) => setSelectedType(e.target.value)}
         >
           <option value="all">All Types</option>
-          <option value="docs">Docs</option>
-          <option value="reports">Reports</option>
+          <option value="docs">Docs</option>        
         </select>
 
         <select

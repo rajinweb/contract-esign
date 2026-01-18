@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import useContextStore from '@/hooks/useContextStore';
 import { useRouter } from 'next/navigation';
@@ -8,8 +8,6 @@ import toast from 'react-hot-toast';
 import Image from 'next/image';
 import ResetPassword from '@/components/ResetPassword';
 import Input from '@/components/forms/Input';
-
-
 
 type InviteInputs = {
   inviteSubject: string;
