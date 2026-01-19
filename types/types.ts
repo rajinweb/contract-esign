@@ -22,7 +22,9 @@ export interface Doc {
   | 'delivery_failed'
   | 'expired'
   | 'cancelled'
-  | 'pending';
+  | 'pending'
+  | 'trashed'; // Add 'trashed' status
+  deletedAt?: Date; // Add optional deletedAt property
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
@@ -71,6 +73,10 @@ export interface ContextValue {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  searchQuery: string;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  selectedCategory: string | null;
+  setSelectedCategory: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 export interface ContextProviderProps {

@@ -12,26 +12,37 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
     const status = searchParams.get('status');
+
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const limit = limitParam ? parseInt(limitParam, 10) : null;
 
     const query: Record<string, unknown> = { userId };
     if (status && status !== 'all') {
       query.status = status;
     }
 
-    const documents = await DocumentModel.find(query)
-      .select('-versions.pdfData') // Exclude PDF data for list view
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .skip((page - 1) * limit);
+    let mongooseQuery = DocumentModel.find(query)
+      .select('-versions.pdfData')
+      .sort({ updatedAt: -1 });
+
+    if (limit !== null) {
+      mongooseQuery = mongooseQuery
+        .skip((page - 1) * limit)
+        .limit(limit);
+    }
+
+    const documents = await mongooseQuery;
 
     const total = await DocumentModel.countDocuments(query);
 
     // Update document statuses before sending them
     for (const doc of documents) {
-      updateDocumentStatus(doc);
+      if (doc.status !== 'trashed') {
+        updateDocumentStatus(doc);
+      }
     }
 
     const documentsWithMetadata = documents.map(doc => ({
@@ -53,12 +64,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       documents: documentsWithMetadata,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      }
+      pagination: limit
+        ? {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        }
+        : null,
     });
   } catch (error) {
     console.error('API Error in GET /api/documents/list', error);

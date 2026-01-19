@@ -13,6 +13,7 @@ import {
   Ban,
   ThumbsUp,
   Eye,
+  Trash,
   RefreshCw,
   Download,
 } from 'lucide-react';
@@ -23,7 +24,7 @@ import useContextStore from '@/hooks/useContextStore';
 import toast from 'react-hot-toast';
 import Filters from './dashboard/Filters';
 import { useFilteredDocs } from '@/hooks/useFilteredDocs';
-import BulkDeleteModal from './documents/BulkDeleteModal';
+import DeleteModal from './documents/DeleteModal';
 import { Button } from './Button';
 interface DocumentListProps {
   searchQuery: string;
@@ -40,6 +41,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   completed: CheckCircle,
   rejected: XCircle,
   delivery_failed: AlertTriangle,
+  trashed: Trash,
   expired: Clock,
   cancelled: Ban,
   pending: Clock,
@@ -47,37 +49,20 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
 
 export default function DocumentList({ searchQuery }: DocumentListProps) {
   const { documents, setDocuments } = useContextStore();
-  // 🔑 States for filters & view
+  /* -------------------- UI State -------------------- */
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedTime, setSelectedTime] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
-  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  /* -------------------- Selection -------------------- */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const router = useRouter();
-  const filteredDocuments = useFilteredDocs(documents, selectedStatus, searchQuery);
-  async function handleDeleteDoc(doc: Doc) {
-    try {
-      const res = await fetch(`/api/documents/delete?id=${encodeURIComponent(doc.documentId || doc.id)}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) throw new Error('Failed to delete document');
-
-      // Remove locally
-      setDocuments(prev => prev.filter(d => d.id !== doc.id));
-      localStorage.removeItem('currentDocumentId'); // remove stored doc id 
-      toast.success('Document deleted');
-    } catch (err) {
-      if (err instanceof Error) {
-        toast.error(`Cannot delete: ${err.message}`);
-      } else {
-        toast.error("Cannot delete: Unknown error");
-      }
-    }
-  }
+  const filteredDocuments = useFilteredDocs(documents.filter(doc => doc.status !== "trashed"), selectedStatus, searchQuery);
+  /* -------------------- Download -------------------- */
 
   async function handleDownloadSignedCopy(doc: Doc) {
     try {
@@ -156,7 +141,7 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
     }
   }
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  /* -------------------- Selection helpers -------------------- */
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -164,17 +149,35 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === documents.length) {
-      setSelectedIds([]); // deselect all
+    //const selectableDocs = documents.filter(d => d.status !== 'trashed');
+    const selectableIds = filteredDocuments.map(d => d.id);
+
+    const allSelected =
+      selectableIds.length > 0 &&
+      selectableIds.every(id => selectedIds.includes(id));
+
+    if (allSelected) {
+      // deselect only selectable docs
+      setSelectedIds(prev =>
+        prev.filter(id => !selectableIds.includes(id))
+      );
     } else {
-      setSelectedIds(documents.map((d) => d.id));
+      // select all non-trashed docs
+      setSelectedIds(selectableIds);
     }
   };
 
-  const handleBulkDeleteComplete = (deletedIds: string[]) => {
-    setDocuments(prev => prev.filter(d => !deletedIds.includes(d.id)));
+  const handleDeleteDoc = (trashedIds: string[]) => {
+    setDocuments(prev =>
+      prev.map(doc =>
+        trashedIds.includes(doc.id)
+          ? { ...doc, status: 'trashed', deletedAt: new Date() }
+          : doc
+      )
+    );
     setSelectedIds([]);
-    setIsBulkDeleteModalOpen(false);
+    setIsDeleteModalOpen(false);
+    localStorage.removeItem('currentDocumentId');
   };
 
   return (
@@ -194,7 +197,7 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
         toggleSelectAll={toggleSelectAll}
         selectedIds={selectedIds}
         totalDocuments={documents.length}
-        bulkDelete={setIsBulkDeleteModalOpen}
+        bulkDelete={() => setIsDeleteModalOpen(true)}
       />
       <div className="space-y-2 mt-2">
         {filteredDocuments.map((doc) => {
@@ -233,24 +236,24 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
               </div>
 
               <div className="flex items-center gap-2 text-sm">
-                {doc.status === 'rejected' && (
-                  <button
-                    className="text-blue-500 hover:text-blue-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleResetStatus(doc);
-                    }}
-                    title="Reset Status"
-                    data-testid={`reset-status-${doc.id}`}
-                  >
-                    <RefreshCw size={26} />
-                  </button>
-                )}
+                <Button
+                  className="!rounded-full"
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    handleResetStatus(doc);
+                  }}
+                  title="Reset Status"
+                  data-testid={`reset-status-${doc.id}`}
+                  icon={<RefreshCw size={16} />}
+                  disabled={doc.status !== 'rejected'}
+                  inverted
+                />
                 <Button
                   className="text-red-500 hover:text-red-700 !rounded-full relative"
                   onClick={(e) => {
                     e?.stopPropagation();
-                    handleDeleteDoc(doc);
+                    setIsDeleteModalOpen(true);
+                    setSelectedIds([doc.id]);
                   }}
                   inverted
                   data-testid={`delete-doc-${doc.id}`}
@@ -294,17 +297,17 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
                 {StatusIcon && <StatusIcon size={22} className={`ml-2 ${statusColor}`} />}
                 <span className={`capitalize ${statusColor}`}>
                   {doc.status.replace('_', ' ')}
-                </span> 
+                </span>
               </div>
             </div>
           );
         })}
       </div>
-      <BulkDeleteModal
-        isOpen={isBulkDeleteModalOpen}
-        onClose={() => setIsBulkDeleteModalOpen(false)}
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
         selectedDocs={documents.filter(doc => selectedIds.includes(doc.id))}
-        onDeleteComplete={handleBulkDeleteComplete}
+        onDeleteComplete={handleDeleteDoc}
       />
     </>
   );

@@ -5,18 +5,20 @@ import { Doc } from '@/types/types';
 import toast from 'react-hot-toast';
 import Modal from '../Modal';
 
-interface BulkDeleteModalProps {
+interface DeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedDocs: Doc[];
   onDeleteComplete: (deletedIds: string[]) => void;
+  permanent?: boolean;
 }
 
-const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
+const DeleteModal: React.FC<DeleteModalProps> = ({
   isOpen,
   onClose,
   selectedDocs,
   onDeleteComplete,
+  permanent,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -27,26 +29,26 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
     try {
       const documentIds = selectedDocs.map(doc => doc.id);
 
-      const response = await fetch('/api/documents/bulk-delete', {
-        method: 'POST',
+      const response = await fetch(`/api/documents/delete${permanent ? `?permanent=${permanent}` : ''}`, {
+        method: permanent ? 'DELETE' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ documentIds }),
-      });
+      });   
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to delete documents');
+        throw new Error(result.message || 'Failed to move documents to trash');
       }
 
       toast.success(result.message);
       onDeleteComplete(documentIds);
       onClose();
     } catch (error) {
-      console.error('Error deleting documents:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete documents');
+      console.error('Error moving documents to trash:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to move documents to trash');
     } finally {
       setIsDeleting(false);
     }
@@ -55,7 +57,7 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal visible={isOpen} title='Delete Documents' onClose={onClose}
+    <Modal visible={isOpen} title={`${permanent ? 'Delete Documents Permanently' : 'Move to Trash'}`} onClose={onClose}
       handleCancel={onClose}
       cancelLabel="Cancel"
       cancelDisabled={isDeleting}
@@ -63,18 +65,17 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
 
       handleConfirm={handleDelete}
       confirmClass="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      confirmDisabled={isDeleting || selectedDocs.length === 0}
       confirmLabel={
         isDeleting ? (
           <>
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            Deleting...
+            {permanent ? 'Deleting...' : 'Moving...'}
           </>
         ) : (
-          <>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete {selectedDocs.length} Document{selectedDocs.length !== 1 ? 's' : ''}
-          </>
+          <div className='flex items-center gap-2'>
+            <Trash2 size={16} />
+            {permanent ? `Delete Permanently` :  `Move to Trash`}
+          </div>
         )
       }>
       <div className="flex items-center mb-4">
@@ -83,19 +84,19 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
         </div>
         <div className="ml-4">
           <h3 className="text-lg font-medium text-gray-900">
-            Are you sure?
+            {permanent ? 'Are you sure?' : 'Move to trash?'} 
           </h3>
           <p className="text-sm text-gray-500">
-            This action cannot be undone. You are about to delete{' '}
-            <span className="font-semibold">{selectedDocs.length}</span>{' '}
-            document{selectedDocs.length !== 1 ? 's' : ''}.
+            {permanent ? 'This action cannot be undone. You are about to permanently delete ' : 'These documents will be moved to the trash and can be restored later. You are about to move '}
+            <span className="font-semibold">{selectedDocs.length}</span> {' '}
+            document{selectedDocs.length !== 1 ? 's' : ''}{' '}{permanent ? 'permanently' : 'to trash'}.
           </p>
         </div>
       </div>
 
       {/* Document List Preview */}
       <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
-        <p className="text-xs font-medium text-gray-700 mb-2">Documents to be deleted:</p>
+        <p className="text-xs font-medium text-gray-700 mb-2">Documents to be {permanent ? 'permanently' : 'moved'}:</p>
         <ul className="text-sm text-gray-600 space-y-1">
           {selectedDocs.slice(0, 5).map((doc) => (
             <li key={doc.id} className="flex items-center">
@@ -114,4 +115,4 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
   );
 };
 
-export default BulkDeleteModal;
+export default DeleteModal;

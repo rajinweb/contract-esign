@@ -15,6 +15,8 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,6 +54,10 @@ const contextObject=
       setShowModal,
       user,
       setUser,
+      searchQuery,
+      setSearchQuery,
+      selectedCategory,
+      setSelectedCategory,
     }
 
   return (

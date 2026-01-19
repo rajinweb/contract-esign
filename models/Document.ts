@@ -5,6 +5,7 @@ import { DocumentField, IDocument as BaseIDocument, Recipient, IDocumentVersion,
 // We extend it here to create a complete interface for our Document model, resolving the type error.
 export interface IDocument extends BaseIDocument {
   templateId?: mongoose.Schema.Types.ObjectId;
+  deletedAt?: Date;
 }
 
 export interface IDocumentRecipient extends Recipient {
@@ -83,7 +84,7 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   email: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
-  captureGpsLocation: { type: Boolean, default: false }, 
+  captureGpsLocation: { type: Boolean, default: false },
   //order: { type: Number, required: true },
   order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
   isCC: { type: Boolean, default: false },
@@ -174,9 +175,10 @@ const DocumentSchema = new Schema<IDocument>({
     default: 'draft',
     enum: [
       'draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending',
-      'completed', 'in_progress', 'cancelled', 'delivery_failed'
+      'completed', 'in_progress', 'cancelled', 'delivery_failed', 'trashed'
     ]
-  },
+  }, // 'select: false' hides it by default
+  deletedAt: { type: Date, default: null },
   templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', sparse: true, required: false },
   token: { type: String, sparse: true, unique: true },
   isTemplate: { type: Boolean, default: false },

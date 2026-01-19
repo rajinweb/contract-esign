@@ -52,9 +52,7 @@ registerDocumentViews(DOCUMENT_CONFIG);
 export default function Dashboard() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { documents, setDocuments, isLoggedIn } = useContextStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { documents, setDocuments, isLoggedIn, searchQuery, setSearchQuery, selectedCategory, setSelectedCategory} = useContextStore();
   const [activeSidebar, setActiveSidebar] = useState<SidebarType>('documents');
   const [activeSecondarybar, setActiveSecondarybar] = useState<SecondarySidebarType>('dash-documents');
 
@@ -220,7 +218,7 @@ export default function Dashboard() {
           <div className="p-4 h-[calc(100vh-65px)] overflow-auto bg-gray-100">
             {activeSidebar === 'documents' && (() => {
               const DocumentComponent = documentViewMap[activeSecondarybar];
-              return DocumentComponent ? <DocumentComponent searchQuery={searchQuery} /> : null;
+              return DocumentComponent ? <DocumentComponent searchQuery={searchQuery} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}/> : null;
             })()}
             {activeSidebar === 'contacts' && <Contacts searchQuery={searchQuery} />}
             {activeSidebar === 'account' && (() => {

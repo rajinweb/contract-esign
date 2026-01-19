@@ -4,7 +4,37 @@ import DocumentModel from '@/models/Document';
 import fs from 'fs';
 import path from 'path';
 
-// DELETE - Delete a document
+export async function POST(req: NextRequest) {
+  try {
+    const userId = await getAuthSession(req);
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { documentIds } = await req.json();
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return NextResponse.json({ message: 'No document IDs provided' }, { status: 400 });
+    }
+
+    const documents = await DocumentModel.find({ _id: { $in: documentIds }, userId });
+
+    if (documents.length === 0) {
+      // This isn't an error, it just means no documents matched for this user.
+      return NextResponse.json({ message: 'No matching documents found to delete' }, { status: 200 });
+    }
+
+    // Soft delete: update the status and set deletedAt for all documents
+    await DocumentModel.updateMany(
+      { _id: { $in: documentIds }, userId },
+      { $set: { status: 'trashed', deletedAt: new Date() } }
+    );
+
+    return NextResponse.json({ message: `Successfully moved ${documents.length} document(s) to trash` });
+  } catch (error) {
+    console.error('API Error in POST /api/documents/bulk-delete', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}
 export async function DELETE(req: NextRequest) {
   try {
     const userId = await getAuthSession(req);
@@ -12,46 +42,49 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const documentId = searchParams.get('id');
-
-    if (!documentId) {
-      return NextResponse.json({ message: 'Document ID missing' }, { status: 400 });
+    const { documentIds } = await req.json();
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return NextResponse.json({ message: 'No document IDs provided' }, { status: 400 });
     }
 
-    const doc = await DocumentModel.findOne({ _id: documentId, userId });
+    const documents = await DocumentModel.find({ _id: { $in: documentIds }, userId });
 
-    if (!doc) {
-      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+    if (documents.length === 0) {
+      // This isn't an error, it just means no documents matched for this user.
+      return NextResponse.json({ message: 'No matching documents found to delete' }, { status: 200 });
     }
 
     // Delete associated files from the filesystem
-    for (const version of doc.versions) {
-      if (version.filePath) {
-        try {
-          // Ensure the path is within the project's uploads directory
-          const uploadsDir = path.join(process.cwd(), 'uploads');
-          const absoluteFilePath = path.resolve(version.filePath);
+    for (const doc of documents) {
+      if (doc.versions && doc.versions.length > 0) {
+        for (const version of doc.versions) {
+          if (version.filePath) {
+            try {
+              // Ensure the path is within the project's uploads directory
+              const uploadsDir = path.join(process.cwd(), 'uploads');
+              const absoluteFilePath = path.resolve(version.filePath);
 
-          if (absoluteFilePath.startsWith(uploadsDir)) {
-            if (fs.existsSync(absoluteFilePath)) {
-              fs.unlinkSync(absoluteFilePath);
+              if (absoluteFilePath.startsWith(uploadsDir)) {
+                if (fs.existsSync(absoluteFilePath)) {
+                  fs.unlinkSync(absoluteFilePath);
+                }
+              } else {
+                console.warn(`Attempted to delete a file outside of the uploads directory: ${version.filePath}`);
+              }
+            } catch (err) {
+              console.error(`Failed to delete file ${version.filePath}:`, err);
+              // Continue to delete the DB record even if file deletion fails
             }
-          } else {
-            console.warn(`Attempted to delete a file outside of the uploads directory: ${version.filePath}`);
           }
-        } catch (err) {
-          console.error(`Failed to delete file ${version.filePath}:`, err);
-          // Continue to delete the DB record even if file deletion fails
         }
       }
     }
 
-    await DocumentModel.deleteOne({ _id: documentId, userId });
+    await DocumentModel.deleteMany({ _id: { $in: documentIds }, userId });
 
-    return NextResponse.json({ message: 'Document deleted successfully' });
+    return NextResponse.json({ message: 'Document(s) deleted successfully' });
   } catch (error) {
-    console.error('API Error in DELETE /api/documents/delete', error);
+    console.error('API Error in POST /api/documents/bulk-delete', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -2,11 +2,13 @@
 
 import TemplateSearch from "@/components/templates/TemplateSearch";
 import { Templates  } from "@/components/templates/Templates";
+import useContextStore from "@/hooks/useContextStore";
 import { useTemplates } from "@/hooks/useTemplates";
 import { usePathname } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
 export default function TemplatesPage() {
+    const {searchQuery, setSearchQuery, selectedCategory, setSelectedCategory} = useContextStore();
     const {
         templates,
         loading,
@@ -16,9 +18,6 @@ export default function TemplatesPage() {
         deleteTemplate,
         createDocumentFromTemplate,
     } = useTemplates();
-    
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     return (
         <Suspense fallback={<div>Loading templates...</div>}>
