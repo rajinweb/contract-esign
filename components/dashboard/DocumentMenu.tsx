@@ -2,7 +2,7 @@ import useContextStore from "@/hooks/useContextStore";
 import useDropZone from "@/hooks/useDropZone";
 import { Template } from "@/hooks/useTemplates";
 import { SecondarySidebarType } from "@/types/types";
-import { Archive, ChevronDown, FileStack, Layers, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, FileStack, Layers, Plus, Trash2 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -73,20 +73,6 @@ const DocumentsMenu = ({
             <span className="font-medium text-slate-800">Documents</span>
           </div>
           <div className="text-slate-500">{documents.filter(doc => doc.status !== "trashed").length}</div>
-        </button>
-
-        <button
-          onClick={() => secondaryActive('archive')}
-          className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${activeSecondarybar === 'archive'
-              ? 'bg-slate-100 text-slate-800 border-blue-600'
-              : 'hover:bg-slate-50 border-transparent'
-            }`}
-        >
-          <div className="flex items-center gap-3 text-slate-700">
-            <Archive className="w-5 h-5 text-slate-600" />
-            <span>Archive</span>
-          </div>
-          <div className="text-slate-500">0</div>
         </button>
 
         <div>
