@@ -207,37 +207,27 @@ function DeleteCTA({
     totalDocuments > 0 && selectedIds.length === totalDocuments;
 
   return (
-    <div className="flex items-center px-4 py-2 bg-white rounded-lg shadow-sm">
+    <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 h-14 relative">
       <input
-        type="checkbox"
-        checked={isAllSelected}
-        onChange={toggleSelectAll}
-      />
-
-      <div className="ml-4 flex-1">
-        {selectedIds.length
-          ? `${selectedIds.length} selected`
-          : 'Select all'}
-      </div>
-
+          type="checkbox"
+          className="w-4 h-4 border-gray-300 rounded"
+          aria-label="Select all"
+          checked={isAllSelected}
+          onChange={toggleSelectAll}
+        />
+      <span className="font-medium">{selectedIds.length ? `${selectedIds.length} selected` : 'Select all'}</span>
       {selectedIds.length > 0 && (
-        <div className="flex gap-2">
-          <Button inverted onClick={() => setRestoreOpen(true)}>
-            <History size={16} className="mr-2" />
-            Restore
-          </Button>
-
+        <>
+          <Button inverted onClick={() => setRestoreOpen(true)} icon={<History size={16}/>} label='Restore'/>            
           <Button
             inverted
             className="!bg-red-500 text-white"
             onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 size={16} className="mr-2" />
-            Delete Permanently
-          </Button>
-        </div>
+            icon={<Trash2 size={16} />}
+            label="Delete Permanently"
+          />
+        </>
       )}
-
     </div>
   );
 }

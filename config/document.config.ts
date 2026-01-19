@@ -1,7 +1,6 @@
 import type { ComponentType } from 'react';
 import {
     User,
-    Archive,
     Settings,
     Trash2,
     FileStack,
@@ -9,18 +8,21 @@ import {
 } from 'lucide-react';
 
 
-import ArchivePage from '@/app/archive/page';
 import TemplatesPage from '@/app/templates/page';
 import TrashPage from '@/app/trash/page';
 import DocumentList from '@/components/DocumentList';
 
 export type DocumentSection =
     | 'dash-documents'
-    | 'archive'
     | 'templates'
     | 'my-templates'
     | 'system-templates'
     | 'trash';
+
+export type SectionComponentProps = {
+    searchQuery?: string;
+    view?: 'my' | 'system';
+};
 
 export type DocumentConfigItem = {
     id: DocumentSection;
@@ -34,14 +36,8 @@ export const DOCUMENT_CONFIG: readonly DocumentConfigItem[] = [
     {
         id: 'dash-documents',
         label: 'Documents',
-        icon: FileStack,
-        component: DocumentList as ComponentType,
-    },
-    {
-        id: 'archive',
-        label: 'Archive',
-        icon: Archive,
-        component: ArchivePage,
+        icon: FileStack as React.ElementType,
+        component: DocumentList as ComponentType<SectionComponentProps>,
     },
     {
         id: 'templates',
@@ -66,13 +62,12 @@ export const DOCUMENT_CONFIG: readonly DocumentConfigItem[] = [
         id: 'trash',
         label: 'Trash',
         icon: Trash2,
-        component: TrashPage,
+        component: TrashPage as ComponentType<SectionComponentProps>,
     },
 ] as const;
 export const SECTION_TO_ROUTE: Partial<Record<DocumentSection, string>> = {
     'dash-documents': '/dashboard',
-    archive: '/archive',
-    trash: '/trash',
+    'trash': '/trash',
 };
 
 export const SECTION_TO_VIEW: Partial<Record<DocumentSection, 'my' | 'system'>> = {
