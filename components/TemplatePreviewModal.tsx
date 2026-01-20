@@ -2,6 +2,7 @@
 
 import React from 'react';
 import TemplatePreview, { TemplatePreviewProps } from './TemplatePreview';
+import Modal from './Modal';
 
 export interface TemplatePreviewModalProps extends Omit<TemplatePreviewProps, 'onClose'> {
   isOpen: boolean;
@@ -19,10 +20,8 @@ export default function TemplatePreviewModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
-      <div className="relative w-full max-w-4xl h-full max-h-[90vh]">
-        <TemplatePreview templateUrl={templateUrl} templateName={templateName} onClose={onClose} />
-      </div>
-    </div>
+    <Modal visible={isOpen} onClose={onClose} title={templateName} width='900px'>
+      <TemplatePreview templateUrl={templateUrl} templateName={templateName} onClose={onClose} />
+    </Modal>
   );
 }

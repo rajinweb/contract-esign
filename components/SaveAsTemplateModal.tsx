@@ -1,10 +1,9 @@
-'use client';
-import React from 'react';
-import { X } from 'lucide-react';
+'use client'
 import toast from 'react-hot-toast';
 import { useTemplates } from '@/hooks/useTemplates';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import type { DocumentField, Recipient } from '@/types/types';
+import Modal from './Modal';
 
 const CATEGORIES = ['HR', 'Legal', 'Sales', 'Finance', 'Other'];
 
@@ -95,21 +94,15 @@ export default function SaveAsTemplateModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
-          <h2 className="text-xl font-bold text-gray-900">Save as Template</h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition"
+      <Modal visible={true} 
+      title="Save as Template"
+          onClose={onClose} 
+          handleConfirm={handleSubmit(onSubmit)}
+          confirmLabel={isSubmitting ? 'Saving...' : 'Save Template'}
+          confirmDisabled={isSubmitting}  
           >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form className="space-y-3">
           {/* Template Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -189,25 +182,9 @@ export default function SaveAsTemplateModal({
             </p>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Saving...' : 'Save Template'}
-            </button>
-          </div>
+         
         </form>
-      </div>
-    </div>
+      
+    </Modal>
   );
 }

@@ -15,7 +15,7 @@ export interface TemplatePreviewProps {
 function TemplatePreview({ templateUrl, templateName, onClose }: TemplatePreviewProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.8);
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -27,35 +27,18 @@ function TemplatePreview({ templateUrl, templateName, onClose }: TemplatePreview
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">{templateName}</h2>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        )}
+    <>
+      <div className='[&_canvas]:m-auto min-h-32'>
+        <PDFViewerPreview
+          file={templateUrl}
+          onLoadSuccess={handleDocumentLoadSuccess}
+          pages={pages}
+          renderPages={true}
+          scale={scale}
+        />
       </div>
-
-      {/* PDF Viewer */}
-      <div className="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded shadow-lg">
-          <PDFViewerPreview
-            file={templateUrl}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            pages={pages}
-            renderPages={true}
-            scale={scale}
-          />
-        </div>
-      </div>
-
       {/* Controls */}
-      <div className="border-t border-gray-200 p-4 flex items-center justify-between gap-4 bg-gray-50">
+      <div className="border rounded-full border-gray-200 p-3 flex items-center justify-between gap-4 bg-gray-50 sticky bottom-0 left-0">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -94,7 +77,7 @@ function TemplatePreview({ templateUrl, templateName, onClose }: TemplatePreview
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

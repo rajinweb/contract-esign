@@ -96,7 +96,15 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
   };
 
   /* --------------------------------- Render -------------------------------- */
-  return (
+  return trashedDocs.length === 0 ? (
+    <div className="text-center py-12 text-gray-400 -translate-y-1/2 top-1/2 relative">
+      <Trash2 size={38} className='m-auto ' />
+      <h3 className="text-lg font-semibold  mb-2">Trash is empty.</h3>
+      <p className="text-gray-600 mb-6">
+        Deleted documents will appear here.
+      </p>
+    </div>
+  ) : (
     <>
       <DeleteCTA
         toggleSelectAll={toggleSelectAll}
@@ -179,7 +187,7 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
         isOpen={isRestoreOpen}
         onClose={() => setRestoreOpen(false)}
         selectedDocs={selectedIds}
-        onRestoreComplete={(selectedIds: string[])=> handleRestore(selectedIds)}
+        onRestoreComplete={(selectedIds: string[]) => handleRestore(selectedIds)}
       />
     </>
   );
@@ -209,16 +217,16 @@ function DeleteCTA({
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 h-14 relative">
       <input
-          type="checkbox"
-          className="w-4 h-4 border-gray-300 rounded"
-          aria-label="Select all"
-          checked={isAllSelected}
-          onChange={toggleSelectAll}
-        />
+        type="checkbox"
+        className="w-4 h-4 border-gray-300 rounded"
+        aria-label="Select all"
+        checked={isAllSelected}
+        onChange={toggleSelectAll}
+      />
       <span className="font-medium">{selectedIds.length ? `${selectedIds.length} selected` : 'Select all'}</span>
       {selectedIds.length > 0 && (
         <>
-          <Button inverted onClick={() => setRestoreOpen(true)} icon={<History size={16}/>} label='Restore'/>            
+          <Button inverted onClick={() => setRestoreOpen(true)} icon={<History size={16} />} label='Restore' />
           <Button
             inverted
             className="!bg-red-500 text-white"

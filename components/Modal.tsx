@@ -6,7 +6,7 @@ import { Button } from "./Button";
 interface ModalProps {
   visible: boolean;
   onClose: () => void;
-  title?: string;
+  title?: string | React.ReactNode;
   children: React.ReactNode;
   width?: string; // e.g. "400px", "600px", "90%"
   closeOnBackdrop?: boolean;
@@ -70,11 +70,11 @@ const Modal: React.FC<ModalProps> = ({
       >
         {/* Header */}
         <header className="flex justify-between p-4 border-b">
-          {title ? <h3 className="font-semibold leading-8">{title}</h3> : <div />}
+          {title ? <div className="font-semibold leading-8">{title}</div> : <div />}
           <Button onClick={onClose} inverted aria-label="Close modal" className="flex items-top" icon={<X size={16} />} />
         </header>
         {/* Content */}
-        <div className="p-4">{children}</div>
+        <main className="p-4 overflow-auto max-h-[60vh]">{children}</main>
         {/* Footer */}
         {handleConfirm &&
           <footer className="flex justify-end gap-2 p-4 bg-gray-50 border-t rounded-b-[inherit]">
