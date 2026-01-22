@@ -1,6 +1,6 @@
 import useContextStore from "@/hooks/useContextStore";
 import useDropZone from "@/hooks/useDropZone";
-import { Template } from "@/hooks/useTemplates";
+import { Template, useTemplates } from "@/hooks/useTemplates";
 import { SecondarySidebarType } from "@/types/types";
 import { ChevronDown, FileStack, Layers, Plus, Trash2 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -15,9 +15,10 @@ const DocumentsMenu = ({
   activeSecondarybar: SecondarySidebarType;
   secondaryActive: (s: SecondarySidebarType) => void;
   templates: Template[];
-  fetchTemplates: (category?: string, search?: string) => Promise<void>;
+  fetchTemplates: (category?: string, search?: string, isActive?:boolean) => Promise<void>;
 }) => {
-  const { documents } = useContextStore();
+  const { documents, trashedTemplatesCount } = useContextStore();
+  const { fetchTrashedTemplatesCount } = useTemplates();
   const [myTemplatesCount, setMyTemplatesCount] = useState(0);
   const [systemTemplatesCount, setSystemTemplatesCount] = useState(0);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -29,16 +30,17 @@ const DocumentsMenu = ({
       fetchedRef.current = true;
       fetchTemplates();
     }
-  }, [fetchTemplates]);
+    fetchTrashedTemplatesCount();
+  }, [fetchTemplates, fetchTrashedTemplatesCount]);
 
   useEffect(() => {
     if (templates) {
       const myTemplates = templates.filter((t) => !t.isSystemTemplate).length;
-      setMyTemplatesCount(myTemplates);
+      setMyTemplatesCount(myTemplates - trashedTemplatesCount );
       const systemTemplates = templates.filter((t) => t.isSystemTemplate).length;
       setSystemTemplatesCount(systemTemplates);
     }
-  }, [templates]);
+  }, [templates, trashedTemplatesCount]);
 
   const searchParams = useSearchParams();
   const view = searchParams?.get('view');
@@ -122,7 +124,7 @@ const DocumentsMenu = ({
             <Trash2 className="w-5 h-5 text-slate-600" />
             <span>Trash </span>
           </div>
-          <div className="text-slate-500">{documents.filter(doc => doc.status == "trashed").length}</div>
+          <div className="text-slate-500">{documents.filter(doc => doc.status == "trashed").length + trashedTemplatesCount}</div>
         </button>
       </nav>
     </>

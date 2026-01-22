@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
       updatedAt: doc.updatedAt,
       lastSentAt: doc.versions.find((v: IDocumentVersion) => !!v.sentAt)?.sentAt,
       expiresAt: doc.versions.find((v: IDocumentVersion) => v.version === doc.currentVersion)?.expiresAt,
+      deletedAt: doc.deletedAt
     }));
 
     return NextResponse.json({

@@ -17,6 +17,7 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [trashedTemplatesCount, setTrashedTemplatesCount] = useState(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -58,6 +59,8 @@ const contextObject=
       setSearchQuery,
       selectedCategory,
       setSelectedCategory,
+      trashedTemplatesCount,
+      setTrashedTemplatesCount,
     }
 
   return (

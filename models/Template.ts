@@ -33,6 +33,7 @@ export interface ITemplate {
     tags?: string[]; // for searching
     createdAt: Date;
     updatedAt: Date;
+    deletedAt?: Date;
 }
 
 const TemplateFieldSchema = new Schema<ITemplateField>({
@@ -76,6 +77,7 @@ const TemplateSchema = new Schema<ITemplate>(
         duplicateCount: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
         tags: { type: [String], default: [] },
+        deletedAt: { type: Date, default: null },
     },
     { timestamps: true }
 );

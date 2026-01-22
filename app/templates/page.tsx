@@ -17,6 +17,7 @@ export default function TemplatesPage() {
         duplicateTemplate,
         deleteTemplate,
         createDocumentFromTemplate,
+        trashTemplate,
     } = useTemplates();
 
     return (
@@ -44,6 +45,7 @@ export default function TemplatesPage() {
                 searchQuery={searchQuery}
                 selectedCategory={selectedCategory}
                 deleteTemplate={deleteTemplate}
+                trashTemplate={trashTemplate}
                 createDocumentFromTemplate={createDocumentFromTemplate}
             />
           </>

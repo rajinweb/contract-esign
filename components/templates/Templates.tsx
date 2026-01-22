@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button } from '../Button';
+import  DeleteModal  from './DeleteModal';
 
 export function Templates({
   initialViewMode,
@@ -20,6 +21,7 @@ export function Templates({
   fetchTemplates,
   duplicateTemplate,
   deleteTemplate,
+  trashTemplate,
   createDocumentFromTemplate,
   onTemplateDeleted,
   searchQuery,
@@ -32,6 +34,7 @@ export function Templates({
   fetchTemplates: (category?: string, search?: string) => Promise<void>,
   duplicateTemplate: (templateId: string) => Promise<Template | null>,
   deleteTemplate: (templateId: string) => Promise<boolean>,
+  trashTemplate: (templateId: string) => Promise<Template | null>,
   createDocumentFromTemplate: (templateId: string, documentName?: string) => Promise<{ documentId: string; sessionId: string } | null>,
   onTemplateDeleted?: () => void,
   searchQuery: string,
@@ -45,6 +48,7 @@ export function Templates({
   const [localTemplates, setLocalTemplates] = useState<Template[]>(templates);
   const [operatingTemplateId, setOperatingTemplateId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
 
   useEffect(() => {
     setLocalTemplates(templates);
@@ -106,35 +110,35 @@ export function Templates({
     }
   };
 
-  const handleDelete = async (templateId: string) => {
-    if (!window.confirm('Are you sure you want to delete this template?')) {
-      return;
-    }
+  const handleDelete = async (template:Template) => {
+    let templateId = template._id;
 
     setOperatingTemplateId(templateId);
     const originalTemplates = localTemplates;
 
-    // Optimistic UI update: remove template immediately
-    setLocalTemplates(prev => prev.filter(t => t._id !== templateId));
-
     try {
-      const result = await deleteTemplate(templateId);
-      if (result) {
-        toast.success('Template deleted successfully');
+      const result = await trashTemplate(templateId); // result is now Template | null
+      if (result) { // If a template object is returned, it was successfully trashed
+        // Update localTemplates to reflect the trashed state of the template
+        setLocalTemplates(prev =>
+          prev.map(t => (t._id === result._id ? { ...t, ...result } : t))
+        );
+        toast.success('Template moved to trash successfully');
         if (onTemplateDeleted) {
           onTemplateDeleted();
         }
       } else {
-        // Rollback on failure
+        // Rollback on failure (result is null)
         setLocalTemplates(originalTemplates);
-        toast.error('Failed to delete template');
+        toast.error('Failed to move template to trash');
       }
     } catch (err) {
       // Rollback on error
       setLocalTemplates(originalTemplates);
-      toast.error('Failed to delete template');
+      toast.error('Failed to move template to trash');
     } finally {
       setOperatingTemplateId(null);
+      setTemplateToDelete(null);
     }
   };
 
@@ -159,6 +163,9 @@ export function Templates({
 
 
   const filteredTemplates = localTemplates.filter((template) => {
+    if (template.deletedAt || template.isActive === false) {
+      return false;
+    }
     if (filterMode === 'my') {
       return !template.isSystemTemplate;
     }
@@ -274,7 +281,7 @@ export function Templates({
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(template._id)}
+                          onClick={() => setTemplateToDelete(template)}
                           className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Delete"
                           disabled={operatingTemplateId !== null}
@@ -321,7 +328,14 @@ export function Templates({
             }}
           />
         )}
-
+      {templateToDelete && (
+        <DeleteModal
+          isOpen={!!templateToDelete}
+          onClose={() => setTemplateToDelete(null)} 
+          onConfirmDelete={() => handleDelete(templateToDelete as Template)}
+          selectedDocs={[templateToDelete]}
+        />
+      )} 
     </div>
   );
 }

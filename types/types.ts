@@ -77,6 +77,8 @@ export interface ContextValue {
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   selectedCategory: string | null;
   setSelectedCategory: React.Dispatch<React.SetStateAction<string | null>>;
+  trashedTemplatesCount: number;
+  setTrashedTemplatesCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export interface ContextProviderProps {

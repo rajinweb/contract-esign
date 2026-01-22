@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const format = searchParams.get('format'); // Check if JSON format is requested
 
     if (!paramTemplateId || !mongoose.Types.ObjectId.isValid(paramTemplateId)) {
-        return NextResponse.json({ message: 'Invalid template ID' }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid template ID' }, { status: 400 });
     }
 
     const template = await TemplateModel.findById(paramTemplateId);
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     // Authorization: User must be the owner of a non-system template
     // System templates can be accessed by anyone (already duplicated to user's own editable version)
     if (!template.isSystemTemplate && (!userId || template.userId.toString() !== userId)) {
-        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
     // If JSON format is requested, return template data as JSON
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ message: 'Template file not found' }, { status: 404 });
     }
   } catch (error) {
-    console.error('API Error in GET /api/templates/[templateId]', error);
+    console.error('API Error in GET', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -146,8 +146,8 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Template deleted successfully' });
   } catch (error) {
-    console.error('[DELETE TEMPLATE] API Error in DELETE /api/templates/[templateId]', error);
-    return NextResponse.json({ 
+    console.error('[DELETE TEMPLATE] API Error in DELETE', error);
+    return NextResponse.json({
       message: 'Internal Server Error',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

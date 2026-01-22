@@ -97,7 +97,7 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
 
   /* --------------------------------- Render -------------------------------- */
   return trashedDocs.length === 0 ? (
-    <div className="text-center py-12 text-gray-400 -translate-y-1/2 top-1/2 relative">
+    <div className="text-center py-12 text-gray-400 top-1/2 relative">
       <Trash2 size={38} className='m-auto ' />
       <h3 className="text-lg font-semibold  mb-2">Trash is empty.</h3>
       <p className="text-gray-600 mb-6">
@@ -135,7 +135,8 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
                 <div className="font-medium text-gray-900">
                   {doc.name}
                   <small className="flex text-gray-500">
-                    Created {doc.createdAt && new Date(doc.createdAt).toLocaleDateString()}
+                    Created {doc.createdAt && new Date(doc.createdAt).toLocaleDateString()} - {' '}
+                    Deleted {doc.deletedAt && new Date(doc.deletedAt).toLocaleDateString()}
                   </small>
                 </div>
               </div>
