@@ -708,7 +708,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
       // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
       const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
-      console.log('droppedComponents before save', droppedComponents);
       // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
       const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
       if (result && result.documentId) {

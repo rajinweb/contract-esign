@@ -85,7 +85,7 @@ const PricingPlans = () => {
       <div className="text-center mb-12">
         <p className="text-indigo-600 text-sm font-semibold uppercase">Unlimited users for all plans</p>
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">
-          Increase productivity and improve collaboration with SecureSign
+          Increase productivity and improve collaboration with DocYouSign
         </h1>
         <p className="text-gray-500 mt-4">
           Select a subscription plan for your team or try advanced functionality for free.

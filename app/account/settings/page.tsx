@@ -281,7 +281,7 @@ export default function SettingsPage() {
           <div className="flex items-center space-x-1 text-xs border p-1 rounded border-blue-600 border-dashed">
             <FileSignature className="h-10 w-10 text-blue-600" strokeWidth="1" />
             <small className="flex flex-col text-gray-500 leading-tight w-32">
-              <span>Verified by SecureSign</span>
+              <span>Verified by DocYouSign</span>
               <span>01/01/2025 00:00:00 UTC</span>
               <span>abcdefghi01234567890</span>
             </small>
@@ -289,7 +289,7 @@ export default function SettingsPage() {
 
           <div className="flex items-center justify-between w-full">
             <div>
-              <div className="text-sm text-gray-600">Display SecureSign e-signature ID</div>
+              <div className="text-sm text-gray-600">Display DocYouSign e-signature ID</div>
               <div className="text-sm text-gray-500">An e-signature ID will be displayed on signed documents.</div>
             </div>
 

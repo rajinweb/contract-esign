@@ -60,7 +60,7 @@ export default function Home() {
           <div className="flex-1 max-w-[600px]">
             <h1 className="text-3xl font-medium text-black leading-[28.8px] mb-4"> What is Aadhaar Based eSignature </h1>
             <p className='my-6'>
-              Aadhaar-based eSign is a safe and paperless method to digitally sign documents using your Aadhaar ID. With biometric authentication, it enables quick and legally valid signatures. SecureSign provides users with a seamless digital signing experience in just a few clicks.
+              Aadhaar-based eSign is a safe and paperless method to digitally sign documents using your Aadhaar ID. With biometric authentication, it enables quick and legally valid signatures. DocYouSign provides users with a seamless digital signing experience in just a few clicks.
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

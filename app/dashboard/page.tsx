@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
 
 import UploadZone from '@/components/UploadZone';
 import { PrimarySidebar, SecondarySidebar } from '@/components/dashboard/Sidebar';

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import Users from '@/models/Users';
 import { serialize } from 'cookie';
+import connectDB from '@/utils/db';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -24,13 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid Google token' }, { status: 401 });
     }
 
-    if (mongoose.connection.readyState === 0) {
-      if (!process.env.MONGODB_URI) {
-        console.error('MONGODB_URI not defined');
-        return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
-      }
-      await mongoose.connect(process.env.MONGODB_URI as string);
-    }
+    await connectDB();
 
     // Use safe fallbacks for name/picture
     const name = payload.name || payload.given_name || '';

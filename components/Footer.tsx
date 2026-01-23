@@ -7,7 +7,7 @@ export function Footer() {
     <div className="mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-medium text-black text-center">
-          Why Choose SecureSign?
+          Why Choose DocYouSign?
         </h2>
         <p className='max-w-5xl
          text-gray-500 text-center m-auto my-4'>Aadhaar-based eSign is a government-authorized digital signing method that allows you to sign documents securely using your Aadhaar number and a one-time password (OTP).</p>
@@ -34,7 +34,7 @@ export function Footer() {
           <ul className="flex space-x-4 justify-center mb-6">
             <li>
               <a
-                href="https://www.facebook.com/securesign"
+                href="https://www.facebook.com/DocYouSign"
                 title="Facebook"
                 target="_blank"
                 rel="nofollow"
@@ -50,7 +50,7 @@ export function Footer() {
           
             <li>
               <a
-                href="https://x.com/securesign"
+                href="https://x.com/DocYouSign"
                 title="Twitter"
                 target="_blank"
                 rel="nofollow"
@@ -64,7 +64,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href="https://www.linkedin.com/company/securesign"
+                href="https://www.linkedin.com/company/DocYouSign"
                 title="LinkedIn"
                 target="_blank"
                 rel="nofollow"
@@ -78,7 +78,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href="https://www.youtube.com/channel/securesign"
+                href="https://www.youtube.com/channel/DocYouSign"
                 title="YouTube"
                 target="_blank"
                 rel="nofollow"
@@ -106,7 +106,7 @@ export function Footer() {
 
           {/* Copyright */}
           <div className="text-center text-sm text-gray-500 mb-4">
-            © 2025 SecureSign Inc. All rights reserved.
+            © 2025 DocYouSign Inc. All rights reserved.
           </div>
 
     </div>

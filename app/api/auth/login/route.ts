@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import Users from '@/models/Users';
 import { serialize } from 'cookie';
+import connectDB from '@/utils/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,13 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
-    if (mongoose.connection.readyState === 0) {
-      if (!process.env.MONGODB_URI) {
-        console.error('MONGODB_URI not defined');
-        return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
-      }
-      await mongoose.connect(process.env.MONGODB_URI as string);
-    }
+    await connectDB();
 
     const user = await Users.findOne({ email });
 
