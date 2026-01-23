@@ -49,14 +49,26 @@ export const uploadToServer = async (
     }
 
     const headers: Record<string, string> = {};
+    if (signingToken) {
+        headers['X-Signing-Token'] = signingToken;
+    } else {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    }
 
-    const loadResponse = await fetch(`/api/documents/load?id=${documentId}`, {
+    if (typeof window !== 'undefined') {
+        headers['X-Recipient-Id'] = new URLSearchParams(window.location.search).get("recipient") || '';
+    }
+
+    const loadResponse = await fetch(`/api/documents/load?id=${documentId}${signingToken ? `&token=${signingToken}` : ''}`, {
         headers: Object.keys(headers).length ? headers : undefined,
         cache: 'no-store',
     });
 
     if (!loadResponse.ok) {
-        throw new Error('Failed to fetch latest document data');
+        throw new Error(`Failed to fetch latest document data. Status: ${loadResponse.status}`);
     }
 
     const loadData = await loadResponse.json();
@@ -185,19 +197,6 @@ export const uploadToServer = async (
             : 'Initial document creation';
     formData.append('changeLog', changeLog);
 
-
-    if (signingToken) {
-        headers['X-Signing-Token'] = signingToken;
-    } else {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-    }
-
-    if (typeof window !== 'undefined') {
-        headers['X-Recipient-Id'] = new URLSearchParams(window.location.search).get("recipient") || '';
-    }
     const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: Object.keys(headers).length ? headers : undefined,
@@ -206,7 +205,7 @@ export const uploadToServer = async (
     });
 
     if (!response.ok) {
-        throw new Error('Failed to save PDF to server');
+        throw new Error(`Failed to save PDF to server. Status: ${response.status}`);
     }
     const result = await response.json();
     console.log('Server response:', result);
