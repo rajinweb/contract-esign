@@ -132,11 +132,8 @@ const menuItems = [
         let lastModified: string | undefined;
   
         if (typeof selectedFile === "string") {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-          const opts: RequestInit = {};
-          if (token) opts.headers = { Authorization: `Bearer ${token}` };
           console.log("Fetching metadata from:", selectedFile);
-          const res = await fetch(selectedFile, opts);
+          const res = await fetch(selectedFile, { credentials: 'include' });
           if (!res.ok) {
             console.warn(`Failed to fetch file metadata from ${selectedFile}: ${res.status} ${res.statusText}`);
             setDocumentMetadata(null);

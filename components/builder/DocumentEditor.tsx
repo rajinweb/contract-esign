@@ -221,14 +221,10 @@ const DocumentEditor: React.FC<EditorProps> = ({
         return;
       }
       try {
-        // Load server document
-        const token = localStorage.getItem('AccessToken');
-        const headers: Record<string, string> = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-
+        // Load server document (auth via cookie)
         const response = await fetch(`/api/documents/load?id=${currentDocId}`, {
-          headers: Object.keys(headers).length ? headers : undefined,
           cache: 'no-store',
+          credentials: 'include',
         });
 
         if (!response.ok) throw new Error('Failed to fetch document');
@@ -708,6 +704,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
       // prefer the documentId stored in component state (set when editor loaded) otherwise fallback to localStorage
       const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+      console.log('droppedComponents before save', droppedComponents);
       // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
       const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
       if (result && result.documentId) {
@@ -994,15 +991,10 @@ const DocumentEditor: React.FC<EditorProps> = ({
           //  formData.append('documentName', cleanName.endsWith('.pdf') ? cleanName : `${cleanName}.pdf`);
         }
 
-        const token = localStorage.getItem('AccessToken');
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
         // use keepalive to improve unload delivery
         const res = await fetch('/api/documents/upload', {
           method: 'POST',
           body: formData,
-          headers: Object.keys(headers).length ? headers : undefined,
           credentials: 'include',
           keepalive: true,
         });

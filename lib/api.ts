@@ -201,7 +201,7 @@ export const uploadToServer = async (
         method: 'POST',
         headers: Object.keys(headers).length ? headers : undefined,
         body: formData,
-        credentials: 'include', // if you use cookies/session
+        credentials: 'include', // cookie-based auth
     });
 
     if (!response.ok) {

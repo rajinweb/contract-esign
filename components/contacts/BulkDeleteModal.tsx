@@ -25,14 +25,12 @@ const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
     setIsDeleting(true);
     try {
       const contactIds = selectedContacts.map(contact => contact._id).filter(Boolean);
-      
-      const token = localStorage.getItem('AccessToken');
       const response = await fetch('/api/contacts/bulk-delete', {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ contactIds }),
       });
 

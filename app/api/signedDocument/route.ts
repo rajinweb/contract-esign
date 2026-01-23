@@ -6,46 +6,49 @@ import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 
 export async function POST(req: NextRequest) {
   try {
-        await connectDB();
-        const { recipientId, token, action, location, device, consent  } = await req.json();
+    await connectDB();
+    const { recipientId, token, action, location, device, consent } = await req.json();
 
-        if (!token) return NextResponse.json({ message: 'Token is required' }, { status: 400 });
+    if (!token) return NextResponse.json({ message: 'Token is required' }, { status: 400 });
 
-        // Find the document and version that contains this signing token
-        const document = await DocumentModel.findOne({ 'versions.signingToken': token });
-        if (!document) {
-          return NextResponse.json({ message: 'Invalid or expired signing link' }, { status: 404 });
-        }
+    // Find the document and version that contains this signing token
+    const document = await DocumentModel.findOne({
+      'versions.signingToken': token,
+      'recipients.id': recipientId,
+    });
+    if (!document) {
+      return NextResponse.json({ message: 'Invalid or expired signing link' }, { status: 404 });
+    }
 
-        const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
-        if (!version) return NextResponse.json({ message: 'Version not found' }, { status: 404 });
+    const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
+    if (!version) return NextResponse.json({ message: 'Version not found' }, { status: 404 });
 
-        // verify expiry
-        if (version.expiresAt && new Date() > version.expiresAt) {
-          return NextResponse.json({ message: 'Signing link has expired' }, { status: 410 });
-        }
+    // verify expiry
+    if (version.expiresAt && new Date() > version.expiresAt) {
+      return NextResponse.json({ message: 'Signing link has expired' }, { status: 410 });
+    }
 
-        // find recipient
-        const recipient = (document.recipients as IDocumentRecipient[] | undefined)?.find((r: IDocumentRecipient) => r.id === recipientId);
-        if (!recipient) {
-          return NextResponse.json({ message: 'Recipient not found for this document' }, { status: 404 });
-        }
+    // find recipient
+    const recipient = (document.recipients as IDocumentRecipient[] | undefined)?.find((r: IDocumentRecipient) => r.id === recipientId);
+    if (!recipient) {
+      return NextResponse.json({ message: 'Recipient not found for this document' }, { status: 404 });
+    }
 
-        const requiresGps =
-          recipient.captureGpsLocation === true ||
-          document.captureGpsLocation === true;
+    const requiresGps =
+      recipient.captureGpsLocation === true ||
+      document.captureGpsLocation === true;
 
-        if (requiresGps && action === 'signed') {
-          if (!location || !consent?.locationGranted) {
-            return NextResponse.json(
-              { message: 'GPS location consent is required to sign this document' },
-              { status: 400 }
-            );
-          }
-        }
+    if (requiresGps && action === 'signed') {
+      if (!location || !consent?.locationGranted) {
+        return NextResponse.json(
+          { message: 'GPS location consent is required to sign this document' },
+          { status: 400 }
+        );
+      }
+    }
 
-        const forwardedFor = req.headers.get('x-forwarded-for');
-        const ip = forwardedFor?.split(',')[0]?.trim() ?? 'unknown';
+    const forwardedFor = req.headers.get('x-forwarded-for');
+    const ip = forwardedFor?.split(',')[0]?.trim() ?? 'unknown';
 
     if (recipient.role === 'signer') {
       if (!['signed', 'rejected'].includes(action)) {

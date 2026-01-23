@@ -67,13 +67,9 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
   async function handleDownloadSignedCopy(doc: Doc) {
     try {
       setDownloadingDoc(doc.id);
-      const token = localStorage.getItem('AccessToken') || '';
-
       const res = await fetch(`/api/documents/download-signed?documentId=${encodeURIComponent(doc.documentId || doc.id)}`, {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (!res.ok) {

@@ -60,13 +60,7 @@ export default function CreateTemplateModal({
     const fetchDocuments = async () => {
       setDocsLoading(true);
       try {
-        const token = localStorage.getItem('AccessToken') || '';
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const res = await fetch('/api/documents/list', { headers });
+        const res = await fetch('/api/documents/list', { credentials: 'include' });
         if (res.ok) {
           const { documents: data } = await res.json();
           setDocuments(data.filter((item: { status: string; }) => item.status !== 'trashed') || []);

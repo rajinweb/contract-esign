@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import { sendSigningRequestEmail } from '@/lib/email';
@@ -38,9 +39,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No document version found' }, { status: 404 });
     }
 
-    // Generate signing token for the version if not exists
+    // Generate a cryptographically secure signing token for the version
+    // if one does not already exist. This token acts as a capability URL
+    // and MUST be unguessable.
     if (!currentVersion.signingToken) {
-      currentVersion.signingToken = `${documentId}-${Date.now()}`;
+      currentVersion.signingToken = `${documentId}-${crypto.randomBytes(10).toString('hex')}`;
       currentVersion.sentAt = new Date();
     }
 

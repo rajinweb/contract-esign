@@ -22,14 +22,9 @@ export default function useDropZone() {
         formData.append('documentName', file.name);
         formData.append('isMetadataOnly', 'false');
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
         const res = await fetch('/api/documents/upload', {
           method: 'POST',
           body: formData,
-          headers: Object.keys(headers).length ? headers : undefined,
           credentials: 'include',
         });
 

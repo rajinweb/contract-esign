@@ -39,17 +39,14 @@ export default function ProfilePage() {
     setIsSaving(true);
     setError(null);
 
-    // include AccessToken from localStorage if present
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
     try {
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ name, picture }),
-        credentials: 'include', // support cookie flow
+        credentials: 'include', // cookie-based auth
       });
 
       if (!res.ok) {

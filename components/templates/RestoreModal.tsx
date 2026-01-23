@@ -31,8 +31,8 @@ const RestoreTemplateModal: React.FC<RestoreModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('AccessToken') || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ templateIds }),
       });
 
