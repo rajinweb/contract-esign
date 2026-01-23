@@ -17,7 +17,6 @@ const UserDropdown = () => {
       console.error('Logout API call failed:', error);
     } finally {
       // Clear local storage and state
-      localStorage.removeItem('AccessToken');
       localStorage.removeItem('User');
       setIsLoggedIn(false);
       setSelectedFile(null);

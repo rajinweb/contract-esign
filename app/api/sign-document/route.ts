@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
         if (!token) return NextResponse.json({ success: false, message: 'Token is required' }, { status: 400 });
         if (!recipientId) return NextResponse.json({ success: false, message: 'Recipient ID is required' }, { status: 400 });
 
-        const document = await DocumentModel.findOne({ 'versions.signingToken': token });
+        const document = await DocumentModel.findOne({
+            'versions.signingToken': token,
+            'recipients.id': recipientId,
+        });
         if (!document) return NextResponse.json({ success: false, message: 'Invalid or expired signing link' }, { status: 404 });
 
         const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
@@ -51,7 +54,10 @@ export async function GET(req: NextRequest) {
 
         // Find the document and version that contains this signing token
         // Don't use .lean() to ensure we get fresh data from DB
-        const document = await DocumentModel.findOne({ 'versions.signingToken': token });
+        const document = await DocumentModel.findOne({
+            'versions.signingToken': token,
+            'recipients.id': recipientId,
+        });
         if (!document) return NextResponse.json({ success: false, message: 'Invalid or expired signing link' }, { status: 404 });
 
         const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);

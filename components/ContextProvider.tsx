@@ -21,13 +21,15 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('AccessToken');
     const userJson = localStorage.getItem('User');
-    if (token) {
-      setIsLoggedIn(true);
-    }
     if (userJson) {
-      try { setUser(JSON.parse(userJson)); } catch { setUser(null); }
+      try {
+        setUser(JSON.parse(userJson));
+        setIsLoggedIn(true);
+      } catch {
+        setUser(null);
+        setIsLoggedIn(false);
+      }
     }
   }, []);
 

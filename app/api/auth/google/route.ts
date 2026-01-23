@@ -58,13 +58,13 @@ export async function POST(req: NextRequest) {
     // Set httpOnly cookie (secure only in production)
     response.headers.set(
       'Set-Cookie',
-        serialize('token', appToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 7 * 24 * 3600,
-        })
+      serialize('token', appToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 3600,
+      })
     );
 
     return response;

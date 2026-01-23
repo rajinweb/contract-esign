@@ -41,16 +41,11 @@ export function useTemplates() {
             if (typeof isActive === 'boolean') {
                 params.append('isActive', String(isActive));
             }
-            const token = localStorage.getItem('AccessToken') || '';
-            const headers: Record<string, string> = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const url = `/api/templates/list?${params}`;
-            console.log('Fetching from:', url, 'with token:', token ? (token.substring(0, 20) + '...') : 'none');
+            console.log('Fetching from:', url);
 
             const response = await fetch(url, {
-                headers,
+                credentials: 'include',
             });
 
             console.log('Response status:', response.status);
@@ -71,15 +66,12 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Accept': 'application/json',
             };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch(`/api/templates/${templateId}?format=json`, {
                 headers,
+                credentials: 'include',
             });
 
             if (!response.ok) throw new Error('Failed to fetch template');
@@ -98,16 +90,13 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch('/api/templates/create', {
                 method: 'POST',
                 headers,
+                credentials: 'include',
                 body: JSON.stringify(templateData),
             });
 
@@ -135,16 +124,13 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch('/api/templates/duplicate', {
                 method: 'POST',
                 headers,
+                credentials: 'include',
                 body: JSON.stringify({ templateId }),
             });
 
@@ -174,14 +160,9 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
-            const headers: Record<string, string> = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch(`/api/templates/${templateId}`, {
                 method: 'DELETE',
-                headers,
+                credentials: 'include',
             });
 
             if (!response.ok) throw new Error('Failed to delete template');
@@ -199,14 +180,9 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
-            const headers: Record<string, string> = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             // Call the list endpoint with returnCount=true and isActive=false
             const response = await fetch('/api/templates/list?isActive=false&returnCount=true', {
-                headers,
+                credentials: 'include',
             });
 
             if (!response.ok) throw new Error('Failed to fetch trashed templates count');
@@ -224,16 +200,13 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch('/api/templates/trash', {
                 method: 'POST',
                 headers,
+                credentials: 'include',
                 body: JSON.stringify({ templateIds: [templateId] }),
             });
 
@@ -269,16 +242,13 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
             const response = await fetch(`/api/templates/restore`, {
                 method: 'POST',
                 headers,
+                credentials: 'include',
                 body: JSON.stringify({ templateIds: [templateId] }),
             });
 
@@ -306,29 +276,22 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
 
-            // Only add Authorization header if token exists
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            // Get guest ID if user is not logged in
+            // Get guest ID if user is not logged in (cookie-based auth can still be absent)
             let guestId: string | null = null;
-            if (!token) {
-                guestId = localStorage.getItem('guest_session_id');
-                if (!guestId) {
-                    guestId = `guest_${uuidv4()}`;
-                    localStorage.setItem('guest_session_id', guestId);
-                }
+            guestId = localStorage.getItem('guest_session_id');
+            if (!guestId) {
+                guestId = `guest_${uuidv4()}`;
+                localStorage.setItem('guest_session_id', guestId);
             }
 
             const response = await fetch('/api/templates/use', {
                 method: 'POST',
                 headers,
+                credentials: 'include',
                 body: JSON.stringify({ templateId, documentName, guestId }),
             });
 
@@ -360,7 +323,6 @@ export function useTemplates() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('AccessToken') || '';
             const formData = new FormData();
 
             formData.append('file', file);
@@ -371,15 +333,10 @@ export function useTemplates() {
                 formData.append('tags', templateData.tags.join(', '));
             }
 
-            const headers: Record<string, string> = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
             const response = await fetch('/api/templates/upload', {
                 method: 'POST',
-                headers,
                 body: formData,
+                credentials: 'include',
             });
 
             if (!response.ok) {

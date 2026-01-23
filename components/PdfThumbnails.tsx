@@ -22,12 +22,9 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 120, heigh
 
       try {
         const absoluteUrl = new URL(fileUrl, window.location.origin).href;
-        const token = localStorage.getItem('AccessToken') || '';
         const pdf = await pdfjs.getDocument({
           url: absoluteUrl,
-          httpHeaders: {
-            'Authorization': `Bearer ${token}`,
-          }
+          // Auth is handled by cookie; no Authorization header needed.
         }).promise;
         const page = await pdf.getPage(1);
 

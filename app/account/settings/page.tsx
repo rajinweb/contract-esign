@@ -176,9 +176,8 @@ export default function SettingsPage() {
     if (!confirm('Delete your account? This cannot be undone.')) return;
     setDeleting(true);
     try {
-      const res = await fetch('/api/user/delete', { method: 'DELETE' });
+      const res = await fetch('/api/user/delete', { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
-        localStorage.removeItem('AccessToken');
         localStorage.removeItem('User');
         setIsLoggedIn(false);
         router.replace('/');

@@ -41,7 +41,6 @@ const LoginPage: React.FC = () => {
         return;
       }
 
-      if (json?.token) localStorage.setItem('AccessToken', json.token);
       if (json?.user) {
         localStorage.setItem('User', JSON.stringify(json.user));
         setUser(json.user);

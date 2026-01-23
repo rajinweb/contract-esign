@@ -104,9 +104,7 @@ export default function Dashboard() {
       try {
         const res = await fetch('/api/documents/list', {
           signal: controller.signal,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('AccessToken') ?? ''}`,
-          },
+          credentials: 'include',
         });
 
         if (!res.ok) throw new Error('Failed to fetch documents');

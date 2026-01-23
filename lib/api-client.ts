@@ -1,43 +1,31 @@
 const api = {
   get: async (url: string) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     const response = await fetch(`/api${url}`, {
       method: 'GET',
-      headers,
+      // Auth is handled via httpOnly cookie on the same origin.
+      credentials: 'include',
     });
     return response.json();
   },
   post: async (url: string, data: any) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     const response = await fetch(`/api${url}`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
     return response.json();
   },
   patch: async (url: string, data: any) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     const response = await fetch(`/api${url}`, {
       method: 'PATCH',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
     return response.json();
   },
