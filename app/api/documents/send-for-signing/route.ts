@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { documentId, recipients, subject, message } = await req.json();
+    const { documentId, recipients, subject, message, sequentialSigning } = await req.json();
 
     if (!documentId || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json({ message: 'Document ID and recipients are required' }, { status: 400 });
@@ -26,8 +26,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
 
+    document.sequentialSigning = !!sequentialSigning;
+
+    // Determine initial status based on sequential signing
+    let minOrder = Infinity;
+    if (sequentialSigning) {
+      minOrder = Math.min(...recipients.filter((r: Recipient) => r.role !== 'viewer').map((r: Recipient) => r.order));
+    }
+
     // Update document status and recipients
-    document.recipients = recipients.map((r: Recipient) => ({ ...r, status: 'sent' }));
+    document.recipients = recipients.map((r: Recipient) => {
+      let status = 'sent';
+      if (sequentialSigning && r.role !== 'viewer' && r.order > minOrder) {
+        status = 'pending';
+      }
+      return { ...r, status };
+    });
+
     updateDocumentStatus(document);
 
     // Get or create the current version with signing token
@@ -40,18 +55,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate a cryptographically secure signing token for the version
-    // if one does not already exist. This token acts as a capability URL
-    // and MUST be unguessable.
     if (!currentVersion.signingToken) {
-      currentVersion.signingToken = `${documentId}-${crypto.randomBytes(10).toString('hex')}`;
+      currentVersion.signingToken = crypto.randomBytes(32).toString('hex');
       currentVersion.sentAt = new Date();
     }
 
     await document.save();
 
-    // Send signing request emails to each recipient
+    // Send signing request emails only to active recipients
     for (const recipient of document.recipients) {
-      await sendSigningRequestEmail(recipient, document, { subject, message }, currentVersion.signingToken);
+      if (recipient.status === 'sent' || recipient.role === 'viewer') {
+        await sendSigningRequestEmail(recipient, document, { subject, message }, currentVersion.signingToken);
+      }
     }
 
     return NextResponse.json({ message: 'Document sent for signing' });

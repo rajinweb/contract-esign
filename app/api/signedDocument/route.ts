@@ -3,6 +3,7 @@ import connectDB from '@/utils/db';
 import DocumentModel, { IDocumentRecipient } from '@/models/Document';
 import { IDocumentVersion } from '@/types/types';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
+import { sendSigningRequestEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,6 +89,37 @@ export async function POST(req: NextRequest) {
     }
 
     await document.save();
+
+    // Trigger next recipient if sequential signing is enabled and action was success
+    if (document.sequentialSigning && (action === 'signed' || action === 'approved')) {
+      const currentOrder = recipient.order;
+
+      // Check if all recipients at current order are done
+      const allCurrentOrderDone = document.recipients
+        .filter((r: IDocumentRecipient) => r.order === currentOrder && r.role !== 'viewer')
+        .every((r: IDocumentRecipient) => r.status === 'signed' || r.status === 'approved');
+
+      if (allCurrentOrderDone) {
+        // Find next order
+        const orders = document.recipients
+          .filter((r: IDocumentRecipient) => r.role !== 'viewer' && r.order > currentOrder)
+          .map((r: IDocumentRecipient) => r.order);
+
+        if (orders.length > 0) {
+          const nextOrder = Math.min(...orders);
+          const nextRecipients = document.recipients.filter((r: IDocumentRecipient) => r.order === nextOrder);
+
+          for (const nextRec of nextRecipients) {
+            if (nextRec.status === 'pending') {
+              nextRec.status = 'sent';
+              await sendSigningRequestEmail(nextRec, document, {}, version.signingToken);
+            }
+          }
+          document.markModified('recipients');
+          await document.save();
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

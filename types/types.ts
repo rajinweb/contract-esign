@@ -261,20 +261,24 @@ export interface SavedDocument {
 }
 
 // types/document.ts
-export interface IDocument extends Document {
+export interface IDocument {
   _id: string; // explicitly tell TypeScript _id is a string
   userId: string;
   documentName: string;
   originalFileName: string;
   currentVersion: number;
   currentSessionId?: string;
+  sequentialSigning?: boolean; // Added sequential signing toggle
   versions: {
     version: number;
-    pdfData: Buffer;
+    pdfData?: Buffer;
     fields?: any[];
     status?: string;
     changeLog?: string;
     filePath?: string;
+    signingToken?: string;
+    sentAt?: Date;
+    expiresAt?: Date;
   }[];
   recipients?: Recipient[];
   status?:

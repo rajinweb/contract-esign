@@ -168,6 +168,7 @@ const DocumentSchema = new Schema<IDocument>({
   originalFileName: { type: String, required: true },
   currentVersion: { type: Number, default: 1 },
   currentSessionId: { type: String },
+  sequentialSigning: { type: Boolean, default: false }, // Added sequential signing toggle
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: [DocumentRecipientSchema], default: [] },
   status: {

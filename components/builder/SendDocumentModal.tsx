@@ -73,7 +73,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           recipients: recipientsWithSettings,
           subject,
           message,
-          sequential,
+          sequentialSigning: sequential,
         }),
       });
 
