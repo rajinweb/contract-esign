@@ -232,18 +232,23 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
               </div>
 
               <div className="flex items-center gap-2 text-sm">
-                <Button
-                  className="!rounded-full"
+               { doc.status == 'rejected' && <Button
+                  className="!rounded-full relative group"
                   onClick={(e) => {
                     e?.stopPropagation();
                     handleResetStatus(doc);
                   }}
+                  disabled={downloadingDoc === doc.id}
                   title="Reset Status"
                   data-testid={`reset-status-${doc.id}`}
                   icon={<RefreshCw size={16} />}
-                  disabled={doc.status !== 'rejected'}
                   inverted
-                />
+                >
+                   <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
+                    The document signing request was rejected by a recipient. Reset the document status to continue signing.                    
+                    </div>
+                </Button>
+                }
                 <Button
                   className="text-red-500 hover:text-red-700 !rounded-full relative"
                   onClick={(e) => {

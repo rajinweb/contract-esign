@@ -1,10 +1,11 @@
 'use client';
-import React, { useState } from 'react';
-import { X, Send, Clock, AlertCircle, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {  Send, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
 import Input from '../forms/Input';
 import Modal from '../Modal';
+import RecipientsList from './RecipientsList';
 
 interface SendDocumentModalProps {
   isOpen: boolean;
@@ -13,12 +14,14 @@ interface SendDocumentModalProps {
   documentName: string;
   documentId?: string | null;
   onSendComplete?: () => void;
+  setRecipients?: (recipients: Recipient[]) => void;
 }
 
 const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   isOpen,
   onClose,
   recipients,
+  setRecipients,
   documentName,
   documentId,
   onSendComplete,
@@ -31,7 +34,12 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   const [expiryDays, setExpiryDays] = useState(30);
   const [hasExpiry, setHasExpiry] = useState(true);
   const [captureGps, setCaptureGps] = useState(false);
+  const [sequential, setSequential] = useState(false);
 
+
+  const handleReorder = (reorderedRecipients: Recipient[]) => {
+    setRecipients?.(reorderedRecipients);
+  };
   const handleSend = async () => {
     if (recipients.length === 0) {
       toast.error('No recipients to send to');
@@ -45,8 +53,9 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
 
     setIsSending(true);
     try {
-      const recipientsWithSettings = recipients.map((r) => ({
+      const recipientsWithSettings = recipients.map((r, index) => ({
         ...r,
+        order: index + 1,
         sendReminders: sendReminders,
         reminderDays: sendReminders ? reminderDays : undefined,
         expiresAt: hasExpiry ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined,
@@ -64,6 +73,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           recipients: recipientsWithSettings,
           subject,
           message,
+          sequential,
         }),
       });
 
@@ -105,30 +115,34 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           </p>
         </>
       }>
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-h-[60vh]">
+      <div className="p-4 space-y-6">
         {/* Recipients Summary */}
         <div className="bg-blue-50 p-4 rounded-md">
           <h3 className="text-sm font-medium text-blue-800 mb-3">Recipients</h3>
+
+          <div className="flex items-center justify-between mb-3">
+            <div>
+                <h4 className="text-sm font-medium text-gray-900">Sequential Signing</h4>
+                <p className="text-xs text-gray-500">Signers must sign in a specific order. You can re-order signers below.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                    type="checkbox"
+                    id="sequential-signing-modal"
+                    className="sr-only peer"
+                    checked={sequential}
+                    onChange={() => setSequential(!sequential)}
+                />
+                <div className="w-11 h-6 scale-75 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
 
           {signers.length > 0 && (
             <div className="mb-3">
               <p className="text-xs text-blue-600 font-medium mb-2">SIGNERS ({signers.length})</p>
               <div className="space-y-1">
-                {signers.map((recipient) => (
-                  <div key={recipient.id} className="flex items-center gap-2 text-sm">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
-                      style={{ backgroundColor: recipient.color }}
-                    >
-                      {recipient.order}
-                    </div>
-                    <span className="font-medium">{recipient.name}</span>
-                    <span className="text-gray-600">({recipient.email})</span>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                      {recipient.role}
-                    </span>
-                  </div>
-                ))}
+                <RecipientsList recipients={recipients} isDraggable={sequential} onReorder={handleReorder} inlineView />
               </div>
             </div>
           )}

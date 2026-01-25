@@ -285,7 +285,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
         </>
       }>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 devide-y-1 max-h-[60vh]">
+      <div ref={scrollContainerRef}>
         {sortedRecipients.map((recipient) => {
           const hasNameError = !!formErrors[`${recipient.id}_name`];
           const hasEmailError = !!formErrors[`${recipient.id}_email`];

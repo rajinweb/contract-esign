@@ -1253,6 +1253,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
                 recipients={recipients}
                 documentName={documentName}
                 documentId={documentId}
+                setRecipients={setRecipients}
               />
             )}
 
