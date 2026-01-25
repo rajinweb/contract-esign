@@ -179,6 +179,10 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         const data: SignDocumentResponse = await res.json();
         if (!data.success || !data.document) notFound();
 
+        if (data.document.status === 'trashed') {
+          return "This document has been trashed and is no longer accessible."
+        }
+
         setDoc(data.document);
         const recipient = data.document.recipients.find((r) => r.id === recipientId);
 
