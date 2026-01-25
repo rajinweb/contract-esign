@@ -143,11 +143,11 @@ export default function Dashboard() {
   /* ------------------------------------------------------------------ */
   /* derived state */
   /* ------------------------------------------------------------------ */
-
+  const activeDocuments = documents.filter(doc => doc.status !=='trashed');
   const showUploadZone =
     activeSidebar === 'documents' &&
     activeSecondarybar === 'dash-documents' &&
-    documents.length === 0;
+    activeDocuments.length === 0;
 
   const isTemplateView = activeSecondarybar === 'my-templates';
 
