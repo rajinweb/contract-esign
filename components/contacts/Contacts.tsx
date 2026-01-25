@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
 import BulkImportModal from '@/components/contacts/BulkImportModal';
-import BulkDeleteModal from '@/components/contacts/BulkDeleteModal';
+import DeleteModal from '@/components/contacts/DeleteModal';
 import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
 import { useContactsStore } from '@/hooks/useContactsStore';
@@ -24,7 +24,7 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const { showModal, setShowModal } = useContextStore();
 
@@ -70,14 +70,18 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
     setShowModal(true);
   };
 
-  const handleDeleteContact = (contactId: string) => {
-    deleteContact(contactId);
-    setSelectedContacts((prev) => prev.filter((c) => c._id !== contactId));
+  const handleDeleteSingleContact = (contact: Contact) => {
+    setSelectedContacts([contact]);
+    setIsDeleting(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingContact(null);
+  };
+  
+  const handleBulkDelete = () => {
+    setIsDeleting(true);
   };
 
   const handleImportComplete = () => {
@@ -104,14 +108,6 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
     } else {
       setSelectedContacts([]);
     }
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedContacts.length === 0) {
-      toast.error('Please select contacts to delete');
-      return;
-    }
-    setShowBulkDelete(true);
   };
 
   const handleDeleteComplete = (deletedIds: string[]) => {
@@ -145,11 +141,11 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
         <ContactList
           contacts={filteredContacts}
           onEditContact={handleEditContact}
-          onDeleteContact={handleDeleteContact}
           selectedContacts={selectedContacts}
           onSelectContact={handleSelectContact}
           onSelectAll={handleSelectAll}
-          handleBulkDelete={handleBulkDelete}
+          onDelete={handleDeleteSingleContact}
+          onBulkDelete={handleBulkDelete}
         />
 
       {showModal && (
@@ -170,9 +166,9 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
           }}
         />
 
-        <BulkDeleteModal
-          isOpen={showBulkDelete}
-          onClose={() => setShowBulkDelete(false)}
+        <DeleteModal
+          isOpen={isDeleting}
+          onClose={() => setIsDeleting(false)}
           selectedContacts={selectedContacts}
           onDeleteComplete={handleDeleteComplete}
         />
