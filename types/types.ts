@@ -127,15 +127,30 @@ export interface DroppedComponent extends DroppingField {
   pageRect?: DOMRect | null;
   hasError?: boolean;
 }
+export interface Address {
+  country?: string;
+  street?: string;
+  apartment?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
 export interface User {
   email: string;
   password?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   picture?: string;
   id?: string;
   initials?: SignatureInitial[];
   signatures?: SignatureInitial[];
   stamps?: SignatureInitial[];
+  phone?: string;
+  address?: Address;
+  role?: string;
+  createdAt?: Date;
+  updatedAt?: string;
 }
 
 /* Recipients */

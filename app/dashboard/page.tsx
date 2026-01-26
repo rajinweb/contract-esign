@@ -21,8 +21,8 @@ import { DOCUMENT_CONFIG } from '@/config/document.config';
 /* ------------------------------------------------------------------ */
 
 const SIDEBAR_ROUTE_MAP: Array<{ match: string; sidebar: SidebarType }> = [
-  { match: '/dashboard/my-account', sidebar: 'account' },
-  { match: '/dashboard/contacts', sidebar: 'contacts' },
+  { match: '/account', sidebar: 'account' },
+  { match: '/contacts', sidebar: 'contacts' },
 ];
 
 const accountViewMap: Record<string, React.ComponentType<any>> = ACCOUNT_CONFIG.reduce((acc, item) => {

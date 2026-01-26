@@ -9,7 +9,14 @@ interface User {
   _id?: mongoose.Types.ObjectId;
   email?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   picture?: string;
+  phone?: string;
+  address?: object;
+  role?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
   initials?: {
     id: string;
     type: "typed" | "drawn";
@@ -38,11 +45,16 @@ export async function PATCH(req: NextRequest) {
     if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const body: User = await req.json();
-    const { name, picture, initials, signatures, stamps } = body;
+    const { firstName, lastName, email, phone, address, picture, initials, signatures, stamps, role } = body;
 
     const update: Partial<User> = {};
-    if (typeof name === 'string') update.name = name;
+    if (typeof firstName === 'string') update.firstName = firstName;
+    if (typeof lastName === 'string') update.lastName = lastName;
+    if (typeof email === 'string') update.email = email;
     if (typeof picture === 'string') update.picture = picture;
+    if (typeof phone === 'string') update.phone = phone;
+    if (typeof address === 'object') update.address = address;
+    if (typeof role === 'string') update.role = role;
     if (Array.isArray(initials)) update.initials = initials;
     if (Array.isArray(signatures)) update.signatures = signatures;
     if (Array.isArray(stamps)) update.stamps = stamps;
@@ -61,7 +73,14 @@ export async function PATCH(req: NextRequest) {
 
     const safe = {
       email: user.email || '',
-      name: user.name || '',
+      name: (user.firstName + ' ' + user.lastName) || '',
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone || '',
+      address: user.address || '',
+      role: user.role || '',
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       picture: user.picture || '',
       id: user._id?.toString() || '',
       initials: user.initials || [],

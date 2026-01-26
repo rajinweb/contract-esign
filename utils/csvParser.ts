@@ -117,10 +117,6 @@ export function parseCSVToContacts(csvText: string): CSVContact[] {
   return contacts;
 }
 
-export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
 
 export function generateCSVTemplate(): string {
   return `firstName,lastName,email,phone,companyName,jobTitle,country,streetAddress,apartment,city,state,zipCode,description

@@ -7,6 +7,7 @@ import DropdownPortal from '../DropdownPortal';
 import Input from '../forms/Input';
 import { Button } from '../Button';
 import Modal from '../Modal';
+import { validateEmail } from '@/utils/utils';
 
 interface AddRecipientModalProps {
   isOpen: boolean;
@@ -90,7 +91,6 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
     const processedRecipients = sortedRecipients.map(r => ({
       ...r,
@@ -118,7 +118,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
       // Validate Email
       if (!r.email) {
         errors[`${r.id}_email`] = 'Email is required';
-      } else if (!emailRegex.test(r.email)) {
+      } else if (!validateEmail(r.email)) {
         errors[`${r.id}_email`] = 'Invalid email format';
       } else if (emailCounts[r.email.toLowerCase()] > 1) {
         errors[`${r.id}_email`] = 'Duplicate email';

@@ -36,7 +36,21 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      user: { email: user.email, name: user.name, picture: user.picture, initials: user.initials || [], signatures: user.signatures || [], stamps: user.stamps || [] },
+      user: {
+        email: user.email,
+        name: user.firstName + ' ' + user.lastName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        picture: user.picture,
+        initials: user.initials || [],
+        signatures: user.signatures || [],
+        stamps: user.stamps || []
+      },
       token: appToken
     });
 
