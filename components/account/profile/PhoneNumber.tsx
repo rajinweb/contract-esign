@@ -65,21 +65,17 @@ export default function PhoneNumber({ label, user, isSaving, handleSave }: {
 
   return (
     <div className="relative flex justify-between py-4 border-b items-end">
+       <div>
+      <label className="text-sm text-slate-500">{label}</label>
       {!isEditing && (
-        <div>
-          <p className="text-sm text-slate-500">{label}</p>
           <p className="font-medium">
             {draft ? draft : 'Not added'}
           </p>
-        </div>
+      
       )}
 
       {isEditing && (
         <div className="flex gap-4 items-end min-w-[280px]">
-          <div className="flex flex-col w-full">
-            <label className="text-xs text-slate-500 mb-1">
-              Phone number
-            </label>
             <PhoneInput
               international
               defaultCountry="US"
@@ -88,9 +84,9 @@ export default function PhoneNumber({ label, user, isSaving, handleSave }: {
               className="h-10 border rounded px-2 text-sm"
             />
             {error && (
-              <p className="text-xs text-red-500 mt-1">{error}</p>
+              <p className="absolute bottom-0 text-red-500 text-xs">{error}</p>
             )}
-          </div>
+      
 
           <Button
             type="button"
@@ -100,7 +96,7 @@ export default function PhoneNumber({ label, user, isSaving, handleSave }: {
           />
         </div>
       )}
-
+      </div>
       <Button
         onClick={isEditing ? onCancel : startEditing}
         inverted

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Input from '@/components/forms/Input';
 import { Button } from '@/components/Button';
 import { User } from '@/types/types';
@@ -6,12 +6,11 @@ import { validateEmail } from '@/utils/utils';
 
 interface EmailFieldProps {
   user: User;
-  setUser: (user: User) => void;
   isSaving: boolean;
   handleSave: (updated: Partial<User>) => Promise<void>;
 }
 
-export default function EmailField({ user, setUser, isSaving, handleSave }: EmailFieldProps) {
+export default function EmailField({ user, isSaving, handleSave }: EmailFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(user.email || '');
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +68,7 @@ export default function EmailField({ user, setUser, isSaving, handleSave }: Emai
             type="button"
             disabled={isSaving}
             className="h-10 w-34"
-            label={isSaving ? 'Saving...' : 'Save changes'}
+            label={isSaving ? 'Saving...' : 'Save'}
             onClick={onSave}
           />
         </div>

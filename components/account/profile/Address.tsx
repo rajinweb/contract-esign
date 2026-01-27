@@ -87,7 +87,7 @@ export default function Address({ user, isSaving, handleSave }: AddressProps) {
   };
 
   return (
-    <div className="rounded-xl border p-6 mb-6 bg-white shadow">
+    <div className="rounded-xl border p-6 bg-white shadow">
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-semibold">Address</h2>
         <Button

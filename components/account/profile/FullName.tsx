@@ -93,7 +93,7 @@ export default function FullName({
               type="button"
               disabled={isSaving}
               className="h-10 w-34"
-              label={isSaving ? 'Saving...' : 'Save changes'}
+              label={isSaving ? 'Saving...' : 'Save'}
               onClick={onSave}
             />
           </div>

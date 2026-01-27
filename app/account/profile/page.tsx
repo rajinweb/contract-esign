@@ -1,7 +1,6 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import useContextStore from '@/hooks/useContextStore';
-import { useRouter } from 'next/navigation';
 
 import Image from 'next/image';
 import { blobToURL } from '@/lib/pdf';
@@ -20,11 +19,7 @@ import 'react-phone-number-input/style.css'
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
-  const router = useRouter();
-
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -44,7 +39,7 @@ export default function ProfilePage() {
   ) => {
     e?.preventDefault();
     setIsSaving(true);
-    setError(null);
+
 
     try {
       const res = await fetch('/api/user/profile', {
@@ -61,7 +56,7 @@ export default function ProfilePage() {
       setUser(data.user);
       localStorage.setItem('User', JSON.stringify(data.user));
     } catch (err) {
-      setError('Network error');
+      throw new Error('Network error');
     } finally {
       setIsSaving(false);
     }
@@ -114,11 +109,9 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-8 ">
-        {/* Left */}
-        <div className="xl:col-span-2 space-y-4">
-          <div className="rounded-xl border p-6 space-y-3 bg-white shadow">
-            <h2 className="font-semibold mb-6">Personal Information</h2>
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-8 ">
+          <div className="rounded-xl border p-6 bg-white shadow">
+            <h2 className="font-semibold">Personal Information</h2>
 
             <FullName label="Full Name" user={user} setUser={setUser} isSaving={isSaving} handleSave={(updatedUser) => handleSave(updatedUser)} />
 
@@ -131,7 +124,6 @@ export default function ProfilePage() {
 
            <EmailField
               user={user}
-              setUser={setUser}
               isSaving={isSaving}
               handleSave={handleSave}
             />
@@ -148,17 +140,15 @@ export default function ProfilePage() {
               return handleSave( { ...user.address, ...updatedAddress });
             }}
           />
-
-          <div className="rounded-xl border p-6 bg-white shadow ">
+          <div className="xl:col-span-2 space-y-4 rounded-xl border p-6 bg-white shadow ">
             <h2 className="font-semibold mb-6">Default Signing Methods</h2>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <SignCard label="Signature" value={defaultSignature?.value} />
               <SignCard label="Initials" value={defaultInitial?.value} />
               <SignCard label="Stamp" value={defaultStamp?.value} />
             </div>
           </div>
-        </div>
+       
       </section>
 
     </main>
