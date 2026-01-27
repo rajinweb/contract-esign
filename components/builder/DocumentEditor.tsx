@@ -800,12 +800,12 @@ const DocumentEditor: React.FC<EditorProps> = ({
     }
   };
 
-  const clickField = (event: MouseEvent, item: DroppedComponent) => {
+  const clickField = (event: MouseEvent, item: DroppedComponent, isEdit?:boolean) => {
     event.stopPropagation(); // prevent parent clicks (like drop area)
     // Set the currently selected component
     setDraggingComponent(item);
 
-    if (!isSigningMode && item.fieldOwner == 'recipients') {
+    if (!isSigningMode && item.fieldOwner == 'recipients' ||  item.fieldOwner == 'me' && !isEdit) {
       return
     }
     if (isDragging) {

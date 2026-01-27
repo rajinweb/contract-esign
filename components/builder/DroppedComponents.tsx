@@ -33,7 +33,7 @@ interface DroppedComponentsProps {
   zoom: number;
   recipients?: Recipient[];
   onAddRecipients: () => void;
-  onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent) => void;
+  onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent, isEdit?:boolean) => void;
   isSigningMode:boolean;
   isSigned?:boolean;
   currentRecipientId?: string;
@@ -175,11 +175,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const isFieldReadOnlyInSigning = isSigningMode && (!isCurrentUserField || isSigned);
         const isReadOnlyMeField = item.fieldOwner === 'me' && [''].includes(item.component);
         const isFieldReadOnly = isFieldReadOnlyInSigning || isReadOnlyMeField;
-        const handleClick = (e: React.MouseEvent) => {
-          if (!isCurrentUserField || isFieldReadOnly) return;
-          e.stopPropagation();
-          onClickField(e, item);
-        };
        
         let checkEmail = false;
         if (item.data && item.component === 'Email') {
@@ -234,10 +229,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               }
             )}
             onClick={(e:MouseEvent)=>  {
+              if (!isCurrentUserField || isFieldReadOnly) return;
+              e.stopPropagation();
               setSelectedFieldId(isSelected ? null : item.id)
-              if(item.fieldOwner === 'recipients' && isSigningMode){
-                handleClick(e)
-              }
+                onClickField(e, item);
             }}
             disableDragging={isSigningMode}
             enableResizing={!isSigningMode}
@@ -249,7 +244,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                {item.fieldOwner === 'me' && !isSigningMode && (
                 <Button
-                  onClick={(e) => handleClick(e as MouseEvent)}
+                  onClick={(e) => onClickField(e as MouseEvent, item, true)}
                   className="shadow-lg"
                   title="Change or Add value in the field"
                   icon={<Pencil size={16} className="text-gray-600" />}
