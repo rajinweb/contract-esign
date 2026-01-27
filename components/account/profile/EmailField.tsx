@@ -47,6 +47,7 @@ export default function EmailField({ user, isSaving, handleSave }: EmailFieldPro
   };
 
   return (
+    <>
     <div className="relative flex justify-between py-4 border-b last:border-none items-end">
       {!isEditing && (
         <div>
@@ -84,5 +85,9 @@ export default function EmailField({ user, isSaving, handleSave }: EmailFieldPro
 
       {error && <small className="text-xs text-red-500 absolute -bottom-0">{error}</small>}
     </div>
+      <small className="text-xs text-slate-400 -top-1 relative">
+        Used as the sender name in invite emails
+      </small>
+      </>
   );
 }

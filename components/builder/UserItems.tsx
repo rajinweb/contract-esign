@@ -9,7 +9,7 @@ import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "@/lib/api-client";
-import { DroppingField, SignatureInitial } from "@/types/types";
+import { DroppingField, itemTypes, SignatureInitial } from "@/types/types";
 
 /* ================= Types ================= */
 
@@ -19,7 +19,8 @@ type CreateMode = "typed" | "drawn";
 interface UserItemsProps {
   onClose: () => void;
   onAdd: (initial: SignatureInitial) => void;
-  component: DroppingField | null;
+  component?: DroppingField | null;
+  type?: itemTypes;
 }
 
 interface SelectScreenProps {
@@ -57,6 +58,7 @@ const UserItems: React.FC<UserItemsProps> = ({
   onClose,
   onAdd,
   component,
+  type,
 }) => {
   const { user, setUser } = useContextStore();
 
@@ -71,9 +73,15 @@ const UserItems: React.FC<UserItemsProps> = ({
   const [makeDefault, setMakeDefault] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const isSignature = component?.component === "Signature";
-  const isStamp = component?.component === "Stamp";
-  const isInitial = !isSignature && !isStamp;
+  // Determine type from prop or component
+  const effectiveType = type || 
+    (component?.component === "Signature" ? "Signature" : 
+     component?.component === "Stamp" ? "Stamp" : 
+     "Initials");
+
+  const isSignature = effectiveType === "Signature";
+  const isStamp = effectiveType === "Stamp";
+  const isInitial = effectiveType === "Initials";
 
   /* ================= Derived ================= */
 
@@ -107,7 +115,7 @@ const UserItems: React.FC<UserItemsProps> = ({
 
     setUserDefaults(normalized);
 
-    /* ✅ KEY FIX: match against component.data */
+    /* ✅ KEY FIX: match against component.data if available */
     if (component?.data) {
       const matched = normalized.find(
         (i) => i.value === component.data

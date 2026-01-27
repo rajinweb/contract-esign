@@ -20,7 +20,7 @@ const Initials: React.FC<InitialsProps> = ({
   className
 }) => {
   const canvasRef = useRef<SignatureCanvas>(null)
-  useRenderCanvas(canvasRef, value ?? undefined);
+  useRenderCanvas(canvasRef, value ?? undefined, width, height);
 
   // Prevent drawing if readOnly
   const handleMouseDown = (e: React.MouseEvent) => {

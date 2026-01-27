@@ -6,16 +6,15 @@ import Image from 'next/image';
 import { blobToURL } from '@/lib/pdf';
 import Input from '@/components/forms/Input';
 import { Camera, LoaderCircle } from 'lucide-react';
-import { Button } from '@/components/Button';
-import Initials from '@/components/builder/Initials';
 import { User } from '@/types/types';
 
 import Address from '@/components/account/profile/Address';
 import FullName from '@/components/account/profile/FullName';
 import PhoneNumber from '@/components/account/profile/PhoneNumber';
 import EmailField from '@/components/account/profile/EmailField';
+import SignCard from '@/components/account/profile/SignCard';
 
-import 'react-phone-number-input/style.css'
+import 'react-phone-number-input/style.css';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
@@ -71,9 +70,7 @@ export default function ProfilePage() {
     );
   }
   const noImage = 'https://i.pravatar.cc/40?img=5';
-  const defaultSignature = user?.signatures?.find(s => s.isDefault);
-  const defaultInitial = user?.initials?.find(i => i.isDefault);
-  const defaultStamp = user?.stamps?.find(s => s.isDefault);
+
 
   return (
     <main className=" mx-auto p-4 md:p-8 lg:p-12">
@@ -143,9 +140,9 @@ export default function ProfilePage() {
           <div className="xl:col-span-2 space-y-4 rounded-xl border p-6 bg-white shadow ">
             <h2 className="font-semibold mb-6">Default Signing Methods</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <SignCard label="Signature" value={defaultSignature?.value} />
-              <SignCard label="Initials" value={defaultInitial?.value} />
-              <SignCard label="Stamp" value={defaultStamp?.value} />
+              <SignCard label="Signature" user={user}  handleSave={handleSave} />
+              <SignCard label="Initials" user={user} handleSave={handleSave} />
+              <SignCard label="Stamp" user={user} handleSave={handleSave} />
             </div>
           </div>
        
@@ -156,13 +153,3 @@ export default function ProfilePage() {
 }
 
 
-function SignCard({ label, value, image }: { label: string; value?: string; image?: string }) {
-  return (
-    <div className="relative group border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center min-h-[160px] hover:border-blue-500 transition">
-      <Button inverted className='absolute top-1 right-1 h-8 !p-2 border-0 text-xs hidden group-hover:block' label="Manage" />
-      <span className="mt-4 text-xs text-slate-500">{label}</span>
-      <Initials value={value} />
-    </div>
-
-  );
-}

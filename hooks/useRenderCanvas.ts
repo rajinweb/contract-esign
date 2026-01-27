@@ -1,11 +1,11 @@
 import { itemTypes } from "@/types/types";
 import { useEffect } from "react";
 
-
-
 export function useRenderCanvas(
     canvasRef: React.RefObject<{ getCanvas: () => HTMLCanvasElement | null }>,
-    value?: string
+    value?: string,
+    width?: number,
+    height?: number
 ) {
     useEffect(() => {
         const canvas = canvasRef.current?.getCanvas();
@@ -56,5 +56,5 @@ export function useRenderCanvas(
         );
 
         ctx.fillText(parsedValue, canvas.width / 2, canvas.height / 2);
-    }, [canvasRef, value]);
+    }, [canvasRef, value, width, height]);
 }
