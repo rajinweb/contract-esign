@@ -31,7 +31,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
   };
   const commonClasses='shadow-lg bg-white border-gray-300 hover:bg-gray-50 border rounded-md p-2';
   return (
-    <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2">
+    <>
      {field.fieldOwner!=="me" &&(
       <>
         {/* Recipient Selector */}      
@@ -118,7 +118,7 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
           <Trash2 size={16} className="text-red-500" />
         </button>
   
-    </div>
+    </>
   );
 };
 

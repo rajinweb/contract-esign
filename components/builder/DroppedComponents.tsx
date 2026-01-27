@@ -1,5 +1,5 @@
 "use client";
-import React, { MouseEvent, useMemo, useCallback, useEffect } from 'react';
+import React, { MouseEvent, useMemo, useCallback } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
 import { DroppedComponent, Recipient } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
@@ -9,6 +9,8 @@ import Input from '../forms/Input';
 import FieldSelectionMenu from './FieldSelectionMenu';
 import Initials from './Initials';
 import { validateEmail } from '@/utils/utils';
+import { Button } from '../Button';
+import { GripVertical, Pencil } from 'lucide-react';
 
 interface DroppedComponentsProps {
   droppedComponents: DroppedComponent[];
@@ -176,7 +178,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const handleClick = (e: React.MouseEvent) => {
           if (!isCurrentUserField || isFieldReadOnly) return;
           e.stopPropagation();
-          setSelectedFieldId(isSelected ? null : item.id);
           onClickField(e, item);
         };
        
@@ -232,13 +233,29 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 })
               }
             )}
-            onClick={handleClick}
+            onClick={(e:MouseEvent)=>  {
+              setSelectedFieldId(isSelected ? null : item.id)
+              if(item.fieldOwner === 'recipients' && isSigningMode){
+                handleClick(e)
+              }
+            }}
             disableDragging={isSigningMode}
             enableResizing={!isSigningMode}
             data-name={assignedRecipient?.name}
           >
             {/* Field Selection Menu */}
-            {isSelected && !isSigningMode &&(
+            {isSelected && !isSigningMode && (
+              <>
+              <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+               {item.fieldOwner === 'me' && !isSigningMode && (
+                <Button
+                  onClick={(e) => handleClick(e as MouseEvent)}
+                  className="shadow-lg"
+                  title="Change or Add value in the field"
+                  icon={<Pencil size={16} className="text-gray-600" />}
+                  inverted
+                />
+              )}
               <FieldSelectionMenu
                 field={item}
                 recipients={recipients || []}
@@ -247,6 +264,15 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 onDeleteField={()=> onDeleteField(item)}
                 onAddRecipients={onAddRecipients}
               />
+            </div>            
+             {/* Drag Handle Button */}
+            {!isSigningMode && <Button
+              className="absolute -left-6 top-1 !p-0 !w-5 !ring-0 cursor-grab active:cursor-grabbing"
+              title="Drag to move field"
+              onClick={(e) => e?.stopPropagation()}
+              icon={ <GripVertical size={20} />}
+            />}
+            </>
             )}
             <div className={`flex items-center justify-center h-full w-full p-1 ${
               assignedRecipient ? '' : 'border border-blue-500'
