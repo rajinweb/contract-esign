@@ -1,95 +1,184 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
-import fs from 'fs';
-import mongoose from 'mongoose';
+import { getObjectStream } from '@/lib/s3';
 
-type RouteContext = {
-  params: Promise<{ documentId: string }>
-}
+export const runtime = 'nodejs';
 
-export async function GET(req: NextRequest, context: RouteContext) {
+/* =========================================================
+   GET — STREAM DOCUMENT (OWNER OR RECIPIENT VIA TOKEN)
+========================================================= */
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ documentId: string }> }
+) {
   try {
-    // Auth is optional here; some logic paths don't require a logged-in user (e.g., token-based access).
-    // We call getAuthSession to connect to DB and get userId if available.
-    const userId = await getAuthSession(req);
-    const search = req.nextUrl.searchParams;
-    const { documentId: paramDocumentId } = await context.params;
-    const token = search.get('token');
-    const guestId = search.get('guestId'); // Extract guestId
+    const { documentId } = await props.params;
+    const sessionUserId = await getAuthSession(req);
+    const token = req.nextUrl.searchParams.get('token');
 
-    let document;
-
-    if (token) {
-      // If token is provided, find by token (for signing links - no auth required)
-      document = await DocumentModel.findOne({ 'versions.signingToken': token });
-    } else if (paramDocumentId && mongoose.Types.ObjectId.isValid(paramDocumentId)) {
-      document = await DocumentModel.findById(paramDocumentId);
-
-      if (document) {
-        // Validate guestId: only accept guest IDs (must start with "guest_")
-        // This prevents attackers from passing legitimate user IDs as guestId
-        const isValidGuestId = guestId && guestId.startsWith('guest_');
-        
-        // Check for ownership using userId or validated guestId
-        const isOwner = (userId && document.userId.toString() === userId) || 
-                       (isValidGuestId && document.userId.toString() === guestId);
-        
-        if (!isOwner) {
-          return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-        }
-      }
-    } else {
-      // If no token, we must have a userId or guestId and a valid documentId
-      return NextResponse.json({ message: 'Unauthorized or invalid document identifier' }, { status: 401 });
-    }
-
-    if (!document) {
+    const doc = await DocumentModel.findById(documentId);
+    if (!doc || doc.deletedAt) {
       return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
 
-    // Find the correct version to serve
-    const versionNumber = search.get('version');
-    let version;
-    if (token) {
-      version = document.versions.find((v: { signingToken: string; }) => v.signingToken === token);
-    } else if (versionNumber) {
-      version = document.versions[parseInt(versionNumber) - 1];
-    } else {
-      version = document.versions[document.currentVersion - 1];
+    let targetVersion: any;
+    let authorized = false;
+
+    /* ===============================
+       OWNER ACCESS (SESSION)
+    =============================== */
+    if (sessionUserId && doc.userId.toString() === sessionUserId) {
+      authorized = true;
+
+      // Owner sees latest locked version
+      targetVersion = doc.versions
+        .filter((v: { locked: any; }) => v.locked)
+        .sort((a: { version: number; }, b: { version: number; }) => b.version - a.version)[0];
     }
 
-    if (!version) {
-      return NextResponse.json({ message: 'Version not found' }, { status: 404 });
+    /* ===============================
+       RECIPIENT ACCESS (TOKEN)
+    =============================== */
+    if (!authorized && token) {
+      const recipient = doc.recipients.find((r: { signingToken: string; }) => r.signingToken === token);
+
+      if (!recipient) {
+        return NextResponse.json(
+          { message: 'Invalid signing link' },
+          { status: 401 }
+        );
+      }
+
+      // Token expiry
+      if (recipient.expiresAt && new Date() > recipient.expiresAt) {
+        recipient.status = 'expired';
+        await doc.save();
+        return NextResponse.json(
+          { message: 'Signing link expired' },
+          { status: 410 }
+        );
+      }
+
+      // Prevent reuse
+      if (
+        recipient.status !== 'pending' &&
+        recipient.status !== 'viewed' &&
+        recipient.status !== 'sent' &&
+        recipient.status !== 'signed'
+      ) {
+        return NextResponse.json(
+          { message: 'Signing link already used' },
+          { status: 401 }
+        );
+      }
+
+      // Sequential signing enforcement
+      if (doc.signingMode === 'sequential') {
+        if (
+          !doc.signingState ||
+          recipient.order !== doc.signingState.currentOrder
+        ) {
+          return NextResponse.json(
+            { message: 'Signing not allowed yet' },
+            { status: 403 }
+          );
+        }
+      }
+
+      // Mark as viewed (audit-safe)
+      if (!recipient.viewedAt) {
+        recipient.viewedAt = new Date();
+        recipient.status = 'viewed';
+        await doc.save();
+      }
+
+      authorized = true;
+
+      // Version selection
+      if (doc.signingMode === 'parallel') {
+        // Prepared (editable) version
+        targetVersion = doc.versions.find((v: { label: string; }) => v.label === 'prepared');
+      } else {
+        // Latest locked version
+        targetVersion = doc.versions
+          .filter((v: { locked: any; }) => v.locked)
+          .sort((a: { version: number; }, b: { version: number; }) => b.version - a.version)[0];
+      }
     }
 
-    if (version.expiresAt && new Date() > new Date(version.expiresAt)) {
-      return NextResponse.json({ message: 'Document has expired' }, { status: 410 });
+    if (!authorized || !targetVersion?.storage?.bucket || !targetVersion?.storage?.key) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (version.pdfData) {
-      const pdfArray = new Uint8Array(version.pdfData);
-      return new NextResponse(pdfArray, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${document.documentName || 'document'}.pdf"`,
-        },
-      });
-    } else if (version.filePath && fs.existsSync(version.filePath)) {
-      const fileBuffer = fs.readFileSync(version.filePath);
-      return new NextResponse(fileBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${version.documentName || 'document.pdf'}"`,
-        },
-      });
-    } else {
-      return NextResponse.json({ message: 'File not found' }, { status: 404 });
-    }
+    /* ===============================
+       STREAM FILE
+    =============================== */
+    const stream = await getObjectStream({
+      bucket: targetVersion.storage.bucket,
+      key: targetVersion.storage.key
+    });
+
+    return new NextResponse(stream as any, {
+      headers: {
+        'Content-Type': targetVersion.mimeType || 'application/pdf',
+        'Content-Disposition': `inline; filename="${doc.documentName}.pdf"`,
+        'Cache-Control': 'no-store'
+      }
+    });
   } catch (error) {
-    console.error('API Error in GET /api/documents/[documentId]', error);
-    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+    console.error('GET Document Error:', error);
+    return NextResponse.json(
+      { message: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+/* =========================================================
+   DELETE — SOFT DELETE (OWNER ONLY)
+========================================================= */
+export async function DELETE(
+  req: NextRequest,
+  props: { params: Promise<{ documentId: string }> }
+) {
+  try {
+    const { documentId } = await props.params;
+    const sessionUserId = await getAuthSession(req);
+
+    if (!sessionUserId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const doc = await DocumentModel.findOne({
+      _id: documentId,
+      userId: sessionUserId,
+      deletedAt: null
+    });
+
+    if (!doc) {
+      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+    }
+
+    // Prevent deletion of completed documents
+    if (doc.status === 'completed' || doc.status === 'final') {
+      return NextResponse.json(
+        { message: 'Completed documents cannot be deleted' },
+        { status: 403 }
+      );
+    }
+
+    // Soft delete
+    doc.deletedAt = new Date();
+    doc.status = 'trashed';
+    await doc.save();
+
+    return NextResponse.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('DELETE Document Error:', error);
+    return NextResponse.json(
+      { message: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
