@@ -1,129 +1,198 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
-import DocumentModel, { IDocumentRecipient } from '@/models/Document';
-import { IDocumentVersion } from '@/types/types';
+import DocumentModel from '@/models/Document';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 import { sendSigningRequestEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const { recipientId, token, action, location, device, consent } = await req.json();
 
-    if (!token) return NextResponse.json({ message: 'Token is required' }, { status: 400 });
+    const {
+      token,
+      action,
+      location,
+      device,
+      consent
+    } = await req.json();
 
-    // Find the document and version that contains this signing token
+    if (!token) {
+      return NextResponse.json({ message: 'Token is required' }, { status: 400 });
+    }
+
+    /* =====================================================
+       FIND DOCUMENT + RECIPIENT (TOKEN IS AUTH)
+    ===================================================== */
     const document = await DocumentModel.findOne({
-      'versions.signingToken': token,
-      'recipients.id': recipientId,
+      'recipients.signingToken': token
     });
+
     if (!document) {
-      return NextResponse.json({ message: 'Invalid or expired signing link' }, { status: 404 });
+      return NextResponse.json(
+        { message: 'Invalid or expired signing link' },
+        { status: 404 }
+      );
     }
 
-    const version = document.versions.find((v: IDocumentVersion) => v.signingToken === token);
-    if (!version) return NextResponse.json({ message: 'Version not found' }, { status: 404 });
+    const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
 
-    // verify expiry
-    if (version.expiresAt && new Date() > version.expiresAt) {
-      return NextResponse.json({ message: 'Signing link has expired' }, { status: 410 });
-    }
-
-    // find recipient
-    const recipient = (document.recipients as IDocumentRecipient[] | undefined)?.find((r: IDocumentRecipient) => r.id === recipientId);
     if (!recipient) {
-      return NextResponse.json({ message: 'Recipient not found for this document' }, { status: 404 });
+      return NextResponse.json(
+        { message: 'Recipient not found' },
+        { status: 404 }
+      );
     }
 
-    const requiresGps =
-      recipient.captureGpsLocation === true ||
-      document.captureGpsLocation === true;
+    /* =====================================================
+       EXPIRY CHECK
+    ===================================================== */
+    if (recipient.expiresAt && new Date() > recipient.expiresAt) {
+      recipient.status = 'expired';
+      await document.save();
 
-    if (requiresGps && action === 'signed') {
+      return NextResponse.json(
+        { message: 'Signing link expired' },
+        { status: 410 }
+      );
+    }
+
+    /* =====================================================
+       PREVENT REUSE
+    ===================================================== */
+    if (['signed', 'approved'].includes(recipient.status)) {
+      return NextResponse.json({ success: true });
+    }
+
+    if (['rejected', 'expired'].includes(recipient.status)) {
+      return NextResponse.json(
+        { message: 'Signing link no longer valid' },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       SEQUENTIAL SIGNING ENFORCEMENT
+    ===================================================== */
+    if (document.signingMode === 'sequential') {
+      if (
+        !document.signingState ||
+        recipient.order !== document.signingState.currentOrder
+      ) {
+        return NextResponse.json(
+          { message: 'Signing not allowed yet' },
+          { status: 403 }
+        );
+      }
+    }
+
+    /* =====================================================
+       GPS CONSENT CHECK
+    ===================================================== */
+    const requiresGps =
+      recipient.captureGpsLocation === true;
+
+    if (requiresGps && action !== 'rejected') {
       if (!location || !consent?.locationGranted) {
         return NextResponse.json(
-          { message: 'GPS location consent is required to sign this document' },
+          { message: 'GPS location consent is required' },
           { status: 400 }
         );
       }
     }
 
-    const forwardedFor = req.headers.get('x-forwarded-for');
-    const ip = forwardedFor?.split(',')[0]?.trim() ?? 'unknown';
+    /* =====================================================
+       APPLY ACTION
+    ===================================================== */
+    const ip =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      'unknown';
 
     if (recipient.role === 'signer') {
       if (!['signed', 'rejected'].includes(action)) {
         return NextResponse.json({ message: 'Invalid signer action' }, { status: 400 });
       }
+
       recipient.status = action;
-      if (action === 'signed') {
-        recipient.signedAt = new Date();
-        recipient.location = location;
-        recipient.device = device;
-        recipient.consent = consent;
-        recipient.network = { ip };
-      } else {
-        recipient.rejectedAt = new Date();
-      }
+      recipient.signedAt = action === 'signed' ? new Date() : undefined;
+      // ⚠️ signedVersion is set by /api/sign-document when version is created
     }
+
     if (recipient.role === 'approver') {
       if (!['approved', 'rejected'].includes(action)) {
         return NextResponse.json({ message: 'Invalid approver action' }, { status: 400 });
       }
+
       recipient.status = action;
-      if (action === 'approved') {
-        recipient.approvedAt = new Date();
-        recipient.location = location;
-        recipient.device = device;
-        recipient.consent = consent;
-        recipient.network = { ip };
-      } else {
-        recipient.rejectedAt = new Date();
-      }
+      recipient.approvedAt = action === 'approved' ? new Date() : undefined;
+      // ⚠️ signedVersion is set by /api/sign-document when version is created
     }
-    document.markModified('recipients');
+
+    recipient.location = location;
+    recipient.device = device;
+    recipient.consent = consent;
+    recipient.network = { ip };
+
+    /* =====================================================
+       UPDATE SIGNING STATE
+    ===================================================== */
+    // NOTE: Signing events are created by /api/sign-document endpoint
+    // This endpoint only records the signing action (accepted/rejected) metadata
+    document.signingState ??= {
+      signedRecipients: [],
+      signingEvents: []
+    };
+
+    /* =====================================================
+       DOCUMENT STATUS UPDATE
+    ===================================================== */
     document.status = getUpdatedDocumentStatus(document.toObject());
-    if (document.status === 'completed') {
-      version.status = 'signed';
-      document.markModified('versions');
-    }
 
-    await document.save();
-
-    // Trigger next recipient if sequential signing is enabled and action was success
-    if (document.sequentialSigning && (action === 'signed' || action === 'approved')) {
+    /* =====================================================
+       SEQUENTIAL: MOVE TO NEXT ORDER
+    ===================================================== */
+    if (
+      document.signingMode === 'sequential' &&
+      ['signed', 'approved'].includes(action)
+    ) {
       const currentOrder = recipient.order;
 
-      // Check if all recipients at current order are done
-      const allCurrentOrderDone = document.recipients
-        .filter((r: IDocumentRecipient) => r.order === currentOrder && r.role !== 'viewer')
-        .every((r: IDocumentRecipient) => r.status === 'signed' || r.status === 'approved');
+      const allDone = document.recipients
+        .filter((r: { order: any; role: string; }) => r.order === currentOrder && r.role !== 'viewer')
+        .every((r: { status: string; }) => ['signed', 'approved'].includes(r.status));
 
-      if (allCurrentOrderDone) {
-        // Find next order
-        const orders = document.recipients
-          .filter((r: IDocumentRecipient) => r.role !== 'viewer' && r.order > currentOrder)
-          .map((r: IDocumentRecipient) => r.order);
+      if (allDone) {
+        const nextOrder = Math.min(
+          ...document.recipients
+            .filter((r: { role: string; order: number; }) => r.role !== 'viewer' && r.order > currentOrder)
+            .map((r: { order: any; }) => r.order)
+        );
 
-        if (orders.length > 0) {
-          const nextOrder = Math.min(...orders);
-          const nextRecipients = document.recipients.filter((r: IDocumentRecipient) => r.order === nextOrder);
+        if (Number.isFinite(nextOrder)) {
+          document.signingState.currentOrder = nextOrder;
+
+          const nextRecipients = document.recipients.filter(
+            (r: { order: number; status: string; }) => r.order === nextOrder && r.status === 'pending'
+          );
 
           for (const nextRec of nextRecipients) {
-            if (nextRec.status === 'pending') {
+            try {
+              await sendSigningRequestEmail(nextRec, document, undefined, nextRec.signingToken);
               nextRec.status = 'sent';
-              await sendSigningRequestEmail(nextRec, document, {}, version.signingToken);
+            } catch (err) {
+              console.error('Email failed:', err);
             }
           }
-          document.markModified('recipients');
-          await document.save();
+        } else {
+          document.signingState.currentOrder = undefined;
         }
       }
     }
 
+    await document.save();
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error('SIGN ERROR:', error);
     return NextResponse.json(
       { message: 'Failed to update document status' },
       { status: 500 }

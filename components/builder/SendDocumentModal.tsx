@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {  Send, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
@@ -73,7 +73,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           recipients: recipientsWithSettings,
           subject,
           message,
-          sequentialSigning: sequential,
+          signingMode: sequential ? 'sequential' : 'parallel',
         }),
       });
 

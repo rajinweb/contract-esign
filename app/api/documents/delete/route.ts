@@ -3,6 +3,7 @@ import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import fs from 'fs';
 import path from 'path';
+import { deleteObject } from '@/lib/s3';
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,10 +55,24 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: 'No matching documents found to delete' }, { status: 200 });
     }
 
-    // Delete associated files from the filesystem
+    // Delete associated files from S3 and the filesystem
     for (const doc of documents) {
       if (doc.versions && doc.versions.length > 0) {
         for (const version of doc.versions) {
+          // Delete from S3
+          if (version.storage && version.storage.key && version.storage.bucket) {
+            try {
+              await deleteObject({
+                bucket: version.storage.bucket,
+                key: version.storage.key,
+                region: version.storage.region,
+              });
+            } catch (err) {
+              console.error(`Failed to delete S3 object ${version.storage.key}:`, err);
+              // Continue to delete the DB record even if S3 deletion fails
+            }
+          }
+          // Delete from local filesystem (legacy)
           if (version.filePath) {
             try {
               // Ensure the path is within the project's uploads directory

@@ -1,11 +1,13 @@
 import mongoose, { Schema } from 'mongoose';
-import { DocumentField, IDocument as BaseIDocument, Recipient, IDocumentVersion, IEditHistory } from '@/types/types';
+import { DocumentField, IDocument as BaseIDocument, Recipient, IEditHistory } from '@/types/types';
 
 // The base IDocument from @/types/types is missing properties defined in the schema below.
 // We extend it here to create a complete interface for our Document model, resolving the type error.
 export interface IDocument extends BaseIDocument {
   templateId?: mongoose.Schema.Types.ObjectId;
   deletedAt?: Date;
+  signingState?: ISigningState;
+  signingMode?: 'parallel' | 'sequential';
 }
 
 export interface IDocumentRecipient extends Recipient {
@@ -15,6 +17,7 @@ export interface IDocumentRecipient extends Recipient {
 
   // Timestamps for actions
   signedAt?: Date;
+  signedVersion?: number;
   approvedAt?: Date;   // track approver approval time
   rejectedAt?: Date;   // track rejection time
   viewedAt?: Date;     // track when the document was viewed
@@ -85,10 +88,8 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   name: { type: String, required: true },
   role: { type: String, required: true, enum: ['signer', 'approver', 'viewer'] },
   captureGpsLocation: { type: Boolean, default: false },
-  //order: { type: Number, required: true },
-  order: { type: Number, required: function (): boolean { return this.role !== 'viewer'; } },
+  order: { type: Number },
   isCC: { type: Boolean, default: false },
-  //color: { type: String, required: true },
   color: {
     type: String, default: function (): string {
       switch (this.role) {
@@ -99,8 +100,11 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
       }
     }
   },
+  signingToken: { type: String, required: true },
+  viewedAt: { type: Date },
   status: { type: String, default: 'pending', enum: ['pending', 'sent', 'viewed', 'signed', 'approved', 'rejected', 'delivery_failed', 'expired'] },
   signedAt: { type: Date },
+  signedVersion: { type: Number },
   approvedAt: { type: Date },
   rejectedAt: { type: Date },
   sendReminders: { type: Boolean, default: false },
@@ -144,33 +148,106 @@ const EditHistorySchema = new Schema<IEditHistory>({
   changeLog: { type: String, required: true },
 });
 
-export const DocumentVersionSchema = new Schema<IDocumentVersion>({
+// Storage reference for object storage (S3, GCS, Azure, etc.)
+const StorageRefSchema = new Schema({
+  provider: { type: String, enum: ['s3', 'gcs', 'azure', 'cloudinary', 'r2', 'local-dev'], required: true },
+  bucket: { type: String, required: function (this: { provider: string }) { return ['s3', 'gcs', 'azure', 'r2', 'local-dev'].includes(this.provider); } },
+  region: { type: String },
+  key: { type: String, required: function (this: { provider: string }) { return ['s3', 'gcs', 'azure', 'r2', 'local-dev'].includes(this.provider); } }, // object name/key/path
+  url: { type: String }, // optional immutable URL or URI (e.g., s3://bucket/key)
+  versionId: { type: String }, // optional for object versioning/WORM
+}, { _id: false });
+
+
+
+export interface IVersionDoc extends mongoose.Types.Subdocument {
+  version: number;
+  label: string;
+  storage: {
+    provider: string;
+    bucket?: string;
+    region?: string;
+    key?: string;
+    url?: string;
+    versionId?: string;
+  };
+  hash: string;
+  hashAlgo?: string;
+  size: number;
+  mimeType: string;
+  locked: boolean;
+  derivedFromVersion?: number;
+  fields?: DocumentField[];
+  documentName?: string;
+  status: 'draft' | 'locked' | 'final';
+  changeLog?: string;
+  ingestionNote?: string;
+  editHistory?: IEditHistory[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const DocumentVersionSchema = new Schema<IVersionDoc>({
   version: { type: Number, required: true },
-  pdfData: { type: Buffer, required: false },
-  fields: [DocumentFieldSchema],
-  documentName: { type: String, required: true },
-  filePath: { type: String, required: true },
-  sentAt: { type: Date },
-  signingToken: { type: String, index: { unique: true, sparse: true } },
-  expiresAt: { type: Date },
-  status: { type: String, default: 'draft', enum: ['draft', 'sent', 'signed', 'expired', 'final'] },
-  changeLog: { type: String, required: true },
-  editHistory: { type: [EditHistorySchema], default: [] },
+  label: { type: String, required: true },
+  storage: { type: StorageRefSchema, required: true },
+  hash: { type: String, required: true },
+  hashAlgo: { type: String, default: 'SHA-256' },
+  size: { type: Number, required: true },
+  mimeType: { type: String, required: true, default: 'application/pdf' },
+  locked: { type: Boolean, required: true, default: false },
+  derivedFromVersion: { type: Number },
+  fields: { type: [DocumentFieldSchema], default: undefined },
+  documentName: { type: String },
+  changeLog: { type: String },
+  ingestionNote: { type: String },
+  editHistory: { type: [EditHistorySchema], default: undefined },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  canvasWidth: { type: Number },
-  canvasHeight: { type: Number, },
 });
+
+// Signing State
+export interface ISigningEvent extends mongoose.Types.Subdocument {
+  recipientId: string;
+  fields?: { [key: string]: any };
+  signedAt: Date;
+  ip?: string;
+  userAgent?: string;
+  order?: number;
+  version?: number;
+}
+
+export interface ISigningState extends mongoose.Types.Subdocument {
+  currentOrder?: number;
+  signingEvents: ISigningEvent[];
+}
+
+const SigningEventSchema = new Schema<ISigningEvent>({
+  recipientId: { type: String, required: true },
+  fields: { type: Schema.Types.Mixed },
+  signedAt: { type: Date, default: Date.now },
+  ip: { type: String },
+  userAgent: { type: String },
+  order: { type: Number },
+  version: { type: Number },
+}, { _id: false });
+
+const SigningStateSchema = new Schema<ISigningState>({
+  currentOrder: { type: Number },
+  signingEvents: [SigningEventSchema],
+}, { _id: false });
+
 
 const DocumentSchema = new Schema<IDocument>({
   userId: { type: String, required: true },
   documentName: { type: String, required: true },
   originalFileName: { type: String, required: true },
-  currentVersion: { type: Number, default: 1 },
+  currentVersion: { type: Number, default: 0 },
   currentSessionId: { type: String },
-  sequentialSigning: { type: Boolean, default: false }, // Added sequential signing toggle
+  signingMode: { type: String, enum: ['parallel', 'sequential'], default: 'parallel' },
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: [DocumentRecipientSchema], default: [] },
+  signingState: { type: SigningStateSchema },
   status: {
     type: String,
     default: 'draft',
@@ -178,7 +255,7 @@ const DocumentSchema = new Schema<IDocument>({
       'draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending',
       'completed', 'in_progress', 'cancelled', 'delivery_failed', 'trashed'
     ]
-  }, // 'select: false' hides it by default
+  },
   deletedAt: { type: Date, default: null },
   templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', sparse: true, required: false },
   token: { type: String, sparse: true, unique: true },
@@ -188,5 +265,6 @@ const DocumentSchema = new Schema<IDocument>({
 
 // Indexes for performance
 DocumentSchema.index({ userId: 1, createdAt: -1 });
+DocumentVersionSchema.index({ label: 1, version: 1 });
 
 export default mongoose.models.Document || mongoose.model<IDocument>('Document', DocumentSchema);

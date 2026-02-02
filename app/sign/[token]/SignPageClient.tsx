@@ -167,9 +167,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   useEffect(() => {
     const fetchPdf = async () => {
       try {
-        const recipientId = new URLSearchParams(window.location.search).get("recipient");
-        if (!recipientId) throw new Error("Recipient not specified");
-        setCurrentRecipientId(recipientId);
+        if (!token) throw new Error("Signing token not specified");
+        setLoading(true);
+                const recipientId = new URLSearchParams(window.location.search).get("recipient");
         const res = await fetch(`/api/sign-document?token=${encodeURIComponent(token)}&recipient=${recipientId}`, {
           cache: "no-store",
         });
@@ -180,13 +180,15 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         if (!data.success || !data.document) notFound();
 
         if (data.document.status === 'trashed') {
-          return "This document has been trashed and is no longer accessible."
+          return "This document has been trashed and is no longer accessible.";
         }
 
         setDoc(data.document);
-        const recipient = data.document.recipients.find((r) => r.id === recipientId);
+        // find recipient from document using token
+        const recipient = data.document.recipients.find(r => r.signingToken === token);
 
-        if (recipient) {          
+        if (recipient) {
+          setCurrentRecipientId(recipient.id);
           setCaptureData({ device: getDeviceInfo() });
           if (recipient.captureGpsLocation && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -220,7 +222,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           setIsSigned(isSignedLike);
 
           if (normalizedRecipient?.role === "approver") {
-            if (normalizedRecipient.status === "approved" || normalizedRecipient.status === "rejected") {
+            if (["approved", "rejected"].includes(normalizedRecipient.status)) {
               setApprovalStatus(normalizedRecipient.status);
             } else {
               setApprovalStatus(null);

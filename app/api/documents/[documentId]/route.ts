@@ -1,184 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
-import { getObjectStream } from '@/lib/s3';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 export const runtime = 'nodejs';
 
-/* =========================================================
-   GET — STREAM DOCUMENT (OWNER OR RECIPIENT VIA TOKEN)
-========================================================= */
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
 export async function GET(
   req: NextRequest,
   props: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = await props.params;
-    const sessionUserId = await getAuthSession(req);
-    const token = req.nextUrl.searchParams.get('token');
+    const params = await props.params;
+    const { documentId } = params;
 
-    const doc = await DocumentModel.findById(documentId);
-    if (!doc || doc.deletedAt) {
-      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+    const userId = await getAuthSession(req);
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+
+    let document;
+
+    // 1. Try to find by recipient token if provided
+    if (token) {
+      document = await DocumentModel.findOne({
+        _id: documentId,
+        'recipients.signingToken': token
+      });
     }
 
-    let targetVersion: any;
-    let authorized = false;
-
-    /* ===============================
-       OWNER ACCESS (SESSION)
-    =============================== */
-    if (sessionUserId && doc.userId.toString() === sessionUserId) {
-      authorized = true;
-
-      // Owner sees latest locked version
-      targetVersion = doc.versions
-        .filter((v: { locked: any; }) => v.locked)
-        .sort((a: { version: number; }, b: { version: number; }) => b.version - a.version)[0];
+    // 2. If not found by token, try to find by userId (owner)
+    if (!document && userId) {
+      document = await DocumentModel.findOne({
+        _id: documentId,
+        userId
+      });
     }
 
-    /* ===============================
-       RECIPIENT ACCESS (TOKEN)
-    =============================== */
-    if (!authorized && token) {
-      const recipient = doc.recipients.find((r: { signingToken: string; }) => r.signingToken === token);
-
-      if (!recipient) {
-        return NextResponse.json(
-          { message: 'Invalid signing link' },
-          { status: 401 }
-        );
-      }
-
-      // Token expiry
-      if (recipient.expiresAt && new Date() > recipient.expiresAt) {
-        recipient.status = 'expired';
-        await doc.save();
-        return NextResponse.json(
-          { message: 'Signing link expired' },
-          { status: 410 }
-        );
-      }
-
-      // Prevent reuse
-      if (
-        recipient.status !== 'pending' &&
-        recipient.status !== 'viewed' &&
-        recipient.status !== 'sent' &&
-        recipient.status !== 'signed'
-      ) {
-        return NextResponse.json(
-          { message: 'Signing link already used' },
-          { status: 401 }
-        );
-      }
-
-      // Sequential signing enforcement
-      if (doc.signingMode === 'sequential') {
-        if (
-          !doc.signingState ||
-          recipient.order !== doc.signingState.currentOrder
-        ) {
-          return NextResponse.json(
-            { message: 'Signing not allowed yet' },
-            { status: 403 }
-          );
-        }
-      }
-
-      // Mark as viewed (audit-safe)
-      if (!recipient.viewedAt) {
-        recipient.viewedAt = new Date();
-        recipient.status = 'viewed';
-        await doc.save();
-      }
-
-      authorized = true;
-
-      // Version selection
-      if (doc.signingMode === 'parallel') {
-        // Prepared (editable) version
-        targetVersion = doc.versions.find((v: { label: string; }) => v.label === 'prepared');
-      } else {
-        // Latest locked version
-        targetVersion = doc.versions
-          .filter((v: { locked: any; }) => v.locked)
-          .sort((a: { version: number; }, b: { version: number; }) => b.version - a.version)[0];
-      }
+    if (!document) {
+      return NextResponse.json({ message: 'Document not found or unauthorized' }, { status: 404 });
     }
 
-    if (!authorized || !targetVersion?.storage?.bucket || !targetVersion?.storage?.key) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    // 3. Determine Version
+    let versionNumber = document.currentVersion;
+    const versionParam = url.searchParams.get('version');
+    if (versionParam) {
+      versionNumber = parseInt(versionParam, 10);
     }
 
-    /* ===============================
-       STREAM FILE
-    =============================== */
-    const stream = await getObjectStream({
-      bucket: targetVersion.storage.bucket,
-      key: targetVersion.storage.key
+    const versionData = document.versions.find((v: any) => v.version === versionNumber);
+
+    if (!versionData) {
+      return NextResponse.json({ message: 'Version not found' }, { status: 404 });
+    }
+
+    const bucket = versionData.storage?.bucket || process.env.S3_BUCKET_NAME;
+    const key = versionData.storage?.key;
+
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
     });
 
-    return new NextResponse(stream as any, {
+    const s3Response = await s3.send(command);
+
+    if (!s3Response.Body) {
+      return NextResponse.json({ message: 'File not found in storage' }, { status: 404 });
+    }
+
+    const fileBody = await s3Response.Body.transformToByteArray();
+
+    return new NextResponse(fileBody as any, {
       headers: {
-        'Content-Type': targetVersion.mimeType || 'application/pdf',
-        'Content-Disposition': `inline; filename="${doc.documentName}.pdf"`,
-        'Cache-Control': 'no-store'
-      }
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline',
+      },
     });
   } catch (error) {
-    console.error('GET Document Error:', error);
-    return NextResponse.json(
-      { message: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   DELETE — SOFT DELETE (OWNER ONLY)
-========================================================= */
-export async function DELETE(
-  req: NextRequest,
-  props: { params: Promise<{ documentId: string }> }
-) {
-  try {
-    const { documentId } = await props.params;
-    const sessionUserId = await getAuthSession(req);
-
-    if (!sessionUserId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const doc = await DocumentModel.findOne({
-      _id: documentId,
-      userId: sessionUserId,
-      deletedAt: null
-    });
-
-    if (!doc) {
-      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
-    }
-
-    // Prevent deletion of completed documents
-    if (doc.status === 'completed' || doc.status === 'final') {
-      return NextResponse.json(
-        { message: 'Completed documents cannot be deleted' },
-        { status: 403 }
-      );
-    }
-
-    // Soft delete
-    doc.deletedAt = new Date();
-    doc.status = 'trashed';
-    await doc.save();
-
-    return NextResponse.json({ message: 'Document deleted successfully' });
-  } catch (error) {
-    console.error('DELETE Document Error:', error);
-    return NextResponse.json(
-      { message: 'Internal Server Error' },
-      { status: 500 }
-    );
+    console.error('Error serving document:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

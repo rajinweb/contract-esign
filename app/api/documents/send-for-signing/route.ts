@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { documentId, recipients, subject, message, sequentialSigning } = await req.json();
+    const { documentId, recipients, subject, message, signingMode: reqSigningMode } = await req.json();
 
     if (!documentId || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return NextResponse.json({ message: 'Document ID and recipients are required' }, { status: 400 });
@@ -26,50 +26,79 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
 
-    document.sequentialSigning = !!sequentialSigning;
-
-    // Determine initial status based on sequential signing
-    let minOrder = Infinity;
-    if (sequentialSigning) {
-      minOrder = Math.min(...recipients.filter((r: Recipient) => r.role !== 'viewer').map((r: Recipient) => r.order));
+    /* ======================================================
+      1️⃣ LOCK PREPARED VERSION (CANONICAL PDF)
+    ====================================================== */
+    const preparedVersion = document.versions.find((v: { label: string; }) => v.label === 'prepared');
+    if (!preparedVersion) {
+      return NextResponse.json(
+        { message: 'Prepared version not found' },
+        { status: 400 }
+      );
     }
 
-    // Update document status and recipients
+    // ✅ versions only care about immutability
+    preparedVersion.locked = true;
+    preparedVersion.sentAt = new Date();
+
+    /* ======================================================
+       2️⃣ SET SIGNING MODE + STATE
+    ====================================================== */
+    const signingMode = reqSigningMode || document.signingMode || 'parallel';
+    document.signingMode = signingMode;
+
+    if (signingMode === 'sequential') {
+      const missingOrder = recipients.some(
+        (r: Recipient) => r.role !== 'viewer' && typeof r.order !== 'number'
+      );
+      if (missingOrder) {
+        return NextResponse.json({ message: 'Order is required for sequential signing' }, { status: 400 });
+      }
+
+      const signerOrders = recipients
+        .filter((r: Recipient) => r.role === 'signer')
+        .map((r: Recipient) => r.order);
+
+      document.signingState = {
+        currentOrder: Math.min(...signerOrders),
+        signingEvents: []
+      };
+    } else {
+      document.signingState = {
+        signingEvents: []
+      };
+    }
+
+    /* ======================================================
+       3️⃣ ASSIGN RECIPIENTS + TOKENS
+    ====================================================== */
     document.recipients = recipients.map((r: Recipient) => {
-      let status = 'sent';
-      if (sequentialSigning && r.role !== 'viewer' && r.order > minOrder) {
+      const token = crypto.randomBytes(32).toString('hex');
+      let status: 'sent' | 'pending' | 'signed' = 'sent';
+      if (signingMode === 'sequential' && r.role !== 'viewer' && r.order !== document.signingState.currentOrder) {
         status = 'pending';
       }
-      return { ...r, status };
+
+      return {
+        ...r,
+        signingToken: token,
+        status,
+        signedAt: null,
+        signedVersion: null
+      };
     });
 
     updateDocumentStatus(document);
-
-    // Get or create the current version with signing token
-    const currentVersion = document.versions && document.versions.length > 0
-      ? document.versions[document.versions.length - 1]
-      : null;
-
-    if (!currentVersion) {
-      return NextResponse.json({ message: 'No document version found' }, { status: 404 });
-    }
-
-    // Generate a cryptographically secure signing token for the version
-    if (!currentVersion.signingToken) {
-      currentVersion.signingToken = crypto.randomBytes(32).toString('hex');
-      currentVersion.sentAt = new Date();
-    }
-
     await document.save();
 
     // Send signing request emails only to active recipients
     for (const recipient of document.recipients) {
       if (recipient.status === 'sent' || recipient.role === 'viewer') {
-        await sendSigningRequestEmail(recipient, document, { subject, message }, currentVersion.signingToken);
+        await sendSigningRequestEmail(recipient, document, { subject, message }, recipient.signingToken);
       }
     }
 
-    return NextResponse.json({ message: 'Document sent for signing' });
+    return NextResponse.json({ message: 'Document sent for signing', signingMode: document.signingMode });
   } catch (error) {
     console.error('API Error in POST /api/documents/send-for-signing', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });

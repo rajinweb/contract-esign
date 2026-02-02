@@ -155,6 +155,7 @@ export interface User {
 
 /* Recipients */
 export interface Recipient {
+  signingToken: string;
   captureGpsLocation?: boolean;
   id: string;
   email: string;

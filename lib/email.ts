@@ -5,6 +5,7 @@ interface DocumentEmailData {
   _id: string;
   documentName: string;
   recipients: IDocumentRecipient[];
+  sequentialSigning?: boolean;
 }
 
 interface EmailOptions {
@@ -90,7 +91,7 @@ export async function sendSigningRequestEmail(
                 <a href="${signingLink}" style="color: #2563eb; word-break: break-all;">${signingLink}</a>
               </p>
 
-              ${recipient.order > 1 ? `
+              ${(document.sequentialSigning && recipient.order > 1) ? `
                 <p style="font-size: 12px; color: #f59e0b; background-color: #fef3c7; padding: 10px; border-radius: 6px;">
                   <strong>Note:</strong> You are recipient #${recipient.order}. You may need to wait for previous signers to complete their signatures.
                 </p>
