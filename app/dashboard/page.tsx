@@ -123,7 +123,8 @@ export default function Dashboard() {
             file: undefined,
             url: `/api/documents/${doc.id}`,
             fileUrl: `/api/documents/${doc.id}`,
-            deletedAt: doc.deletedAt
+            deletedAt: doc.deletedAt,
+            statusBeforeDelete: doc.statusBeforeDelete
           }))
         );
       } catch (e) {
@@ -143,7 +144,7 @@ export default function Dashboard() {
   /* ------------------------------------------------------------------ */
   /* derived state */
   /* ------------------------------------------------------------------ */
-  const activeDocuments = documents.filter(doc => doc.status !=='trashed');
+  const activeDocuments = documents.filter(doc => !doc.deletedAt);
   const showUploadZone =
     activeSidebar === 'documents' &&
     activeSecondarybar === 'dash-documents' &&

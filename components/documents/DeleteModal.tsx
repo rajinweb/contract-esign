@@ -21,9 +21,16 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   permanent,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const hasCompleted = selectedDocs.some((doc) => doc.status === 'completed');
+  const hasInProgress = selectedDocs.some((doc) => doc.status === 'in_progress');
+  const blockPermanentDelete = Boolean(permanent && hasCompleted);
 
   const handleDelete = async () => {
     if (selectedDocs.length === 0) return;
+    if (blockPermanentDelete) {
+      toast.error('Completed documents cannot be permanently deleted.');
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -64,6 +71,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
       cancelClass="text-gray-700 hover:bg-gray-50"
 
       handleConfirm={handleDelete}
+      confirmDisabled={isDeleting || blockPermanentDelete}
       confirmClass="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
       confirmLabel={
         isDeleting ? (
@@ -91,6 +99,21 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
             <span className="font-semibold">{selectedDocs.length}</span> {' '}
             document{selectedDocs.length !== 1 ? 's' : ''}{' '}{permanent ? 'permanently' : 'to trash'}.
           </p>
+          {hasCompleted && !permanent && (
+            <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              Completed documents are immutable but can be moved to trash (soft delete).
+            </div>
+          )}
+          {hasInProgress && !permanent && (
+            <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              In-progress documents will be voided before moving to trash.
+            </div>
+          )}
+          {blockPermanentDelete && (
+            <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">
+              Completed documents are immutable and cannot be permanently deleted.
+            </div>
+          )}
         </div>
       </div>
 

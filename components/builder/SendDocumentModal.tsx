@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {  Send, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
@@ -13,7 +13,7 @@ interface SendDocumentModalProps {
   recipients: Recipient[];
   documentName: string;
   documentId?: string | null;
-  onSendComplete?: () => void;
+  onSendComplete?: (payload: { recipients: Recipient[]; signingMode: 'sequential' | 'parallel' }) => void;
   setRecipients?: (recipients: Recipient[]) => void;
 }
 
@@ -73,7 +73,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           recipients: recipientsWithSettings,
           subject,
           message,
-          sequentialSigning: sequential,
+          signingMode: sequential ? 'sequential' : 'parallel',
         }),
       });
 
@@ -81,7 +81,10 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
         throw new Error('Failed to send document');
       }
       toast.success(`Document sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
-      onSendComplete?.();
+      onSendComplete?.({
+        recipients: recipientsWithSettings,
+        signingMode: sequential ? 'sequential' : 'parallel',
+      });
       onClose();
     } catch (error) {
       console.error('Error sending document:', error);

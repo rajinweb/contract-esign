@@ -36,6 +36,20 @@ export interface ITemplate {
     deletedAt?: Date;
 }
 
+const TemplatePageRectSchema = new Schema(
+    {
+        x: { type: Number },
+        y: { type: Number },
+        width: { type: Number },
+        height: { type: Number },
+        top: { type: Number },
+        right: { type: Number },
+        bottom: { type: Number },
+        left: { type: Number },
+    },
+    { _id: false }
+);
+
 const TemplateFieldSchema = new Schema<ITemplateField>({
     id: { type: String, required: true },
     type: { type: String, required: true, enum: ['signature', 'text', 'date', 'checkbox', 'image', 'initials', 'live_photo', 'stamp'] },
@@ -44,11 +58,13 @@ const TemplateFieldSchema = new Schema<ITemplateField>({
     width: { type: Number, required: true },
     height: { type: Number, required: true },
     pageNumber: { type: Number, required: true },
+    pageRect: { type: TemplatePageRectSchema },
     recipientId: { type: String },
     required: { type: Boolean, default: true },
     value: { type: String, default: '' },
     placeholder: { type: String },
     mimeType: { type: String },
+    isPrivate: { type: Boolean, default: false },
     defaultValue: { type: String },
     helpText: { type: String },
 });

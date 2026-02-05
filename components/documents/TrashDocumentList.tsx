@@ -41,6 +41,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   trashed: Trash,
   expired: Clock,
   cancelled: Ban,
+  voided: Ban,
   pending: Clock,
 };
 
@@ -53,25 +54,28 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
 
   /* --------------------------- Filtered Trash Docs -------------------------- */
 
-  const trashedDocs = documents.filter(d => d.status === 'trashed');
+  const trashedDocs = documents.filter(d => d.deletedAt);
   const filteredDocuments = useFilteredDocs(
     trashedDocs,
     null,
     searchQuery
   );
+  const selectableDocuments = filteredDocuments.filter(doc => doc.status !== 'completed');
 
   /* ----------------------------- Select Helpers ----------------------------- */
   const toggleSelect = (id: string) => {
+    const doc = trashedDocs.find(d => d.id === id);
+    if (!doc || doc.status === 'completed') return;
     setSelectedIds(prev =>
       prev.some(doc => doc.id === id) ? prev.filter(doc => doc.id !== id) : [...prev, trashedDocs.find(d => d.id === id)!]
     );
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredDocuments.length) {
+    if (selectedIds.length === selectableDocuments.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredDocuments);
+      setSelectedIds(selectableDocuments);
     }
   };
 
@@ -86,10 +90,27 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
     removeDocsFromUI(selectedIds.map(d => d.id))
   };
 
+  const hasCompletedSelected = selectedIds.some((doc) => doc.status === 'completed');
+
+  const resolveRestoreStatus = (doc: Doc): Doc['status'] => {
+    const candidate = doc.statusBeforeDelete;
+    if (candidate && statuses.some((s) => s.value === candidate)) {
+      return candidate as Doc['status'];
+    }
+    return doc.status;
+  };
+
   const handleRestore = (restoredIds: string[]) => {
     setDocuments(prev =>
       prev.map(doc =>
-        restoredIds.includes(doc.id) ? { ...doc, status: 'draft' } : doc
+        restoredIds.includes(doc.id)
+          ? {
+              ...doc,
+              deletedAt: null,
+              status: resolveRestoreStatus(doc),
+              statusBeforeDelete: undefined,
+            }
+          : doc
       )
     );
     setSelectedIds([]);
@@ -111,7 +132,8 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
         setRestoreOpen={setRestoreOpen}
         setDeleteOpen={setIsDeleteModalOpen}
         selectedIds={selectedIds}
-        totalDocuments={filteredDocuments.length}
+        totalDocuments={selectableDocuments.length}
+        hasCompletedSelected={hasCompletedSelected}
       />
       <div className="space-y-2 mt-2">
         {filteredDocuments.map((doc) => {
@@ -129,7 +151,10 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
                   type="checkbox"
                   checked={selectedIds.some(selectedDoc => selectedDoc.id === doc.id)}
                   onChange={() => toggleSelect(doc.id)}
-                  className="h-4 w-4 accent-blue-600"
+                  disabled={doc.status === 'completed'}
+                  aria-disabled={doc.status === 'completed'}
+                  title={doc.status === 'completed' ? 'Completed documents cannot be bulk-selected' : undefined}
+                  className="h-4 w-4 accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <PdfThumbnail fileUrl={docFileUrl} width={40} height={50} />
                 <div className="font-medium text-gray-900">
@@ -157,13 +182,17 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
                   className="text-red-500 hover:text-red-700 !rounded-full relative"
                   onClick={(e) => {
                     e?.stopPropagation();
+                    if (doc.status === 'completed') {
+                      return;
+                    }
                     setIsDeleteModalOpen(true);
                     setSelectedIds([trashedDocs.find(d => d.id === doc.id)!]);
                   }}
                   inverted
+                  disabled={doc.status === 'completed'}
                   data-testid={`delete-doc-${doc.id}`}
                   icon={<Trash2 size={16} />}
-                  title='Delete'
+                  title={doc.status === 'completed' ? 'Completed documents cannot be permanently deleted' : 'Delete'}
                 />
 
                 {StatusIcon && <StatusIcon size={22} className={`ml-2 ${statusColor}`} />}
@@ -202,6 +231,7 @@ type DeleteCTAProps = {
   totalDocuments: number;
   setRestoreOpen: (e: boolean) => void
   setDeleteOpen: (e: boolean) => void
+  hasCompletedSelected: boolean;
 
 };
 
@@ -211,6 +241,7 @@ function DeleteCTA({
   totalDocuments,
   setRestoreOpen,
   setDeleteOpen,
+  hasCompletedSelected,
 }: DeleteCTAProps) {
   const isAllSelected =
     totalDocuments > 0 && selectedIds.length === totalDocuments;
@@ -231,9 +262,13 @@ function DeleteCTA({
           <Button
             inverted
             className="!bg-red-500 text-white"
-            onClick={() => setDeleteOpen(true)}
+            onClick={() => {
+              if (hasCompletedSelected) return;
+              setDeleteOpen(true);
+            }}
             icon={<Trash2 size={16} />}
             label="Delete Permanently"
+            disabled={hasCompletedSelected}
           />
         </>
       )}

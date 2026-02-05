@@ -1,95 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
-import fs from 'fs';
-import mongoose from 'mongoose';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getLatestPreparedVersion } from '@/lib/signing-utils';
 
-type RouteContext = {
-  params: Promise<{ documentId: string }>
-}
+export const runtime = 'nodejs';
 
-export async function GET(req: NextRequest, context: RouteContext) {
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ documentId: string }> }
+) {
   try {
-    // Auth is optional here; some logic paths don't require a logged-in user (e.g., token-based access).
-    // We call getAuthSession to connect to DB and get userId if available.
+    const params = await props.params;
+    const { documentId } = params;
+
     const userId = await getAuthSession(req);
-    const search = req.nextUrl.searchParams;
-    const { documentId: paramDocumentId } = await context.params;
-    const token = search.get('token');
-    const guestId = search.get('guestId'); // Extract guestId
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
 
     let document;
 
+    // 1. Try to find by recipient token if provided
     if (token) {
-      // If token is provided, find by token (for signing links - no auth required)
-      document = await DocumentModel.findOne({ 'versions.signingToken': token });
-    } else if (paramDocumentId && mongoose.Types.ObjectId.isValid(paramDocumentId)) {
-      document = await DocumentModel.findById(paramDocumentId);
+      document = await DocumentModel.findOne({
+        _id: documentId,
+        'recipients.signingToken': token
+      });
+    }
 
-      if (document) {
-        // Validate guestId: only accept guest IDs (must start with "guest_")
-        // This prevents attackers from passing legitimate user IDs as guestId
-        const isValidGuestId = guestId && guestId.startsWith('guest_');
-        
-        // Check for ownership using userId or validated guestId
-        const isOwner = (userId && document.userId.toString() === userId) || 
-                       (isValidGuestId && document.userId.toString() === guestId);
-        
-        if (!isOwner) {
-          return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-        }
-      }
-    } else {
-      // If no token, we must have a userId or guestId and a valid documentId
-      return NextResponse.json({ message: 'Unauthorized or invalid document identifier' }, { status: 401 });
+    // 2. If not found by token, try to find by userId (owner)
+    if (!document && userId) {
+      document = await DocumentModel.findOne({
+        _id: documentId,
+        userId
+      });
     }
 
     if (!document) {
-      return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+      return NextResponse.json({ message: 'Document not found or unauthorized' }, { status: 404 });
+    }
+    if (token && document.deletedAt) {
+      return NextResponse.json({ message: 'Document has been trashed.' }, { status: 410 });
     }
 
-    // Find the correct version to serve
-    const versionNumber = search.get('version');
-    let version;
+    // 3. Determine Version
+    let versionNumber = document.currentVersion;
+    const versionParam = url.searchParams.get('version');
+
     if (token) {
-      version = document.versions.find((v: { signingToken: string; }) => v.signingToken === token);
-    } else if (versionNumber) {
-      version = document.versions[parseInt(versionNumber) - 1];
-    } else {
-      version = document.versions[document.currentVersion - 1];
+      const preparedVersion = getLatestPreparedVersion(document.versions || []);
+      if (!preparedVersion) {
+        return NextResponse.json({ message: 'Prepared version not found' }, { status: 404 });
+      }
+      versionNumber = preparedVersion.version;
+    } else if (versionParam) {
+      versionNumber = parseInt(versionParam, 10);
     }
 
-    if (!version) {
+    const versionData = document.versions.find((v: any) => v.version === versionNumber);
+
+    if (!versionData) {
       return NextResponse.json({ message: 'Version not found' }, { status: 404 });
     }
 
-    if (version.expiresAt && new Date() > new Date(version.expiresAt)) {
-      return NextResponse.json({ message: 'Document has expired' }, { status: 410 });
+    const bucket = versionData.storage?.bucket || process.env.S3_BUCKET_NAME;
+    const key = versionData.storage?.key;
+
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+
+    const s3Response = await s3.send(command);
+
+    if (!s3Response.Body) {
+      return NextResponse.json({ message: 'File not found in storage' }, { status: 404 });
     }
 
-    if (version.pdfData) {
-      const pdfArray = new Uint8Array(version.pdfData);
-      return new NextResponse(pdfArray, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${document.documentName || 'document'}.pdf"`,
-        },
-      });
-    } else if (version.filePath && fs.existsSync(version.filePath)) {
-      const fileBuffer = fs.readFileSync(version.filePath);
-      return new NextResponse(fileBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${version.documentName || 'document.pdf'}"`,
-        },
-      });
-    } else {
-      return NextResponse.json({ message: 'File not found' }, { status: 404 });
-    }
+    const fileBody = await s3Response.Body.transformToByteArray();
+
+    return new NextResponse(fileBody as any, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline',
+      },
+    });
   } catch (error) {
-    console.error('API Error in GET /api/documents/[documentId]', error);
+    console.error('Error serving document:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -17,9 +17,11 @@ interface DroppedComponentsProps {
   setDroppedComponents: React.Dispatch<React.SetStateAction<DroppedComponent[]>>;
   selectedFieldId: number | null;
   setSelectedFieldId: React.Dispatch<React.SetStateAction<number | null>>;
+  onSelectField: (field: DroppedComponent) => void;
   onAssignRecipient: (fieldId: number, recipientId: string | null) => void;
   onDuplicateField: (field: DroppedComponent) => void;
   onDeleteField: (field: DroppedComponent) => void;
+  onTogglePrivacy: (fieldId: number, isPrivate: boolean) => void;
   updateField: (data: string | null, id: number) => void;
   handleDragStop: (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => void;
   handleResizeStop: (
@@ -35,6 +37,7 @@ interface DroppedComponentsProps {
   onAddRecipients: () => void;
   onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent, isEdit?:boolean) => void;
   isSigningMode:boolean;
+  isReadOnly?: boolean;
   isSigned?:boolean;
   currentRecipientId?: string;
 }
@@ -43,9 +46,11 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   droppedComponents,
   selectedFieldId,
   setSelectedFieldId,
+  onSelectField,
   onAssignRecipient,
   onDuplicateField,
   onDeleteField,
+  onTogglePrivacy,
   updateField,
   handleDragStop,
   handleResizeStop,
@@ -55,6 +60,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   onAddRecipients,
   onClickField,
   isSigningMode,
+  isReadOnly = false,
   isSigned,
   currentRecipientId
 }) => {
@@ -139,7 +145,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               value={value}
               readOnly={isFieldReadOnly}
               onChange={(e) => updateField(e.target.value, item.id)}
-              className="text-xs text-center w-full h-full"
+              className="text-xs text-center w-full h-full !p-1 !leading-tight truncate"
               placeholder={
                 item.fieldOwner === 'recipients'
                   ? 'Type an email address or select recipient'
@@ -154,6 +160,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               textInput={(date) => updateField(date, item.id)}
               defaultDate={item.data ?? null}
               readOnly={isFieldReadOnly}
+              className="text-xs text-center w-full h-full !p-1 !leading-tight"
             />
           );
 
@@ -174,7 +181,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const isCurrentUserField = isSigningMode ? item.assignedRecipientId === currentRecipientId : true;
         const isFieldReadOnlyInSigning = isSigningMode && (!isCurrentUserField || isSigned);
         const isReadOnlyMeField = item.fieldOwner === 'me' && [''].includes(item.component);
-        const isFieldReadOnly = isFieldReadOnlyInSigning || isReadOnlyMeField;
+        const isFieldReadOnly = isReadOnly || isFieldReadOnlyInSigning || isReadOnlyMeField;
        
         let checkEmail = false;
         if (item.data && item.component === 'Email') {
@@ -212,7 +219,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
           
-            {...(!isSigningMode && isSelected && {
+            {...(!isSigningMode && !isReadOnly && isSelected && {
                 resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight'].reduce(
                   (acc, key) => ({ ...acc, [key]: cornersCSS }),
                   {}
@@ -232,14 +239,18 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               if (!isCurrentUserField || isFieldReadOnly) return;
               e.stopPropagation();
               setSelectedFieldId(isSelected ? null : item.id)
-                onClickField(e, item);
+              if (!isSigningMode && !isReadOnly) {
+                onSelectField(item);
+              }
+              if (item.fieldOwner === 'me' && !isSigningMode) return;
+              onClickField(e, item);
             }}
-            disableDragging={isSigningMode}
-            enableResizing={!isSigningMode}
+            disableDragging={isSigningMode || isReadOnly}
+            enableResizing={!isSigningMode && !isReadOnly}
             data-name={assignedRecipient?.name}
           >
             {/* Field Selection Menu */}
-            {isSelected && !isSigningMode && (
+            {isSelected && !isSigningMode && !isReadOnly && (
               <>
               <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                {item.fieldOwner === 'me' && !isSigningMode && (
@@ -257,11 +268,12 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 onAssignRecipient={onAssignRecipient}
                 onDuplicateField={onDuplicateField}
                 onDeleteField={()=> onDeleteField(item)}
+                onTogglePrivacy={onTogglePrivacy}
                 onAddRecipients={onAddRecipients}
               />
             </div>            
              {/* Drag Handle Button */}
-            {!isSigningMode && <Button
+            {!isSigningMode && !isReadOnly && <Button
               className="absolute -left-6 top-1 !p-0 !w-5 !ring-0 cursor-grab active:cursor-grabbing"
               title="Drag to move field"
               onClick={(e) => e?.stopPropagation()}
@@ -269,7 +281,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             />}
             </>
             )}
-            <div className={`flex items-center justify-center h-full w-full p-1 ${
+            <div className={`flex items-center justify-center h-full w-full p-1 overflow-hidden ${
               assignedRecipient ? '' : 'border border-blue-500'
             }`}>
               {renderField(item, isFieldReadOnly)}

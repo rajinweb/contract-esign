@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef, MouseEvent, ChangeEvent, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 // Third-party
@@ -37,6 +38,7 @@ import { uploadToServer, getFieldTypeFromComponentLabel } from '@/lib/api';
 import DeletedDocumentDialog from './DeletedDocumentDialog';
 import { useSignatureInitial } from '@/hooks/useSignatureInitial';
 import RecipientItems from './RecipientItems';
+import { Button } from '../Button';
 const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 
 export interface EditorProps {
@@ -60,6 +62,119 @@ export interface EditorProps {
 
 // Initialize PDF worker (centralized setup)
 initializePdfWorker(pdfjs);
+
+const normalizeFieldId = (value: unknown, fallback?: string): string => {
+  const str = value !== null && value !== undefined ? String(value) : '';
+  if (str.trim().length > 0) return str;
+  return fallback ?? '';
+};
+
+const allocateNumericId = (preferred: unknown, usedIds: Set<number>): number => {
+  const parsed =
+    typeof preferred === 'number'
+      ? preferred
+      : Number.parseInt(String(preferred ?? ''), 10);
+  if (Number.isFinite(parsed) && parsed > 0 && !usedIds.has(parsed)) {
+    usedIds.add(parsed);
+    return parsed;
+  }
+
+  let nextId = usedIds.size > 0 ? Math.max(...Array.from(usedIds)) + 1 : 1;
+  while (usedIds.has(nextId)) {
+    nextId += 1;
+  }
+  usedIds.add(nextId);
+  return nextId;
+};
+
+const toComponentLabel = (type: unknown): string =>
+  String(type || '')
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+const dedupeFieldsById = (fields: DocumentField[]): DocumentField[] => {
+  if (!Array.isArray(fields) || fields.length === 0) return [];
+  const order: DocumentField[] = [];
+  const indexById = new Map<string, number>();
+
+  fields.forEach((field) => {
+    const id = normalizeFieldId((field as any)?.fieldId ?? field?.id);
+    if (!id) return;
+    const existingIndex = indexById.get(id);
+    if (existingIndex === undefined) {
+      indexById.set(id, order.length);
+      order.push(field);
+      return;
+    }
+    const existing = order[existingIndex];
+    const existingValue = String((existing as any)?.value ?? '');
+    const nextValue = String((field as any)?.value ?? '');
+    if (nextValue && !existingValue) {
+      order[existingIndex] = field;
+    } else {
+      order[existingIndex] = field;
+    }
+  });
+
+  return order;
+};
+
+const mapFieldToDroppedComponent = (
+  field: DocumentField,
+  usedIds: Set<number>
+): DroppedComponent => {
+  const fieldIdRaw = normalizeFieldId((field as any)?.fieldId ?? field?.id);
+  const numericId = allocateNumericId((field as any)?.id ?? fieldIdRaw, usedIds);
+  const fieldId = fieldIdRaw || String(numericId);
+  const ownerRaw = String((field as any)?.fieldOwner ?? '').toLowerCase();
+  const fieldOwner: FieldOwner =
+    ownerRaw === 'me'
+      ? 'me'
+      : ownerRaw === 'recipient' || ownerRaw === 'recipients'
+        ? 'recipients'
+        : field?.recipientId
+          ? 'recipients'
+          : 'me';
+
+  return {
+    id: numericId,
+    fieldId,
+    component: toComponentLabel(field.type),
+    x: field.x,
+    y: field.y,
+    width: field.width,
+    height: field.height,
+    pageNumber: field.pageNumber,
+    data: field.value,
+    assignedRecipientId: field.recipientId,
+    required: field.required !== false,
+    placeholder: field.placeholder,
+    pageRect: field.pageRect,
+    fieldOwner,
+    isPrivate: (field as any)?.isPrivate ?? false,
+  } as DroppedComponent;
+};
+
+const serializePageRect = (pageRect: any, canvasRect?: DOMRect | null, zoom?: number) => {
+  if (!pageRect || typeof pageRect !== 'object') return undefined;
+  const rect = pageRect as Record<string, any>;
+  const offsetX = canvasRect ? canvasRect.left : 0;
+  const offsetY = canvasRect ? canvasRect.top : 0;
+  const scale = typeof zoom === 'number' && zoom > 0 ? zoom : 1;
+  const cleaned = {
+    x: typeof rect.x === 'number' ? (rect.x - offsetX) / scale : undefined,
+    y: typeof rect.y === 'number' ? (rect.y - offsetY) / scale : undefined,
+    width: typeof rect.width === 'number' ? rect.width / scale : undefined,
+    height: typeof rect.height === 'number' ? rect.height / scale : undefined,
+    top: typeof rect.top === 'number' ? (rect.top - offsetY) / scale : undefined,
+    right: typeof rect.right === 'number' ? (rect.right - offsetX) / scale : undefined,
+    bottom: typeof rect.bottom === 'number' ? (rect.bottom - offsetY) / scale : undefined,
+    left: typeof rect.left === 'number' ? (rect.left - offsetX) / scale : undefined,
+  };
+  const hasAny = Object.values(cleaned).some((value) => typeof value === 'number');
+  return hasAny ? cleaned : undefined;
+};
 
 const DocumentEditor: React.FC<EditorProps> = ({
   resourceId,
@@ -110,6 +225,16 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const [autoDate, setAutoDate] = useState<boolean>(true);
   const [documentName, setDocumentName] = useState<string>('');
   const [isEditingFileName, setIsEditingFileName] = useState<boolean>(false);
+  const [documentStatus, setDocumentStatus] = useState<string | null>(null);
+  const [derivedFromDocumentId, setDerivedFromDocumentId] = useState<string | null>(null);
+  const [derivedFromVersion, setDerivedFromVersion] = useState<number | null>(null);
+  const [signingEvents, setSigningEvents] = useState<any[]>([]);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showDeriveModal, setShowDeriveModal] = useState(false);
+  const [isDeriving, setIsDeriving] = useState(false);
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [isDownloadingSigned, setIsDownloadingSigned] = useState(false);
   const [lastSavedState, setLastSavedState] = useState<{
     components: DroppedComponent[];
     name: string;
@@ -118,6 +243,16 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // ========= Recipients State =========
   const [showAddRecipients, setShowAddRecipients] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+
+  const router = useRouter();
+
+  const isReadOnly = !isSigningMode && (documentStatus === 'completed' || documentStatus === 'in_progress' || documentStatus === 'voided');
+  const isInProgress = !isSigningMode && documentStatus === 'in_progress';
+  const isVoided = !isSigningMode && documentStatus === 'voided';
+  const isAlreadySent =
+    !isSigningMode &&
+    (documentStatus === 'sent' || documentStatus === 'viewed' || documentStatus === 'in_progress');
+  const isPreviewMode = isSigningMode || isReadOnly;
   const [showSendDocument, setShowSendDocument] = useState<boolean>(false);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState<boolean>(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
@@ -154,24 +289,11 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // It gets its fields from props and calls `onFieldsChange` to update them.
   const droppedComponents: DroppedComponent[] = useMemo(() => {
     if (isSigningMode && initialFields) {
-      return initialFields.map((field: DocumentField) => ({
-        id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-        component: (String(field.type || ''))
-          .split('_')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' '),
-        x: field.x,
-        y: field.y,
-        width: field.width,
-        height: field.height,
-        pageNumber: field.pageNumber,
-        data: field.value,
-        assignedRecipientId: field.recipientId,
-        required: field.required !== false,
-        placeholder: field.placeholder,
-        pageRect: field.pageRect,
-        fieldOwner: field.fieldOwner
-      } as DroppedComponent));
+      const usedIds = new Set<number>();
+      const normalizedFields = dedupeFieldsById(initialFields);
+      return normalizedFields.map((field: DocumentField) =>
+        mapFieldToDroppedComponent(field, usedIds)
+      );
     }
     return internalDroppedComponents;
   }, [isSigningMode, initialFields, internalDroppedComponents]);
@@ -179,7 +301,23 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const setDroppedComponents = useCallback((updater: React.SetStateAction<DroppedComponent[]>) => {
     if (isSigningMode && onFieldsChange) {
       const newFields = typeof updater === 'function' ? updater(droppedComponents) : updater;
-      onFieldsChange(newFields.map(comp => ({ id: String(comp.id), type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType, x: comp.x, y: comp.y, width: comp.width, height: comp.height, pageNumber: comp.pageNumber as number, recipientId: comp.assignedRecipientId, required: comp.required !== undefined ? comp.required : true, value: comp.data || '', placeholder: comp.placeholder, mimeType: comp.mimeType, pageRect: comp.pageRect, fieldOwner: comp.fieldOwner })));
+      onFieldsChange(newFields.map(comp => ({
+        id: comp.fieldId ?? String(comp.id),
+        type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
+        x: comp.x,
+        y: comp.y,
+        width: comp.width,
+        height: comp.height,
+        pageNumber: comp.pageNumber as number,
+        recipientId: comp.assignedRecipientId,
+        required: comp.required !== undefined ? comp.required : true,
+        value: comp.data || '',
+        placeholder: comp.placeholder,
+        mimeType: comp.mimeType,
+        pageRect: comp.pageRect,
+        fieldOwner: comp.fieldOwner,
+        isPrivate: comp.isPrivate,
+      })));
     } else {
       setInternalDroppedComponents(updater);
     }
@@ -231,52 +369,37 @@ const DocumentEditor: React.FC<EditorProps> = ({
 
         const data = await response.json();
         const doc = data.document;
+        setDocumentStatus(doc?.status ?? null);
+        setDerivedFromDocumentId(doc?.derivedFromDocumentId ?? null);
+        setDerivedFromVersion(
+          typeof doc?.derivedFromVersion === 'number' ? doc.derivedFromVersion : null
+        );
+        setSigningEvents(Array.isArray(doc?.signingEvents) ? doc.signingEvents : []);
 
+        const usedIds = new Set<number>();
+        const serverSourceFields = dedupeFieldsById(doc?.fields || []);
         // Server fields
-        const serverFields: DroppedComponent[] = (doc?.fields || []).map((field: DocumentField) => ({
-          id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-          component: (String(field.type || ''))
-            .split('_')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' '),
-          x: field.x,
-          y: field.y,
-          width: field.width,
-          height: field.height,
-          pageNumber: field.pageNumber,
-          data: field.value,
-          assignedRecipientId: field.recipientId,
-          required: field.required !== false,
-          placeholder: field.placeholder,
-          fieldOwner: field.fieldOwner
-        }));
+        const serverFields: DroppedComponent[] = serverSourceFields.map((field: DocumentField) =>
+          mapFieldToDroppedComponent(field, usedIds)
+        );
 
         // Restore draft if exists
         const rawDraft = sessionStorage.getItem(draftKey(currentDocId));
         const draftFields: DroppedComponent[] = rawDraft
-          ? JSON.parse(rawDraft).fields.map((field: DocumentField) => ({
-            id: parseInt(field.id) || Math.floor(Math.random() * 1000000),
-            component: (String(field.type || ''))
-              .split('_')
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' '),
-            x: field.x,
-            y: field.y,
-            width: field.width,
-            height: field.height,
-            pageNumber: field.pageNumber,
-            data: field.value,
-            assignedRecipientId: field.recipientId,
-            required: field.required !== false,
-            placeholder: field.placeholder,
-            fieldOwner: field.fieldOwner
-          }))
+          ? dedupeFieldsById(JSON.parse(rawDraft).fields || []).map((field: DocumentField) =>
+              mapFieldToDroppedComponent(field, usedIds)
+            )
           : [];
 
         // Merge draft on top of server fields, preserving server values if draft is empty.
         const restoredFields = [...serverFields];
         draftFields.forEach(draftField => {
-          const index = restoredFields.findIndex(serverField => serverField.id === draftField.id);
+          const index = restoredFields.findIndex(serverField => {
+            if (draftField.fieldId && serverField.fieldId) {
+              return serverField.fieldId === draftField.fieldId;
+            }
+            return serverField.id === draftField.id;
+          });
           if (index !== -1) {
             const serverField = restoredFields[index];
             // If the server has a value and the draft doesn't, keep the server value.
@@ -321,20 +444,28 @@ const DocumentEditor: React.FC<EditorProps> = ({
     if (!documentId) return;
 
     const timeout = setTimeout(() => {
+      const canvasRect = documentRef.current?.getBoundingClientRect();
       const payload = {
         fields: droppedComponents.map(c => ({
-          id: c.id?.toString(),
+          id: c.fieldId ?? c.id?.toString(),
           type: getFieldTypeFromComponentLabel(c.component || ''),
           x: c.x,
           y: c.y,
           width: c.width,
           height: c.height,
           pageNumber: c.pageNumber,
+          pageRect: serializePageRect(
+            pageRefs.current[(c.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? c.pageRect,
+            canvasRect,
+            zoom
+          ),
           recipientId: c.assignedRecipientId,
           required: c.required,
           value: c.data,
           placeholder: c.placeholder,
           fieldOwner: c.fieldOwner,
+          fieldId: c.fieldId ?? c.id?.toString(),
+          isPrivate: c.isPrivate,
         })),
         recipients,
         documentName,
@@ -465,6 +596,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     }
     const newComponent: DroppedComponent = {
       id: elementId,
+      fieldId: String(elementId),
       component: draggingComponent.component,
       x: (e.clientX - rect.left) / zoom,
       y: (e.clientY - rect.top) / zoom,
@@ -473,7 +605,8 @@ const DocumentEditor: React.FC<EditorProps> = ({
       pageNumber: targetPageNumber,
       pageRect: pageRect,
       fieldOwner: draggingComponent.fieldOwner,
-      data: draggingComponent.data
+      data: draggingComponent.data,
+      isPrivate: false,
     };
 
     setDroppedComponents((prev) => {
@@ -506,6 +639,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     const newComponent: DroppedComponent = {
       ...item,
       id: elementId,
+      fieldId: String(elementId),
       x: item.x + 20,
       y: item.y + 20,
       assignedRecipientId: item.assignedRecipientId
@@ -705,8 +839,17 @@ const DocumentEditor: React.FC<EditorProps> = ({
       const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       const sessionId = typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
       console.log('droppedComponents before save', droppedComponents);
+      const canvasRect = documentRef.current?.getBoundingClientRect();
+      const payloadComponents = droppedComponents.map(c => ({
+        ...c,
+        pageRect: serializePageRect(
+          pageRefs.current[(c.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? c.pageRect,
+          canvasRect,
+          zoom
+        ),
+      }));
       // Upload to server; pass sessionId so server knows if this is same session (and will overwrite) or a new session (and will create new version)
-      const result = await uploadToServer(blob, safeName, currentPage, droppedComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
+      const result = await uploadToServer(blob, safeName, currentPage, payloadComponents, recipients, currentdoc, setDocumentId, setDocumentName, setSelectedFile, sessionId, signingToken, false);
       if (result && result.documentId) {
         setDocumentId(result.documentId);
       }
@@ -805,8 +948,8 @@ const DocumentEditor: React.FC<EditorProps> = ({
     // Set the currently selected component
     setDraggingComponent(item);
 
-    if (!isSigningMode && item.fieldOwner == 'recipients' ||  item.fieldOwner == 'me' && !isEdit) {
-      return
+    if (!isSigningMode && item.fieldOwner == 'recipients') {
+      return;
     }
     if (isDragging) {
       setIsDragging(false);
@@ -857,6 +1000,63 @@ const DocumentEditor: React.FC<EditorProps> = ({
       return newComponents;
     });
   }, [setDroppedComponents, saveState, recipients]);
+
+  const toggleFieldPrivacy = useCallback((fieldId: number, isPrivate: boolean) => {
+    setDroppedComponents(prev => {
+      const newComponents = prev.map(c => (c.id === fieldId ? { ...c, isPrivate } : c));
+      saveState(newComponents);
+      return newComponents;
+    });
+  }, [setDroppedComponents, saveState]);
+
+  const handleSelectField = useCallback((field: DroppedComponent) => {
+    setDraggingComponent(field);
+  }, []);
+
+  const handleSendComplete = useCallback(
+    (payload: { recipients: Recipient[]; signingMode: 'sequential' | 'parallel' }) => {
+      setDocumentStatus('sent');
+      const sentRecipients = Array.isArray(payload?.recipients) ? payload.recipients : [];
+      if (sentRecipients.length === 0) return;
+
+      const signingMode = payload.signingMode;
+      let nextOrder: number | null = null;
+      if (signingMode === 'sequential') {
+        const orders = sentRecipients
+          .filter(r => r.role !== 'viewer')
+          .map(r => r.order)
+          .filter((order): order is number => typeof order === 'number' && !Number.isNaN(order));
+        nextOrder = orders.length > 0 ? Math.min(...orders) : null;
+      }
+
+      setRecipients(prev => {
+        return sentRecipients.map(r => {
+          const existing = prev.find(p => p.id === r.id);
+          const status =
+            signingMode === 'sequential' && r.role !== 'viewer'
+              ? (nextOrder !== null && r.order === nextOrder ? 'sent' : 'pending')
+              : 'sent';
+          return {
+            ...existing,
+            ...r,
+            status,
+            signingToken: existing?.signingToken ?? r.signingToken ?? '',
+          };
+        });
+      });
+
+      router.push('/dashboard');
+    },
+    [router]
+  );
+
+  const handleOpenSendModal = useCallback(() => {
+    if (isAlreadySent) {
+      setShowVoidModal(true);
+      return;
+    }
+    setShowSendDocument(true);
+  }, [isAlreadySent]);
 
   const onImgUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -958,6 +1158,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   useEffect(() => {
     const finalizeSession = async () => {
       try {
+        if (isReadOnly) return;
         if (typeof window === 'undefined') return;
         const currentDocumentId = localStorage.getItem('currentDocumentId');
         const currentSessionId = localStorage.getItem('currentSessionId');
@@ -969,18 +1170,25 @@ const DocumentEditor: React.FC<EditorProps> = ({
         formData.append('isMetadataOnly', 'true');
         formData.append('sessionId', currentSessionId);
         formData.append('documentId', currentDocumentId);
+        const canvasRect = documentRef.current?.getBoundingClientRect();
         formData.append('fields', JSON.stringify(droppedComponents.map(comp => ({
-          id: comp.id?.toString() || `field_${Math.random().toString(36).substr(2, 9)}`,
+          id: (comp.fieldId ?? comp.id?.toString()) || `field_${Math.random().toString(36).substr(2, 9)}`,
           type: getFieldTypeFromComponentLabel(comp.component),
           x: comp.x,
           y: comp.y,
           width: comp.width,
           height: comp.height,
           pageNumber: comp.pageNumber || currentPage,
+          pageRect: serializePageRect(
+            pageRefs.current[(comp.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? comp.pageRect,
+            canvasRect,
+            zoom
+          ),
           recipientId: comp.assignedRecipientId,
           required: comp.required !== false,
           value: comp.data || '',
           placeholder: comp.placeholder,
+          isPrivate: comp.isPrivate,
         }))));
         formData.append('recipients', JSON.stringify(recipients));
         formData.append('changeLog', 'Finalize session: metadata update');
@@ -1017,13 +1225,14 @@ const DocumentEditor: React.FC<EditorProps> = ({
       finalizeSession();
       window.removeEventListener('beforeunload', finalizeSession);
     };
-  }, [droppedComponents, recipients, documentName, currentPage]);
+  }, [droppedComponents, recipients, documentName, currentPage, isReadOnly]);
 
   // Auto-save metadata when user finishes renaming (isEditingFileName toggles false)
   const lastSavedNameRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     const saveRenameIfNeeded = async () => {
+      if (isReadOnly) return;
       const id = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       if (!id) return;
       // Only save if the user changed the name and it's different than lastSavedName
@@ -1049,7 +1258,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
       saveRenameIfNeeded();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditingFileName]);
+  }, [isEditingFileName, isReadOnly]);
 
   const containerHeight = pageRefs.current.reduce((acc, page) => {
     if (!page) return acc;
@@ -1067,6 +1276,112 @@ const DocumentEditor: React.FC<EditorProps> = ({
     return fieldsChanged || recipientsChanged || nameChanged;
   }, [droppedComponents, recipients, documentName, lastSavedState]);
 
+  const handleDownloadSigned = async () => {
+    if (!documentId) return;
+    try {
+      setIsDownloadingSigned(true);
+      const res = await fetch(`/api/documents/download-signed?documentId=${encodeURIComponent(documentId)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Failed to download signed document');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${documentName || 'document'}-signed.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Signed document downloaded successfully');
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Failed to download signed document');
+      }
+    } finally {
+      setIsDownloadingSigned(false);
+    }
+  };
+
+  const handleDeriveDocument = async () => {
+    if (!documentId) return;
+    try {
+      setIsDeriving(true);
+      const res = await fetch(`/api/documents/${encodeURIComponent(documentId)}/derive`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create derived document');
+      }
+      const data = await res.json();
+      const newDocId = data.documentId;
+      if (newDocId) {
+        localStorage.setItem('currentDocumentId', newDocId);
+        localStorage.removeItem('currentSessionId');
+        router.push(`/builder/${newDocId}`);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Failed to create derived document');
+      }
+    } finally {
+      setIsDeriving(false);
+      setShowDeriveModal(false);
+    }
+  };
+
+  const handleVoidAndDerive = async () => {
+    if (!documentId) return;
+    try {
+      setIsVoiding(true);
+      const voidRes = await fetch(`/api/documents/${encodeURIComponent(documentId)}/void`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!voidRes.ok) {
+        const errorData = await voidRes.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to void document');
+      }
+
+      const deriveRes = await fetch(`/api/documents/${encodeURIComponent(documentId)}/derive`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!deriveRes.ok) {
+        const errorData = await deriveRes.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create derived document');
+      }
+      const data = await deriveRes.json();
+      const newDocId = data.documentId;
+      if (newDocId) {
+        localStorage.setItem('currentDocumentId', newDocId);
+        localStorage.removeItem('currentSessionId');
+        router.push(`/builder/${newDocId}`);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Failed to void and create new document');
+      }
+    } finally {
+      setIsVoiding(false);
+      setShowVoidModal(false);
+    }
+  };
+
 
 
   // ==========================================================
@@ -1076,7 +1391,112 @@ const DocumentEditor: React.FC<EditorProps> = ({
     <>
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}><LoginPage /></Modal>}
 
-      {!isSigningMode &&
+      {!isSigningMode && documentStatus === 'completed' && (
+        <div className="flex items-center justify-between bg-white border-b px-4 py-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-green-700 font-semibold">Completed</div>
+            <div className="text-sm text-gray-700">
+              This document is completed and cannot be modified.
+            </div>
+            {derivedFromDocumentId && (
+              <div className="text-xs text-gray-500 mt-1">
+                Derived from {derivedFromDocumentId}
+                {derivedFromVersion != null ? ` (v${derivedFromVersion})` : ''}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAuditModal(true)}
+              inverted
+              className="!rounded-full"
+            >
+              View audit trail
+            </Button>
+            <Button
+              onClick={handleDownloadSigned}
+              inverted
+              className="!rounded-full"
+              disabled={isDownloadingSigned}
+            >
+              Download signed PDF
+            </Button>
+            <Button
+              onClick={() => setShowDeriveModal(true)}
+              className="!rounded-full"
+              disabled={isDeriving}
+            >
+              Modify &amp; Create New Signing Request
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isInProgress && (
+        <div className="flex items-center justify-between bg-amber-50 border-b px-4 py-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-amber-700 font-semibold">In Progress</div>
+            <div className="text-sm text-amber-700">
+              Signing is in progress. To modify this document, void the current request and create a new signing cycle.
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAuditModal(true)}
+              inverted
+              className="!rounded-full"
+            >
+              View audit trail
+            </Button>
+            <Button
+              onClick={() => setShowVoidModal(true)}
+              className="!rounded-full"
+              disabled={isVoiding}
+            >
+              Void &amp; Create New Revision
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isVoided && (
+        <div className="flex items-center justify-between bg-slate-50 border-b px-4 py-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-700 font-semibold">Voided</div>
+            <div className="text-sm text-slate-600">
+              This document has been voided and is read-only.
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAuditModal(true)}
+              inverted
+              className="!rounded-full"
+            >
+              View audit trail
+            </Button>
+            <Button
+              onClick={() => setShowDeriveModal(true)}
+              className="!rounded-full"
+              disabled={isDeriving}
+            >
+              Create New Signing Request
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {derivedFromDocumentId && !isReadOnly && (
+        <div className="flex items-center justify-between bg-slate-50 border-b px-4 py-2 text-xs text-gray-600">
+          <div>
+            Derived from {derivedFromDocumentId}
+            {derivedFromVersion != null ? ` (v${derivedFromVersion})` : ''}
+          </div>
+          <div className="text-gray-500">Draft</div>
+        </div>
+      )}
+
+      {!isSigningMode && !isReadOnly &&
         <ActionToolBar
           documentName={documentName}
           setDocumentName={setDocumentName}
@@ -1088,7 +1508,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
           onUndo={handleUndo}
           onRedo={handleRedo}
           recipients={recipients}
-          onSendDocument={() => setShowSendDocument(true)}
+          onSendDocument={handleOpenSendModal}
           onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
           hasUnsavedChanges={hasUnsavedChanges}
           droppedItems={droppedComponents}
@@ -1104,19 +1524,28 @@ const DocumentEditor: React.FC<EditorProps> = ({
             documentId={documentId}
             documentName={documentName || 'Untitled'}
             documentFileUrl={typeof selectedFile === 'string' ? selectedFile : ''}
-            documentFields={droppedComponents.map((c) => ({
-              id: String(c.id),
-              type: getFieldTypeFromComponentLabel(c.component || '') as DocumentFieldType,
-              x: c.x,
-              y: c.y,
-              width: c.width,
-              height: c.height,
-              pageNumber: c.pageNumber,
-              recipientId: c.assignedRecipientId,
-              required: c.required !== undefined ? c.required : true,
-              value: c.data || '',
-              placeholder: c.placeholder,
-            }))}
+            documentFields={droppedComponents.map((c) => {
+              const canvasRect = documentRef.current?.getBoundingClientRect();
+              return {
+                id: c.fieldId ?? String(c.id),
+                type: getFieldTypeFromComponentLabel(c.component || '') as DocumentFieldType,
+                x: c.x,
+                y: c.y,
+                width: c.width,
+                height: c.height,
+                pageNumber: c.pageNumber,
+                pageRect: serializePageRect(
+                  pageRefs.current[(c.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? c.pageRect,
+                  canvasRect,
+                  zoom
+                ),
+                recipientId: c.assignedRecipientId,
+                required: c.required !== undefined ? c.required : true,
+                value: c.data || '',
+                placeholder: c.placeholder,
+                isPrivate: c.isPrivate,
+              };
+            })}
             documentDefaultSigners={recipients}
             documentPageCount={pages.length}
             documentFileSize={0}
@@ -1133,14 +1562,19 @@ const DocumentEditor: React.FC<EditorProps> = ({
         {!isSigningMode &&
           <>
             <div className="bg-white border-r w-72 flex flex-col select-none">
-              <Fields
-                activeComponent={draggingComponent}
-                setActiveComponent={setDraggingComponent}
-                mouseDown={mouseDownOnField}
-                selectedFile={selectedFile as File}
-
+              {!isReadOnly && (
+                <Fields
+                  activeComponent={draggingComponent}
+                  setActiveComponent={setDraggingComponent}
+                  mouseDown={mouseDownOnField}
+                  selectedFile={selectedFile as File}
+                />
+              )}
+              <RecipientsList
+                recipients={recipients}
+                onAddRecipients={isReadOnly ? undefined : handleAddRecipients}
+                showStatus={isReadOnly}
               />
-              <RecipientsList recipients={recipients} onAddRecipients={handleAddRecipients} />
             </div>
             {!selectedFile && (<UploadZone />)}
             {draggingComponent && (
@@ -1168,9 +1602,11 @@ const DocumentEditor: React.FC<EditorProps> = ({
               setDroppedComponents={setDroppedComponents}
               selectedFieldId={selectedFieldId}
               setSelectedFieldId={setSelectedFieldId}
+              onSelectField={handleSelectField}
               onAssignRecipient={handleAssignRecipient}
               onDuplicateField={handleDuplicateField}
               onDeleteField={handleDeleteField}
+              onTogglePrivacy={toggleFieldPrivacy}
               updateField={updateField}
               handleDragStop={handleDragStop}
               handleResizeStop={handleResizeStop}
@@ -1179,11 +1615,12 @@ const DocumentEditor: React.FC<EditorProps> = ({
               recipients={recipients}
               onAddRecipients={() => setShowAddRecipients(true)}
               isSigningMode={isSigningMode}
+              isReadOnly={isReadOnly}
               isSigned={isSigned}
               onClickField={clickField}
               currentRecipientId={currentRecipientId}
             />
-            <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''} isSigningMode={isSigningMode} signingToken={signingToken} />
+            <PDFViewer selectedFile={selectedFile as File} pages={pages} zoom={1} pageRefs={pageRefs} generateThumbnails={(data) => generateThumbnails(data)} insertBlankPageAt={insertBlankPageAt} toggleMenu={toggleMenu} error={error || ''} isSigningMode={isSigningMode} isReadOnly={isReadOnly} signingToken={signingToken} />
           </div>
         </div>
         {/* Aside Panel for Page Thumbnails */}
@@ -1195,7 +1632,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
           handleThumbnailClick={handleThumbnailClick}
           insertBlankPageAt={insertBlankPageAt}
           toggleMenu={toggleMenu}
-          isSigningMode={isSigningMode}
+          isSigningMode={isPreviewMode}
         />
 
 
@@ -1233,7 +1670,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
             onClose={() => setCanvasFields(false)}
           />
         }
-        {!isSigningMode && (
+        {!isSigningMode && !isReadOnly && (
           <>
             {/* Add Recipients Modal */}
             {showAddRecipients && (
@@ -1254,6 +1691,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
                 documentName={documentName}
                 documentId={documentId}
                 setRecipients={setRecipients}
+                onSendComplete={handleSendComplete}
               />
             )}
 
@@ -1278,6 +1716,74 @@ const DocumentEditor: React.FC<EditorProps> = ({
         />
       )}
       <DeletedDocumentDialog isOpen={showDeletedDialog} onClose={() => setShowDeletedDialog(false)} />
+
+      <Modal
+        visible={showVoidModal}
+        onClose={() => setShowVoidModal(false)}
+        title="Void current signing request?"
+        handleConfirm={handleVoidAndDerive}
+        confirmLabel="Void & Create New Revision"
+        cancelLabel="Cancel"
+        confirmDisabled={isVoiding}
+      >
+        <p className="text-sm text-gray-700">
+          This document has an active signing request. Voiding will stop the current signing flow and
+          create a new document with a fresh signing cycle. The original document will remain
+          unchanged.
+        </p>
+      </Modal>
+
+      <Modal
+        visible={showDeriveModal}
+        onClose={() => setShowDeriveModal(false)}
+        title="Create a new signing request?"
+        handleConfirm={handleDeriveDocument}
+        confirmLabel="Create New Document"
+        cancelLabel="Cancel"
+        confirmDisabled={isDeriving}
+      >
+        <p className="text-sm text-gray-700">
+          This document has been fully signed and cannot be changed. Any modification will create a
+          new document with a new signing cycle. The original document will remain unchanged.
+        </p>
+      </Modal>
+
+      <Modal
+        visible={showAuditModal}
+        onClose={() => setShowAuditModal(false)}
+        title="Audit trail"
+      >
+        {signingEvents.length === 0 ? (
+          <p className="text-sm text-gray-500">No audit events available.</p>
+        ) : (
+          <div className="space-y-3 text-sm">
+            {signingEvents.map((event, index) => (
+              <div key={`${event?.recipientId || 'event'}-${index}`} className="border rounded-md p-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium text-gray-800">
+                    {String(event?.action || 'event').toUpperCase()}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {event?.signedAt
+                      ? new Date(event.signedAt).toLocaleString()
+                      : event?.sentAt
+                        ? new Date(event.sentAt).toLocaleString()
+                        : event?.serverTimestamp
+                          ? new Date(event.serverTimestamp).toLocaleString()
+                          : '—'}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  Recipient: {event?.recipientId || 'unknown'}
+                </div>
+                <div className="text-xs text-gray-600">
+                  Version: {event?.version ?? '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </>
   );
 };

@@ -32,6 +32,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tests",
+    "tests/**",
+    "scripts",
+    "scripts/**",
+    "vitest.config.ts",
+    "playwright.config.ts"
   ]
 }

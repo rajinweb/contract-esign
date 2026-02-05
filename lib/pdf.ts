@@ -1,7 +1,7 @@
-import { DroppedComponent } from "@/types/types";
+import { DroppedComponent, DocumentField } from "@/types/types";
 import { degrees, PDFDocument, rgb, StandardFonts } from "pdf-lib";
-
 import dayjs from "dayjs";
+import { Readable } from "stream";
 
 // --- Utility functions ---
 export async function loadPdf(selectedFile: File | string) {
@@ -155,4 +155,128 @@ export function downloadPdf(blob: Blob, documentName: string) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+}
+
+// --- SERVER-SIDE PDF FIELD MERGING ---
+/**
+ * Server-side PDF field merging for signing operations.
+ * Loads a PDF from a stream, merges field values into it, and returns the merged PDF as a buffer.
+ *
+ * @param pdfStream - Stream containing the PDF binary
+ * @param fields - Array of field objects with their values and positions
+ * @returns Promise<Buffer> - The merged PDF as a buffer
+ */
+export async function mergeFieldsIntoPdfServer(
+    pdfStream: Readable,
+    fields: DocumentField[]
+): Promise<Buffer> {
+    // Read the PDF stream into a buffer
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+        pdfStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+        pdfStream.on('end', resolve);
+        pdfStream.on('error', reject);
+    });
+    const pdfBytes = Buffer.concat(chunks);
+
+    // Load the PDF document
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+
+    // Process each field
+    for (const field of fields) {
+        if (!field.pageNumber || field.pageNumber < 1 || field.pageNumber > pages.length) {
+            continue; // Skip invalid page numbers
+        }
+
+        const pageIndex = field.pageNumber - 1;
+        const page = pages[pageIndex];
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        let scaleX = 1;
+        let scaleY = 1;
+        let relativeX = field.x;
+        let relativeY = field.y;
+        if (field.pageRect?.width && field.pageRect?.height) {
+            scaleX = pageWidth / field.pageRect.width;
+            scaleY = pageHeight / field.pageRect.height;
+            if (typeof field.pageRect.left === 'number' && typeof field.pageRect.top === 'number') {
+                const candidateX = field.x - field.pageRect.left;
+                const candidateY = field.y - field.pageRect.top;
+                const withinX = candidateX >= -1 && candidateX <= field.pageRect.width + 1;
+                const withinY = candidateY >= -1 && candidateY <= field.pageRect.height + 1;
+                if (withinX && withinY) {
+                    relativeX = candidateX;
+                    relativeY = candidateY;
+                }
+            }
+        }
+        const adjustedX = relativeX * scaleX;
+        const adjustedY = pageHeight - (relativeY + field.height) * scaleY;
+        const scaledW = field.width * scaleX;
+        const scaledH = field.height * scaleY;
+
+        // Text and Date fields
+        if (['text', 'date'].includes(field.type) && field.value) {
+            try {
+                const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                const fontSize = Math.min(field.height || 12, 14);
+                page.drawText(field.value, {
+                    x: adjustedX,
+                    y: adjustedY,
+                    size: fontSize,
+                    font: helveticaFont,
+                    color: rgb(0, 0, 0),
+                });
+            } catch (err) {
+                console.error(`Failed to draw text field ${field.id}:`, err);
+            }
+        }
+
+        // Signature, initials, stamp, image fields
+        if (['signature', 'initials', 'stamp', 'image', 'live_photo'].includes(field.type) && field.value) {
+            try {
+                // field.value is expected to be a base64 data URL or image URL
+                let imageBytes: Buffer;
+
+                if (typeof field.value === 'string') {
+                    if (field.value.startsWith('data:')) {
+                        // Data URL format
+                        const base64Data = field.value.split(',')[1];
+                        imageBytes = Buffer.from(base64Data, 'base64');
+                    } else if (field.value.startsWith('http')) {
+                        // HTTP URL - fetch it
+                        const response = await fetch(field.value);
+                        imageBytes = Buffer.from(await response.arrayBuffer());
+                    } else {
+                        continue;
+                    }
+
+                    // Detect image type and embed
+                    let embeddedImage;
+                    if (imageBytes[0] === 0x89 && imageBytes[1] === 0x50) {
+                        // PNG
+                        embeddedImage = await pdfDoc.embedPng(imageBytes);
+                    } else if (imageBytes[0] === 0xFF && imageBytes[1] === 0xD8) {
+                        // JPEG
+                        embeddedImage = await pdfDoc.embedJpg(imageBytes);
+                    } else {
+                        continue; // Unsupported image format
+                    }
+
+                    page.drawImage(embeddedImage, {
+                        x: adjustedX,
+                        y: adjustedY,
+                        width: scaledW,
+                        height: scaledH,
+                    });
+                }
+            } catch (err) {
+                console.error(`Failed to draw image field ${field.id}:`, err);
+            }
+        }
+    }
+
+    // Save and return the merged PDF as a buffer
+    const mergedPdfBytes = await pdfDoc.save();
+    return Buffer.from(mergedPdfBytes);
 }

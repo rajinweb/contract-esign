@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { User, Copy, Trash2, ChevronDown, UserRoundPlus } from 'lucide-react';
+import { User, Copy, Trash2, ChevronDown, UserRoundPlus, Lock, Unlock } from 'lucide-react';
 import { Recipient, DroppedComponent } from '@/types/types';
 
 interface FieldSelectionMenuProps {
@@ -9,6 +9,7 @@ interface FieldSelectionMenuProps {
   onAssignRecipient: (fieldId: number, recipientId: string | null) => void;
   onDuplicateField: (field: DroppedComponent) => void;
   onDeleteField: (field: DroppedComponent) => void;
+  onTogglePrivacy: (fieldId: number, isPrivate: boolean) => void;
   onAddRecipients: () => void;
 }
 
@@ -18,12 +19,16 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
   onAssignRecipient,
   onDuplicateField,
   onDeleteField,
+  onTogglePrivacy,
   onAddRecipients,
 }) => {
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
   const assignedRecipient = recipients.find(r => r.id === field.assignedRecipientId);
   const availableRecipients = recipients.filter(r => !r.isCC); // Only signers and approvers
+  const isPrivate = Boolean(field.isPrivate);
+  const canTogglePrivacy = field.fieldOwner !== 'me';
+  const privacyDisabled = !field.assignedRecipientId;
 
   const handleRecipientSelect = (recipientId: string | null) => {
     onAssignRecipient(field.id, recipientId);
@@ -96,6 +101,21 @@ const FieldSelectionMenu: React.FC<FieldSelectionMenuProps> = ({
           )}
         </>
     )}
+        {canTogglePrivacy && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (privacyDisabled) return;
+              onTogglePrivacy(field.id, !isPrivate);
+            }}
+            className={`${commonClasses} ${isPrivate ? 'bg-amber-50 border-amber-300 text-amber-700' : ''} ${privacyDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={privacyDisabled ? 'Assign a recipient to enable privacy' : 'Toggle private visibility'}
+            aria-pressed={isPrivate}
+          >
+            {isPrivate ? <Lock size={16} className="text-amber-700" /> : <Unlock size={16} className="text-gray-600" />}
+            <span className="text-xs ml-1">{isPrivate ? 'Private' : 'Public'}</span>
+          </button>
+        )}
 
         {/* Duplicate Button */}
         <button

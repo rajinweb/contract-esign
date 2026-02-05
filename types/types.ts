@@ -22,9 +22,11 @@ export interface Doc {
   | 'delivery_failed'
   | 'expired'
   | 'cancelled'
+  | 'voided'
   | 'pending'
   | 'trashed'; // Add 'trashed' status
-  deletedAt?: Date; // Add optional deletedAt property
+  deletedAt?: Date | null; // Add optional deletedAt property
+  statusBeforeDelete?: Doc['status'];
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
@@ -53,6 +55,7 @@ export const statuses = [
   { value: "delivery_failed", label: "Delivery Failed", color: "text-red-500", dot: "bg-red-500" },
   { value: "expired", label: "Expired", color: "text-zinc-400", dot: "bg-zinc-400" },
   { value: "cancelled", label: "Cancelled", color: "text-neutral-400", dot: "bg-neutral-400" },
+  { value: "voided", label: "Voided", color: "text-neutral-400", dot: "bg-neutral-400" },
 ];
 
 export const ROLES = [
@@ -92,6 +95,7 @@ export interface InputProps {
   textInput: (data: string) => void;
   defaultDate?: string | null;
   readOnly?: boolean
+  className?: string;
 }
 
 
@@ -111,8 +115,19 @@ export interface DroppingField {
   fieldOwner?: FieldOwner,
   data?: string | null;
 }
+export interface PageRect {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}
 export interface DroppedComponent extends DroppingField {
   id: number;
+  fieldId?: string;
   component: string;
   x: number;
   y: number;
@@ -124,8 +139,9 @@ export interface DroppedComponent extends DroppingField {
   assignedRecipientId?: string | null;
   required?: boolean;
   placeholder?: string;
-  pageRect?: DOMRect | null;
+  pageRect?: PageRect | DOMRect | null;
   hasError?: boolean;
+  isPrivate?: boolean;
 }
 export interface Address {
   country?: string;
@@ -155,6 +171,7 @@ export interface User {
 
 /* Recipients */
 export interface Recipient {
+  signingToken?: string;
   captureGpsLocation?: boolean;
   id: string;
   email: string;
@@ -171,12 +188,57 @@ export interface Recipient {
   | 'rejected'
   | 'pending'
   | 'viewed'
-  | 'delivery_failed';
+  | 'delivery_failed'
+  | 'expired';
   rejectedAt?: Date;
   signedAt?: Date;
+  signedVersion?: number | null;
   approvedAt?: Date;
   viewedAt?: Date;
   ipAddress?: string;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+    accuracyMeters?: number;
+    city?: string;
+    state?: string;
+    country?: string;
+    capturedAt?: Date;
+  };
+  device?: {
+    type?: 'mobile' | 'desktop' | 'tablet';
+    os?: string;
+    browser?: string;
+    userAgent?: string;
+  };
+  network?: {
+    ip?: string;
+    ipUnavailableReason?: string;
+    isp?: string;
+    ipLocation?: {
+      city?: string;
+      country?: string;
+    };
+  };
+  consent?: {
+    locationGranted?: boolean;
+    grantedAt?: Date;
+    method?: 'system_prompt' | 'checkbox' | 'other';
+  };
+  identityVerification?: {
+    method?: 'email' | 'sms' | 'kba' | 'id_document' | 'bank_id' | 'selfie' | 'manual' | 'none';
+    provider?: string;
+    result?: 'passed' | 'failed' | 'skipped';
+    verifiedAt?: Date;
+    transactionId?: string;
+    payloadHash?: string;
+  };
+  authentication?: {
+    method?: 'email' | 'sms' | 'otp' | 'sso' | 'none';
+    channel?: string;
+    verifiedAt?: Date;
+    transactionId?: string;
+  };
 }
 /* contacts  */
 export interface Contact {
@@ -224,8 +286,9 @@ export interface DocumentField {
   value?: string;
   placeholder?: string;
   mimeType?: string;
-  pageRect?: DOMRect | null;
+  pageRect?: PageRect | DOMRect | null;
   fieldOwner?: FieldOwner;
+  isPrivate?: boolean;
 }
 
 // Document Version & History
@@ -239,19 +302,47 @@ export interface IEditHistory {
 
 export interface IDocumentVersion {
   version: number;
+  label?: string;
+  signedBy?: string[];
+  renderedBy?: string;
+  pdfSignedAt?: Date;
+  changeMeta?: {
+    action?: string;
+    actorId?: string;
+    actorRole?: string;
+    signingMode?: string;
+    baseVersion?: number;
+    derivedFromVersion?: number;
+    signedAt?: Date;
+    source?: 'client' | 'server' | 'system';
+  };
+  storage?: {
+    provider: string;
+    bucket?: string;
+    region?: string;
+    key?: string;
+    url?: string;
+    versionId?: string;
+  };
+  hash?: string;
+  hashAlgo?: string;
+  size?: number;
+  mimeType?: string;
+  locked?: boolean;
+  derivedFromVersion?: number;
   fileUrl?: string;
   pdfData?: Buffer;
-  fields: DocumentField[];
-  documentName: string;
-  filePath: string;
+  fields?: DocumentField[];
+  documentName?: string;
+  filePath?: string;
   sentAt?: Date;
   signingToken?: string;
   expiresAt?: Date;
-  status: 'draft' | 'sent' | 'signed' | 'expired' | 'final';
-  changeLog: string;
-  editHistory: IEditHistory[];
-  createdAt: Date;
-  updatedAt: Date;
+  status?: 'draft' | 'sent' | 'signed' | 'expired' | 'final' | 'locked';
+  changeLog?: string;
+  editHistory?: IEditHistory[];
+  createdAt?: Date;
+  updatedAt?: Date;
   canvasWidth?: number;
   canvasHeight?: number;
 }
@@ -270,7 +361,7 @@ export interface SavedDocument {
   currentVersion: number;
   versions: IDocumentVersion[];
   recipients: Recipient[];
-  status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled';
+  status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled' | 'voided';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -284,6 +375,48 @@ export interface IDocument {
   currentVersion: number;
   currentSessionId?: string;
   sequentialSigning?: boolean; // Added sequential signing toggle
+  signingMode?: 'parallel' | 'sequential';
+  signingEvents?: Array<{
+    recipientId: string;
+    action?: 'sent' | 'viewed' | 'signed' | 'approved' | 'rejected' | 'voided';
+    fields?: Array<{ fieldId: string; fieldHash: string }>;
+    fieldsHash?: string;
+    fieldsHashAlgo?: string;
+    signatureHash?: string;
+    signatureHashAlgo?: string;
+    signedAt?: Date;
+    sentAt?: Date;
+    serverTimestamp?: Date;
+    baseVersion?: number;
+    targetVersion?: number;
+    ip?: string;
+    ipUnavailableReason?: string;
+    userAgent?: string;
+    order?: number;
+    version?: number;
+    client?: {
+      ip?: string;
+      userAgent?: string;
+      deviceType?: 'mobile' | 'desktop' | 'tablet';
+      os?: string;
+      browser?: string;
+    };
+    geo?: {
+      latitude?: number;
+      longitude?: number;
+      accuracyMeters?: number;
+      city?: string;
+      state?: string;
+      country?: string;
+      capturedAt?: Date;
+      source?: string;
+    };
+    consent?: {
+      locationGranted?: boolean;
+      grantedAt?: Date;
+      method?: 'system_prompt' | 'checkbox' | 'other';
+    };
+  }>;
   versions: {
     version: number;
     pdfData?: Buffer;
@@ -294,7 +427,26 @@ export interface IDocument {
     signingToken?: string;
     sentAt?: Date;
     expiresAt?: Date;
+    signedBy?: string[];
+    derivedFromVersion?: number;
+    renderedBy?: string;
+    pdfSignedAt?: Date;
+    changeMeta?: {
+      action?: string;
+      actorId?: string;
+      actorRole?: string;
+      signingMode?: string;
+      baseVersion?: number;
+      derivedFromVersion?: number;
+      signedAt?: Date;
+      source?: 'client' | 'server' | 'system';
+    };
   }[];
+  auditTrailVersion?: number;
+  completedAt?: Date;
+  finalizedAt?: Date;
+  derivedFromDocumentId?: string | { toString(): string };
+  derivedFromVersion?: number;
   recipients?: Recipient[];
   status?:
   | 'draft'
@@ -309,6 +461,7 @@ export interface IDocument {
   | 'delivery_failed'
   | 'expired'
   | 'cancelled'
+  | 'voided'
   | 'pending';
   token?: string;
   createdAt?: Date;
@@ -316,6 +469,7 @@ export interface IDocument {
   expiresAt?: Date;
   usageCount?: number;
   isTemplate?: boolean;
+  statusBeforeDelete?: string;
 }
 export interface DocumentEditorProps {
   documentId?: string | null;

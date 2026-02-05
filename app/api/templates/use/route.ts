@@ -4,15 +4,18 @@ import connectDB from '@/utils/db';
 import Document from '@/models/Document';
 import TemplateModel, { ITemplate } from '@/models/Template';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { sha256Buffer } from '@/lib/hash';
+import { copyObject, getRegion, putObjectStream } from '@/lib/s3';
 
 export async function POST(req: NextRequest) {
     await connectDB();
 
     try {
         const userId = await getAuthSession(req);
-        const { templateId, documentName: requestedDocName } = await req.json();
+        const { templateId, documentName: requestedDocName, guestId } = await req.json();
 
         if (!templateId) {
             return NextResponse.json({ message: 'Template ID is required' }, { status: 400 });
@@ -30,34 +33,26 @@ export async function POST(req: NextRequest) {
         console.log(`[USE TEMPLATE] Template's stored filePath: "${template.filePath}"`);
 
 
-        // For guests, use the same ID for both ownerId and sessionId so they can access their documents
+        // For guests, use the provided guestId (validated) so they can access their documents
         let ownerId: string;
         let newSessionId: string;
-        
+
         if (userId) {
-            // Authenticated user: use their userId and generate a new sessionId
             ownerId = userId;
-            newSessionId = uuidv4();
+            newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         } else {
-            // Guest user: use the same ID for both ownerId and sessionId
-            // This ensures the guestId parameter matches the document's userId
-            const guestId = `guest_${uuidv4()}`;
-            ownerId = guestId;
-            newSessionId = guestId;
-            console.log(`[USE TEMPLATE] No authenticated user. Creating new guest owner: ${ownerId}`);
+            const safeGuestId =
+                typeof guestId === 'string' && guestId.startsWith('guest_')
+                    ? guestId
+                    : `guest_${uuidv4()}`;
+            ownerId = safeGuestId;
+            newSessionId = safeGuestId;
+            console.log(`[USE TEMPLATE] No authenticated user. Using guest owner: ${ownerId}`);
         }
 
         const documentName = requestedDocName || `New Document from ${template.name}`;
 
-        const userDir = path.join(process.cwd(), 'uploads', ownerId);
-        if (!fs.existsSync(userDir)) {
-            fs.mkdirSync(userDir, { recursive: true });
-        }
-
         let pdfData: Buffer | null = null;
-        const newFileName = `${uuidv4()}.pdf`;
-        const newFilePath = path.join('uploads', ownerId, path.basename(newFileName));
-        const newFileAbsolutePath = path.join(process.cwd(), newFilePath);
 
         // Try multiple strategies to find the template PDF file
         let originalFilePath: string | null = null;
@@ -105,26 +100,29 @@ export async function POST(req: NextRequest) {
             try {
                 pdfData = fs.readFileSync(originalFilePath);
                 console.log(`[USE TEMPLATE] Successfully read PDF from: ${originalFilePath}. Size: ${pdfData.length} bytes.`);
-                fs.writeFileSync(newFileAbsolutePath, pdfData);
-                console.log(`[USE TEMPLATE] Wrote new document PDF to: ${newFileAbsolutePath}`);
             } catch (readError) {
                 console.error(`[USE TEMPLATE] Error reading file ${originalFilePath}:`, readError);
                 pdfData = null;
-                console.warn(`[USE TEMPLATE] Falling back to placeholder PDF due to file read error.`);
+                console.warn(`[USE TEMPLATE] File read error. Cannot create document from template.`);
             }
         } else {
             console.warn(`[USE TEMPLATE] Could not locate template PDF file. Template filePath: "${template.filePath}", templateFileUrl: "${template.templateFileUrl}", isSystemTemplate: ${template.isSystemTemplate}. Will generate placeholder.`);
         }
 
         if (!pdfData) {
-            console.log(`[USE TEMPLATE] PDF data is not available from template.filePath. Generating placeholder PDF.`);
-            const placeholderPdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /MediaBox [0 0 612 792] >>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000062 00000 n \n0000000121 00000 n \ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n178\n%%EOF');
-            fs.writeFileSync(newFileAbsolutePath, placeholderPdf);
-            pdfData = placeholderPdf;
-            console.log(`[USE TEMPLATE] Generated placeholder PDF. Size: ${pdfData.length} bytes. Wrote to: ${newFileAbsolutePath}`);
+            return NextResponse.json({ message: 'Template PDF could not be located.' }, { status: 500 });
         }
 
         await TemplateModel.updateOne({ _id: templateId }, { $inc: { duplicateCount: 1 } });
+
+        const hash = await sha256Buffer(pdfData);
+        const size = pdfData.length;
+        const mimeType = 'application/pdf';
+
+        const bucket = process.env.S3_BUCKET_NAME;
+        if (!bucket) {
+            return NextResponse.json({ message: 'S3 bucket not configured.' }, { status: 500 });
+        }
 
         const newDocument = new Document({
             userId: ownerId,
@@ -134,18 +132,89 @@ export async function POST(req: NextRequest) {
             currentSessionId: newSessionId,
             status: 'draft',
             isTemplate: false,
-            versions: [{
-                version: 1,
-                fields: template.fields || [],
-                documentName,
-                filePath: newFilePath,
-                pdfData: pdfData, // Add pdfData here
-                status: 'draft',
-                changeLog: `Created from template: ${template.name}`,
-            }],
-            recipients: template.defaultSigners || [],
+            versions: [],
+            recipients: (Array.isArray(template.defaultSigners) ? template.defaultSigners : [])
+                .filter((r: any) => r?.email && r?.name && r?.role)
+                .map((r: any) => ({
+                    ...r,
+                    id: r.id || `recipient_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                    signingToken: crypto.randomBytes(32).toString('hex'),
+                    status: 'pending',
+                    signedAt: null,
+                    signedVersion: null,
+                    approvedAt: null,
+                    rejectedAt: null,
+                    viewedAt: null,
+                })),
             templateId: template._id,
         });
+
+        const originalKey = `documents/${ownerId}/${newDocument._id}/original.pdf`;
+        await putObjectStream({ bucket, key: originalKey, body: pdfData, contentType: mimeType, contentLength: size });
+
+        const originalVersion = {
+            version: 0,
+            label: 'original' as const,
+            storage: {
+                provider: 's3',
+                bucket,
+                key: originalKey,
+                region: getRegion(),
+                url: `s3://${bucket}/${originalKey}`,
+            },
+            hash,
+            hashAlgo: 'SHA-256',
+            size,
+            mimeType,
+            locked: true,
+            status: 'locked' as const,
+            ingestionNote: `Created from template: ${template.name}`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        const preparedKey = `documents/${ownerId}/${newDocument._id}/prepared_1.pdf`;
+        await copyObject({
+            sourceBucket: bucket,
+            sourceKey: originalKey,
+            destinationBucket: bucket,
+            destinationKey: preparedKey,
+        });
+
+        const sanitizedFields = Array.isArray(template.fields)
+            ? template.fields.map((field: any) => {
+                if (!field || typeof field !== 'object') return field;
+                const { pageRect, ...rest } = field;
+                return rest;
+            })
+            : [];
+
+        const preparedVersion = {
+            version: 1,
+            label: 'prepared' as const,
+            derivedFromVersion: 0,
+            storage: {
+                provider: 's3',
+                bucket,
+                key: preparedKey,
+                region: getRegion(),
+                url: `s3://${bucket}/${preparedKey}`,
+            },
+            hash,
+            hashAlgo: 'SHA-256',
+            size,
+            mimeType,
+            locked: false,
+            fields: sanitizedFields,
+            documentName,
+            status: 'draft' as const,
+            changeLog: `Created from template: ${template.name}`,
+            editHistory: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        newDocument.versions.push(originalVersion, preparedVersion);
 
         await newDocument.save();
 

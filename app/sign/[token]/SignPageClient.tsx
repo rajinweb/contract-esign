@@ -24,7 +24,10 @@ interface SignDocumentResponse {
     name: string;
     fields: DocumentField[];
     recipients: Recipient[];
+    currentRecipientId?: string;
+    currentRecipient?: Recipient;
     status: string;
+    deletedAt?: string | null;
   };
 }
 
@@ -53,6 +56,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   const [recipientMetrics, setRecipientMetrics] = useState<RecipientFieldMetrics>(EMPTY_METRICS);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
   const lastFieldsRef = useRef<string>('');
+  const latestFieldsRef = useRef<DocumentField[]>([]);
 
   const [captureData, setCaptureData] = useState<Partial<IDocumentRecipient>>({});
   const [isGpsModalOpen, setIsGpsModalOpen] = useState(false);
@@ -122,14 +126,49 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("recipient")
           : null;
+      const resolvedRecipientId =
+        recipientId || currentRecipientId || currentRecipient?.id || null;
 
-      console.log('Calling signedDocument API with:', { token, recipientId, action });
+      if (action === "signed") {
+        const fields =
+          latestFieldsRef.current.length > 0
+            ? latestFieldsRef.current
+            : doc?.fields ?? [];
+        const response = await fetch("/api/sign-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, fields, recipientId: resolvedRecipientId, ...captureData }),
+        });
 
-    const response = await fetch("/api/signedDocument", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, recipientId, action, ...captureData }),
-    });
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to sign document");
+        }
+
+        setDoc(prevDoc => {
+          if (!prevDoc) return null;
+          const newRecipients = prevDoc.recipients.map(r => {
+            if (r.id === resolvedRecipientId) {
+              return { ...r, status: action };
+            }
+            return r;
+          });
+          return { ...prevDoc, recipients: newRecipients };
+        });
+
+        setIsSigned(true);
+        setCurrentRecipient(prev => prev ? { ...prev, status: action } : null);
+        return;
+      }
+
+      console.log('Calling signedDocument API with:', { token, recipientId: resolvedRecipientId, action });
+
+      const response = await fetch("/api/signedDocument", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, recipientId: resolvedRecipientId, action, ...captureData }),
+      });
 
       console.log('API response status:', response.status);
       const result = await response.json();
@@ -142,7 +181,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       setDoc(prevDoc => {
         if (!prevDoc) return null;
         const newRecipients = prevDoc.recipients.map(r => {
-            if (r.id === recipientId) {
+            if (r.id === resolvedRecipientId) {
                 return { ...r, status: action };
             }
             return r;
@@ -150,8 +189,8 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         return { ...prevDoc, recipients: newRecipients };
       });
 
-      if (action === 'signed' || action === 'approved' || action === 'rejected') {
-    setIsSigned(true);
+      if (action === 'approved' || action === 'rejected') {
+        setIsSigned(true);
         // Update current recipient status in local state
         setCurrentRecipient(prev => prev ? { ...prev, status: action } : null);
       }
@@ -162,14 +201,14 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       console.error('Error in handleSignOrApprove:', err);
       alert(`Failed to ${action} document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  }, [token, captureData]);
+  }, [token, captureData, currentRecipientId, currentRecipient]);
   
   useEffect(() => {
     const fetchPdf = async () => {
       try {
+        if (!token) throw new Error("Signing token not specified");
+        setLoading(true);
         const recipientId = new URLSearchParams(window.location.search).get("recipient");
-        if (!recipientId) throw new Error("Recipient not specified");
-        setCurrentRecipientId(recipientId);
         const res = await fetch(`/api/sign-document?token=${encodeURIComponent(token)}&recipient=${recipientId}`, {
           cache: "no-store",
         });
@@ -179,14 +218,25 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         const data: SignDocumentResponse = await res.json();
         if (!data.success || !data.document) notFound();
 
-        if (data.document.status === 'trashed') {
-          return "This document has been trashed and is no longer accessible."
+        if (data.document.deletedAt) {
+          return "This document has been trashed and is no longer accessible.";
         }
 
         setDoc(data.document);
-        const recipient = data.document.recipients.find((r) => r.id === recipientId);
+        latestFieldsRef.current = Array.isArray(data.document?.fields) ? data.document.fields : [];
 
-        if (recipient) {          
+        const resolvedRecipientId =
+          data.document.currentRecipientId ??
+          recipientId ??
+          data.document.currentRecipient?.id;
+
+        const recipient =
+          (resolvedRecipientId
+            ? data.document.recipients.find(r => r.id === resolvedRecipientId)
+            : null) ?? data.document.currentRecipient ?? null;
+
+        if (recipient) {
+          setCurrentRecipientId(recipient.id);
           setCaptureData({ device: getDeviceInfo() });
           if (recipient.captureGpsLocation && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -220,7 +270,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
           setIsSigned(isSignedLike);
 
           if (normalizedRecipient?.role === "approver") {
-            if (normalizedRecipient.status === "approved" || normalizedRecipient.status === "rejected") {
+            if (["approved", "rejected"].includes(normalizedRecipient.status)) {
               setApprovalStatus(normalizedRecipient.status);
             } else {
               setApprovalStatus(null);
@@ -383,6 +433,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
               const fieldsStr = JSON.stringify(fields);
               if (lastFieldsRef.current !== fieldsStr) {
                 lastFieldsRef.current = fieldsStr;
+                latestFieldsRef.current = fields;
                 setDoc(prev => prev ? { ...prev, fields } : null);
               }
             }}
@@ -434,11 +485,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                   if (!allRequiredFieldsFilled) return; // Safety check
                 
                   try {
-                    // Save fields first
-                    if (saveRef.current) {
-                      await saveRef.current();
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 500));
                     await handleSignOrApprove('signed');
                   } catch (error) {
                     console.error('Error during signing:', error);

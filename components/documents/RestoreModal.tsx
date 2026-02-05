@@ -19,6 +19,9 @@ const RestoreModal: React.FC<RestoreModalProps> = ({
   onRestoreComplete,
 }) => {
   const [isRestoring, setIsRestoring] = useState(false);
+  const hasVoided = selectedDocs.some(
+    (doc) => doc.status === 'voided' || doc.statusBeforeDelete === 'voided'
+  );
 
   const handleRestore = async () => {
 
@@ -83,6 +86,11 @@ const RestoreModal: React.FC<RestoreModalProps> = ({
             <span className="font-semibold">{selectedDocs.length}</span>{' '}
             document{selectedDocs.length !== 1 ? 's' : ''}.
           </p>
+          {hasVoided && (
+            <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              Restoring a voided document keeps it voided. To continue signing, create a new signing request.
+            </div>
+          )}
         </div>
       </div>
 
