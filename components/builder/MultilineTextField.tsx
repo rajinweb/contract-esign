@@ -28,7 +28,7 @@ const MultilineTextField = forwardRef<HTMLTextAreaElement, MultilineTextFieldPro
       ref={ref}
       onChange={handleInput}
       placeholder={readOnly ? '' : "Type here..."}
-      className={`overflow-auto resize-none p-2 h-full w-full ${readOnly ? 'cursor-default bg-transparent' : 'cursor-text bg-white'}`}
+      className={`overflow-auto resize-none p-1 h-full w-full break-words whitespace-pre-wrap leading-tight ${readOnly ? 'cursor-default bg-transparent' : 'cursor-text bg-white'}`}
 
       value={value}
       readOnly={readOnly}

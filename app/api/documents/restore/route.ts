@@ -18,19 +18,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update only user-owned documents
+    const restoredAt = new Date();
+    // Restore any soft-deleted documents; prefer statusBeforeDelete if present
     const result = await DocumentModel.updateMany(
       {
         _id: { $in: documentIds },
         userId,
-        status: 'trashed', // optional but recommended
+        deletedAt: { $ne: null },
       },
-      {
-        $set: {
-          status: 'draft',
-          updatedAt: new Date(),
+      [
+        {
+          $set: {
+            deletedAt: null,
+            updatedAt: restoredAt,
+            status: {
+              $cond: [
+                { $ne: [{ $ifNull: ['$statusBeforeDelete', null] }, null] },
+                '$statusBeforeDelete',
+                {
+                  $cond: [
+                    { $and: [{ $eq: ['$status', 'trashed'] }, { $ne: ['$completedAt', null] }] },
+                    'completed',
+                    '$status',
+                  ],
+                },
+              ],
+            },
+          },
         },
-      }
+        {
+          $unset: ['statusBeforeDelete'],
+        },
+      ]
     );
 
     if (result.matchedCount === 0) {

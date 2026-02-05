@@ -6,8 +6,14 @@ import { DocumentField, IDocument as BaseIDocument, Recipient, IEditHistory } fr
 export interface IDocument extends BaseIDocument {
   templateId?: mongoose.Schema.Types.ObjectId;
   deletedAt?: Date;
-  signingState?: ISigningState;
+  statusBeforeDelete?: string;
   signingMode?: 'parallel' | 'sequential';
+  signingEvents?: ISigningEvent[];
+  auditTrailVersion?: number;
+  completedAt?: Date;
+  finalizedAt?: Date;
+  derivedFromDocumentId?: mongoose.Schema.Types.ObjectId;
+  derivedFromVersion?: number;
 }
 
 export interface IDocumentRecipient extends Recipient {
@@ -17,7 +23,7 @@ export interface IDocumentRecipient extends Recipient {
 
   // Timestamps for actions
   signedAt?: Date;
-  signedVersion?: number;
+  signedVersion?: number | null;
   approvedAt?: Date;   // track approver approval time
   rejectedAt?: Date;   // track rejection time
   viewedAt?: Date;     // track when the document was viewed
@@ -63,7 +69,39 @@ export interface IDocumentRecipient extends Recipient {
     grantedAt?: Date;
     method?: 'system_prompt' | 'checkbox';
   };
+
+  // --- Identity verification ---
+  identityVerification?: {
+    method?: 'email' | 'sms' | 'kba' | 'id_document' | 'bank_id' | 'selfie' | 'manual' | 'none';
+    provider?: string;
+    result?: 'passed' | 'failed' | 'skipped';
+    verifiedAt?: Date;
+    transactionId?: string;
+    payloadHash?: string;
+  };
+
+  // --- Authentication context ---
+  authentication?: {
+    method?: 'email' | 'sms' | 'otp' | 'sso' | 'none';
+    channel?: string;
+    verifiedAt?: Date;
+    transactionId?: string;
+  };
 }
+
+const PageRectSchema = new Schema(
+  {
+    x: { type: Number },
+    y: { type: Number },
+    width: { type: Number },
+    height: { type: Number },
+    top: { type: Number },
+    right: { type: Number },
+    bottom: { type: Number },
+    left: { type: Number },
+  },
+  { _id: false }
+);
 
 const DocumentFieldSchema = new Schema<DocumentField>({
   id: { type: String, required: true },
@@ -73,13 +111,14 @@ const DocumentFieldSchema = new Schema<DocumentField>({
   width: { type: Number, required: true },
   height: { type: Number, required: true },
   pageNumber: { type: Number, required: true },
+  pageRect: { type: PageRectSchema },
   recipientId: { type: String },
   required: { type: Boolean, default: true },
   value: { type: String, default: null },
   placeholder: { type: String },
   mimeType: { type: String },
-  pageRect: { type: Schema.Types.Mixed },
   fieldOwner: { type: String, default: 'recipient' },
+  isPrivate: { type: Boolean, default: false },
 });
 
 const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
@@ -127,6 +166,7 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
   },
   network: {
     ip: { type: String },
+    ipUnavailableReason: { type: String },
     isp: { type: String },
     ipLocation: {
       city: { type: String },
@@ -137,6 +177,20 @@ const DocumentRecipientSchema = new Schema<IDocumentRecipient>({
     locationGranted: { type: Boolean },
     grantedAt: { type: Date },
     method: { type: String, enum: ['system_prompt', 'checkbox'] },
+  },
+  identityVerification: {
+    method: { type: String, enum: ['email', 'sms', 'kba', 'id_document', 'bank_id', 'selfie', 'manual', 'none'] },
+    provider: { type: String },
+    result: { type: String, enum: ['passed', 'failed', 'skipped'] },
+    verifiedAt: { type: Date },
+    transactionId: { type: String },
+    payloadHash: { type: String },
+  },
+  authentication: {
+    method: { type: String, enum: ['email', 'sms', 'otp', 'sso', 'none'] },
+    channel: { type: String },
+    verifiedAt: { type: Date },
+    transactionId: { type: String },
   },
 });
 
@@ -163,6 +217,19 @@ const StorageRefSchema = new Schema({
 export interface IVersionDoc extends mongoose.Types.Subdocument {
   version: number;
   label: string;
+  signedBy?: string[];
+  renderedBy?: string;
+  pdfSignedAt?: Date;
+  changeMeta?: {
+    action?: string;
+    actorId?: string;
+    actorRole?: string;
+    signingMode?: string;
+    baseVersion?: number;
+    derivedFromVersion?: number;
+    signedAt?: Date;
+    source?: 'client' | 'server' | 'system';
+  };
   storage: {
     provider: string;
     bucket?: string;
@@ -177,6 +244,8 @@ export interface IVersionDoc extends mongoose.Types.Subdocument {
   mimeType: string;
   locked: boolean;
   derivedFromVersion?: number;
+  sentAt?: Date;
+  expiresAt?: Date;
   fields?: DocumentField[];
   documentName?: string;
   status: 'draft' | 'locked' | 'final';
@@ -190,6 +259,19 @@ export interface IVersionDoc extends mongoose.Types.Subdocument {
 export const DocumentVersionSchema = new Schema<IVersionDoc>({
   version: { type: Number, required: true },
   label: { type: String, required: true },
+  signedBy: { type: [String], default: undefined },
+  renderedBy: { type: String },
+  pdfSignedAt: { type: Date },
+  changeMeta: {
+    action: { type: String },
+    actorId: { type: String },
+    actorRole: { type: String },
+    signingMode: { type: String },
+    baseVersion: { type: Number },
+    derivedFromVersion: { type: Number },
+    signedAt: { type: Date },
+    source: { type: String, enum: ['client', 'server', 'system'] },
+  },
   storage: { type: StorageRefSchema, required: true },
   hash: { type: String, required: true },
   hashAlgo: { type: String, default: 'SHA-256' },
@@ -197,6 +279,8 @@ export const DocumentVersionSchema = new Schema<IVersionDoc>({
   mimeType: { type: String, required: true, default: 'application/pdf' },
   locked: { type: Boolean, required: true, default: false },
   derivedFromVersion: { type: Number },
+  sentAt: { type: Date },
+  expiresAt: { type: Date },
   fields: { type: [DocumentFieldSchema], default: undefined },
   documentName: { type: String },
   changeLog: { type: String },
@@ -209,32 +293,94 @@ export const DocumentVersionSchema = new Schema<IVersionDoc>({
 // Signing State
 export interface ISigningEvent extends mongoose.Types.Subdocument {
   recipientId: string;
-  fields?: { [key: string]: any };
-  signedAt: Date;
+  action?: 'sent' | 'viewed' | 'signed' | 'approved' | 'rejected';
+  fields?: Array<{ fieldId: string; fieldHash: string }>;
+  fieldsHash?: string;
+  fieldsHashAlgo?: string;
+  signatureHash?: string;
+  signatureHashAlgo?: string;
+  signedAt?: Date;
+  sentAt?: Date;
+  serverTimestamp?: Date;
+  baseVersion?: number;
+  targetVersion?: number;
   ip?: string;
+  ipUnavailableReason?: string;
   userAgent?: string;
   order?: number;
   version?: number;
-}
-
-export interface ISigningState extends mongoose.Types.Subdocument {
-  currentOrder?: number;
-  signingEvents: ISigningEvent[];
+  client?: {
+    ip?: string;
+    userAgent?: string;
+    deviceType?: 'mobile' | 'desktop' | 'tablet';
+    os?: string;
+    browser?: string;
+  };
+  geo?: {
+    latitude?: number;
+    longitude?: number;
+    accuracyMeters?: number;
+    city?: string;
+    state?: string;
+    country?: string;
+    capturedAt?: Date;
+    source?: string;
+  };
+  consent?: {
+    locationGranted?: boolean;
+    grantedAt?: Date;
+    method?: 'system_prompt' | 'checkbox' | 'other';
+  };
 }
 
 const SigningEventSchema = new Schema<ISigningEvent>({
   recipientId: { type: String, required: true },
-  fields: { type: Schema.Types.Mixed },
-  signedAt: { type: Date, default: Date.now },
+  action: { type: String, enum: ['sent', 'viewed', 'signed', 'approved', 'rejected', 'voided'] },
+  fields: {
+    type: [
+      {
+        fieldId: { type: String, required: true },
+        fieldHash: { type: String, required: true },
+      }
+    ],
+    default: undefined
+  },
+  fieldsHash: { type: String },
+  fieldsHashAlgo: { type: String, default: 'SHA-256' },
+  signatureHash: { type: String },
+  signatureHashAlgo: { type: String, default: 'SHA-256' },
+  signedAt: { type: Date },
+  sentAt: { type: Date },
+  serverTimestamp: { type: Date },
+  baseVersion: { type: Number },
+  targetVersion: { type: Number },
   ip: { type: String },
+  ipUnavailableReason: { type: String },
   userAgent: { type: String },
   order: { type: Number },
   version: { type: Number },
-}, { _id: false });
-
-const SigningStateSchema = new Schema<ISigningState>({
-  currentOrder: { type: Number },
-  signingEvents: [SigningEventSchema],
+  client: {
+    ip: { type: String },
+    userAgent: { type: String },
+    deviceType: { type: String, enum: ['mobile', 'desktop', 'tablet'] },
+    os: { type: String },
+    browser: { type: String },
+  },
+  geo: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    accuracyMeters: { type: Number },
+    city: { type: String },
+    state: { type: String },
+    country: { type: String },
+    capturedAt: { type: Date },
+    source: { type: String },
+  },
+  consent: {
+    locationGranted: { type: Boolean },
+    grantedAt: { type: Date },
+    method: { type: String, enum: ['system_prompt', 'checkbox', 'other'] },
+  },
 }, { _id: false });
 
 
@@ -247,16 +393,22 @@ const DocumentSchema = new Schema<IDocument>({
   signingMode: { type: String, enum: ['parallel', 'sequential'], default: 'parallel' },
   versions: { type: [DocumentVersionSchema], default: [] },
   recipients: { type: [DocumentRecipientSchema], default: [] },
-  signingState: { type: SigningStateSchema },
+  signingEvents: { type: [SigningEventSchema], default: [] },
+  auditTrailVersion: { type: Number, default: 1 },
+  completedAt: { type: Date },
+  finalizedAt: { type: Date },
+  derivedFromDocumentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Document' },
+  derivedFromVersion: { type: Number },
   status: {
     type: String,
     default: 'draft',
     enum: [
       'draft', 'sent', 'signed', 'expired', 'final', 'rejected', 'pending',
-      'completed', 'in_progress', 'cancelled', 'delivery_failed', 'trashed'
+      'completed', 'in_progress', 'cancelled', 'voided', 'delivery_failed', 'trashed'
     ]
   },
   deletedAt: { type: Date, default: null },
+  statusBeforeDelete: { type: String },
   templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', sparse: true, required: false },
   token: { type: String, sparse: true, unique: true },
   isTemplate: { type: Boolean, default: false },

@@ -3,6 +3,7 @@ import connectDB from '@/utils/db';
 import DocumentModel from '@/models/Document';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 import { sendSigningRequestEmail } from '@/lib/email';
+import { buildEventClient, buildEventConsent, buildEventGeo, getNextSequentialOrder, isRecipientTurn, normalizeIp } from '@/lib/signing-utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,12 @@ export async function POST(req: NextRequest) {
         { message: 'Invalid or expired signing link' },
         { status: 404 }
       );
+    }
+    if (document.deletedAt) {
+      return NextResponse.json({ message: 'Document has been trashed.' }, { status: 410 });
+    }
+    if (document.status === 'completed' || document.status === 'voided') {
+      return NextResponse.json({ message: 'Document is not available for signing.' }, { status: 409 });
     }
 
     const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
@@ -74,15 +81,32 @@ export async function POST(req: NextRequest) {
        SEQUENTIAL SIGNING ENFORCEMENT
     ===================================================== */
     if (document.signingMode === 'sequential') {
-      if (
-        !document.signingState ||
-        recipient.order !== document.signingState.currentOrder
-      ) {
+      if (!isRecipientTurn(recipient, document.recipients)) {
         return NextResponse.json(
           { message: 'Signing not allowed yet' },
           { status: 403 }
         );
       }
+    }
+
+    const signedVersionFromRecipient =
+      recipient.signedVersion != null
+        ? document.versions.find((v: any) => v.version === recipient.signedVersion)
+        : undefined;
+    const signedVersionFromChain = document.versions
+      .filter((v: any) => {
+        if (Array.isArray(v.signedBy)) {
+          return v.signedBy.includes(recipient.id);
+        }
+        return v.signedBy === recipient.id;
+      })
+      .sort((a: any, b: any) => (b.version ?? 0) - (a.version ?? 0))[0];
+    const signedVersion = signedVersionFromRecipient ?? signedVersionFromChain;
+    if (action === 'signed' && !signedVersion) {
+      return NextResponse.json(
+        { message: 'Signed PDF missing. Please sign via the signing endpoint.' },
+        { status: 409 }
+      );
     }
 
     /* =====================================================
@@ -103,9 +127,9 @@ export async function POST(req: NextRequest) {
     /* =====================================================
        APPLY ACTION
     ===================================================== */
-    const ip =
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      'unknown';
+    const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
+    const userAgent = req.headers.get('user-agent') ?? undefined;
+    const actionAt = new Date();
 
     if (recipient.role === 'signer') {
       if (!['signed', 'rejected'].includes(action)) {
@@ -113,8 +137,10 @@ export async function POST(req: NextRequest) {
       }
 
       recipient.status = action;
-      recipient.signedAt = action === 'signed' ? new Date() : undefined;
-      // ⚠️ signedVersion is set by /api/sign-document when version is created
+      recipient.signedAt = action === 'signed' ? actionAt : undefined;
+      if (action === 'signed' && signedVersion?.version != null) {
+        recipient.signedVersion = signedVersion.version;
+      }
     }
 
     if (recipient.role === 'approver') {
@@ -123,29 +149,42 @@ export async function POST(req: NextRequest) {
       }
 
       recipient.status = action;
-      recipient.approvedAt = action === 'approved' ? new Date() : undefined;
-      // ⚠️ signedVersion is set by /api/sign-document when version is created
+      recipient.approvedAt = action === 'approved' ? actionAt : undefined;
     }
 
     recipient.location = location;
     recipient.device = device;
     recipient.consent = consent;
-    recipient.network = { ip };
+    recipient.network = { ip, ipUnavailableReason };
 
     /* =====================================================
-       UPDATE SIGNING STATE
+       APPEND SIGNING EVENT
     ===================================================== */
-    // NOTE: Signing events are created by /api/sign-document endpoint
-    // This endpoint only records the signing action (accepted/rejected) metadata
-    document.signingState ??= {
-      signedRecipients: [],
-      signingEvents: []
-    };
+    document.signingEvents ??= [];
+    document.signingEvents.push({
+      recipientId: recipient.id,
+      action: action,
+      signedAt: actionAt,
+      serverTimestamp: actionAt,
+      baseVersion: signedVersion?.derivedFromVersion,
+      version: signedVersion?.version,
+      order: recipient.order,
+      ip,
+      ipUnavailableReason,
+      userAgent,
+      client: buildEventClient({ ip, userAgent, recipient }),
+      geo: buildEventGeo(recipient),
+      consent: buildEventConsent(recipient),
+    });
 
     /* =====================================================
        DOCUMENT STATUS UPDATE
     ===================================================== */
     document.status = getUpdatedDocumentStatus(document.toObject());
+    if (document.status === 'completed') {
+      document.completedAt ??= actionAt;
+      document.finalizedAt ??= actionAt;
+    }
 
     /* =====================================================
        SEQUENTIAL: MOVE TO NEXT ORDER
@@ -154,36 +193,20 @@ export async function POST(req: NextRequest) {
       document.signingMode === 'sequential' &&
       ['signed', 'approved'].includes(action)
     ) {
-      const currentOrder = recipient.order;
-
-      const allDone = document.recipients
-        .filter((r: { order: any; role: string; }) => r.order === currentOrder && r.role !== 'viewer')
-        .every((r: { status: string; }) => ['signed', 'approved'].includes(r.status));
-
-      if (allDone) {
-        const nextOrder = Math.min(
-          ...document.recipients
-            .filter((r: { role: string; order: number; }) => r.role !== 'viewer' && r.order > currentOrder)
-            .map((r: { order: any; }) => r.order)
+      const nextOrder = getNextSequentialOrder(document.recipients);
+      if (nextOrder !== null) {
+        const nextRecipients = document.recipients.filter(
+          (r: { order: number; status: string; role: string; }) =>
+            r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
         );
 
-        if (Number.isFinite(nextOrder)) {
-          document.signingState.currentOrder = nextOrder;
-
-          const nextRecipients = document.recipients.filter(
-            (r: { order: number; status: string; }) => r.order === nextOrder && r.status === 'pending'
-          );
-
-          for (const nextRec of nextRecipients) {
-            try {
-              await sendSigningRequestEmail(nextRec, document, undefined, nextRec.signingToken);
-              nextRec.status = 'sent';
-            } catch (err) {
-              console.error('Email failed:', err);
-            }
+        for (const nextRec of nextRecipients) {
+          try {
+            await sendSigningRequestEmail(nextRec, document, undefined, nextRec.signingToken);
+            nextRec.status = 'sent';
+          } catch (err) {
+            console.error('Email failed:', err);
           }
-        } else {
-          document.signingState.currentOrder = undefined;
         }
       }
     }

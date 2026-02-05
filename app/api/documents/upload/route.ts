@@ -2,16 +2,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import AuditLogModel from '@/models/AuditLog';
-import SignatureModel from '@/models/Signature';
 import { sha256Buffer } from '@/lib/hash';
 import { getRegion, putObjectStream, copyObject } from '@/lib/s3';
 import { sendSigningRequestEmail } from '@/lib/email';
+import { buildEventClient, buildEventConsent, buildEventGeo, buildSignedBySnapshot, getLatestPreparedVersion, getLatestSignedVersion, getNextSequentialOrder, isRecipientTurn, normalizeIp } from '@/lib/signing-utils';
+import { buildSignedFieldRecords, deleteSignedFieldRecords, upsertSignedFieldRecords } from '@/lib/signed-fields';
+import { hasAnySignedRecipient } from '@/lib/document-guards';
 
 export const runtime = 'nodejs';
 
 function getPdfMime(): string {
   return 'application/pdf';
 }
+
+function sanitizePreparedFields(fields: any[]): any[] {
+  if (!Array.isArray(fields)) return [];
+  return fields.map((field) => {
+    if (!field || typeof field !== 'object') return field;
+    const { pageRect, ...rest } = field;
+    if (!pageRect || typeof pageRect !== 'object') return rest;
+    const rect = pageRect as Record<string, any>;
+    const cleaned = {
+      x: typeof rect.x === 'number' ? rect.x : undefined,
+      y: typeof rect.y === 'number' ? rect.y : undefined,
+      width: typeof rect.width === 'number' ? rect.width : undefined,
+      height: typeof rect.height === 'number' ? rect.height : undefined,
+      top: typeof rect.top === 'number' ? rect.top : undefined,
+      right: typeof rect.right === 'number' ? rect.right : undefined,
+      bottom: typeof rect.bottom === 'number' ? rect.bottom : undefined,
+      left: typeof rect.left === 'number' ? rect.left : undefined,
+    };
+    const hasAny = Object.values(cleaned).some((value) => typeof value === 'number');
+    return hasAny ? { ...rest, pageRect: cleaned } : rest;
+  });
+}
+
+function normalizeFieldOwner(field: any): 'me' | 'recipients' {
+  const owner = String(field?.fieldOwner ?? '').toLowerCase();
+  if (owner === 'me') return 'me';
+  if (owner === 'recipient' || owner === 'recipients') return 'recipients';
+  if (field?.recipientId) return 'recipients';
+  return 'me';
+}
+
 
 async function handleSigningUpdate(
   documentId: string,
@@ -23,6 +56,9 @@ async function handleSigningUpdate(
 ) {
   const existingDoc = await DocumentModel.findOne({ _id: documentId, userId });
   if (!existingDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+  if (existingDoc.status === 'completed') {
+    return NextResponse.json({ message: 'Completed documents are immutable. Create a new document to modify.' }, { status: 409 });
+  }
 
   // Validate signingToken belongs to a recipient in this document
   const recipient = existingDoc.recipients.find((r: any) => r.signingToken === signingToken);
@@ -31,12 +67,16 @@ async function handleSigningUpdate(
   }
 
   const recipientId = recipient.id;
-  const ip = (req.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0].trim();
+  const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
   const userAgent = req.headers.get('user-agent') || 'unknown';
+  const signedAt = new Date();
 
   const documentName = (formData.get('documentName') as string) || existingDoc.documentName || 'document.pdf';
   const fieldsData = formData.get('fields') as string | null;
   const fields = fieldsData ? JSON.parse(fieldsData) : [];
+  const eventClient = buildEventClient({ ip, userAgent, recipient });
+  const eventGeo = buildEventGeo(recipient);
+  const eventConsent = buildEventConsent(recipient);
 
   const bucket = process.env.S3_BUCKET_NAME;
   if (!bucket) {
@@ -47,15 +87,41 @@ async function handleSigningUpdate(
   // Determine Signing Mode
   const mode = existingDoc.signingMode;
 
+  const preparedVersion = getLatestPreparedVersion(existingDoc.versions || []);
+  if (!preparedVersion) {
+    return NextResponse.json({ message: 'Prepared version not found' }, { status: 400 });
+  }
+  const latestSignedVersion = getLatestSignedVersion(existingDoc.versions || []);
+
   if (mode === 'sequential') {
-    const recipient = existingDoc.recipients.find((r: any) => r.id === recipientId);
-    if (!recipient) {
-      return NextResponse.json({ message: 'Recipient not found' }, { status: 404 });
-    }
-    if (existingDoc.signingState?.currentOrder && recipient.order !== existingDoc.signingState.currentOrder) {
+    if (!isRecipientTurn(recipient, existingDoc.recipients)) {
       return NextResponse.json({ message: 'Sequential signing: Not your turn to sign' }, { status: 403 });
     }
   }
+
+  const hasForeignValues = (fields || []).some((field: any) => {
+    const owner = normalizeFieldOwner(field);
+    if (owner === 'me') return false;
+    const belongsToRecipient = field?.recipientId === recipientId;
+    const value = field?.value;
+    const hasValue = value !== undefined && value !== null && String(value).trim() !== '';
+    return hasValue && !belongsToRecipient;
+  });
+  if (hasForeignValues) {
+    return NextResponse.json({ message: 'Fields include values for other recipients.' }, { status: 400 });
+  }
+  const recipientFields = (fields || []).filter((field: any) => {
+    const owner = normalizeFieldOwner(field);
+    if (owner === 'me') return false;
+    return field?.recipientId === recipientId;
+  });
+  const eventFields = await Promise.all(
+    recipientFields.map(async (field: any) => ({
+      fieldId: String(field.id),
+      fieldHash: await sha256Buffer(Buffer.from(`${String(field.id)}:${field.value ?? ''}`)),
+    }))
+  );
+  const fieldsHash = await sha256Buffer(Buffer.from(JSON.stringify(eventFields)));
 
   const hash = await sha256Buffer(pdfBuffer);
   const size = pdfBuffer.length;
@@ -64,6 +130,12 @@ async function handleSigningUpdate(
   // ⚠️ RACE CONDITION GUARD: Prevent signing if base version changed
   // This ensures we always derive from the expected baseVersion
   const baseVersion = existingDoc.currentVersion;
+  const basePreparedVersion = preparedVersion.version;
+  const baseChainVersion = mode === 'sequential' && latestSignedVersion ? latestSignedVersion : preparedVersion;
+  const baseChainVersionNumber = baseChainVersion.version;
+  if (mode === 'sequential' && baseVersion !== baseChainVersionNumber) {
+    return NextResponse.json({ message: 'Signing base version is stale. Please refresh.' }, { status: 409 });
+  }
 
   // PARALLEL MODE LOGIC - Every signer creates a new signed version
   if (mode === 'parallel') {
@@ -74,16 +146,18 @@ async function handleSigningUpdate(
 
     // Check if this is the final signer
     const recipients = existingDoc.recipients || [];
-    const otherSigners = recipients.filter((r: any) => r.role !== 'viewer' && r.id !== recipientId);
-    const allOthersDone = otherSigners.every((r: any) => ['signed', 'approved'].includes(r.status));
-    const isFinal = allOthersDone;
-    const parLabel = isFinal ? 'signed_final' : `signed_by_order_${recipient.order}`;
+    const recipientsAfterSign = recipients.map((r: any) =>
+      r.id === recipientId ? { ...r, status: 'signed', signedVersion: newVersionNumber } : r
+    );
+    const allRecipientsSigned = recipientsAfterSign.every((r: any) => r.status === 'signed');
+    const parLabel = allRecipientsSigned ? 'signed_final' : `signed_by_order_${recipient.order}`;
     const label = parLabel;
 
     const newVersion = {
       version: newVersionNumber,
       label,
-      derivedFromVersion: existingDoc.currentVersion,
+      derivedFromVersion: baseChainVersionNumber,
+      signedBy: buildSignedBySnapshot(recipientsAfterSign, newVersionNumber),
       storage: {
         provider: 's3',
         bucket,
@@ -97,66 +171,86 @@ async function handleSigningUpdate(
       mimeType,
       locked: true,
       status: 'final',
-      fields,
       documentName,
       changeLog: `Signed by recipient ${recipientId}`,
+      changeMeta: {
+        action: 'signed',
+        actorId: recipientId,
+        actorRole: recipient.role,
+        signingMode: mode,
+        baseVersion: baseChainVersionNumber,
+        derivedFromVersion: baseChainVersionNumber,
+        signedAt,
+        source: 'client',
+      },
+      renderedBy: 'client',
+      pdfSignedAt: signedAt,
       editHistory: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: signedAt,
+      updatedAt: signedAt
     };
 
     await AuditLogModel.create({
       documentId: existingDoc._id,
       actor: recipientId,
       action: 'recipient_signed',
-      metadata: { ip }
+      metadata: { ip, ipUnavailableReason }
     });
 
-    // Persist signatures to separate collection
-    if (fields && fields.length > 0) {
-      const signatures = fields
-        .filter((f: any) => ['signature', 'initials', 'stamp'].includes(f.type))
-        .map((f: any) => ({
-          documentId,
-          version: newVersionNumber,
-          recipientId,
-          fieldId: f.id,
-          signatureHash: hash,
-          ip,
-          userAgent
-        }));
-      if (signatures.length > 0) await SignatureModel.insertMany(signatures);
-    }
+    const { records: signedFieldRecords, fieldIds: signedFieldIds } = await buildSignedFieldRecords({
+      documentId,
+      version: newVersionNumber,
+      recipientId,
+      fields: recipientFields,
+      eventFields,
+      signedAt,
+      ip,
+      ipUnavailableReason,
+      userAgent,
+    });
+    await upsertSignedFieldRecords(signedFieldRecords);
 
     const docUpdate: any = {
       $push: {
         versions: newVersion,
-        'signingState.signingEvents': {
+        signingEvents: {
           recipientId,
-          fields,
+          action: 'signed',
+          fields: eventFields,
+          fieldsHash,
+          fieldsHashAlgo: 'SHA-256',
           ip,
+          ipUnavailableReason,
           userAgent,
-          signedAt: new Date(),
+          signedAt,
+          serverTimestamp: signedAt,
+          baseVersion: basePreparedVersion,
           version: newVersionNumber,
+          order: recipient.order,
+          client: eventClient,
+          geo: eventGeo,
+          consent: eventConsent,
         },
       },
       $set: {
         currentVersion: newVersionNumber,
         documentName: documentName,
         updatedAt: new Date(),
-        status: isFinal ? 'completed' : 'in_progress',
+        status: allRecipientsSigned ? 'completed' : 'in_progress',
         "recipients.$[elem].status": 'signed',
-        "recipients.$[elem].signedAt": new Date(),
+        "recipients.$[elem].signedAt": signedAt,
         "recipients.$[elem].signedVersion": newVersionNumber,
       }
     };
 
-    if (isFinal) {
+    if (allRecipientsSigned) {
+      docUpdate.$set.completedAt = signedAt;
+      docUpdate.$set.finalizedAt = signedAt;
       await AuditLogModel.create({
         documentId: existingDoc._id,
         actor: recipientId,
         action: 'document_finalized',
-        metadata: { ip, finalHash: hash }
+        metadata: { ip, ipUnavailableReason, finalHash: hash }
       });
     }
 
@@ -168,6 +262,12 @@ async function handleSigningUpdate(
     );
 
     if (updateResult.matchedCount === 0) {
+      await deleteSignedFieldRecords({
+        documentId,
+        version: newVersionNumber,
+        recipientId,
+        fieldIds: signedFieldIds,
+      });
       return NextResponse.json({ message: 'Failed to save signing data, document state may have changed.' }, { status: 409 });
     }
 
@@ -186,16 +286,24 @@ async function handleSigningUpdate(
 
     await putObjectStream({ bucket, key, body: pdfBuffer, contentType: mimeType, contentLength: size });
 
-    const nextSigner = existingDoc.recipients
-      .filter((r: any) => r.role === 'signer' && r.order > seqRecipient.order)
-      .sort((a: any, b: any) => a.order - b.order)[0];
-    const isFinal = !nextSigner;
-    const label = isFinal ? 'signed_final' : `signed_by_order_${seqRecipient.order}`;
+    const recipientsAfterSign = existingDoc.recipients.map((r: any) => (
+      r.id === recipientId ? { ...r, status: 'signed', signedVersion: newVersionNumber } : r
+    ));
+    const nextOrder = getNextSequentialOrder(recipientsAfterSign);
+    const allRecipientsSigned = recipientsAfterSign.every((r: any) => r.status === 'signed');
+    const label = allRecipientsSigned ? 'signed_final' : `signed_by_order_${seqRecipient.order}`;
+    const nextRecipientsToNotify =
+      nextOrder !== null
+        ? existingDoc.recipients.filter(
+            (r: any) => r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
+          )
+        : [];
 
     const newVersion = {
       version: newVersionNumber,
       label,
-      derivedFromVersion: existingDoc.currentVersion,
+      derivedFromVersion: baseChainVersionNumber,
+      signedBy: buildSignedBySnapshot(recipientsAfterSign, newVersionNumber),
       storage: {
         provider: 's3',
         bucket,
@@ -209,55 +317,116 @@ async function handleSigningUpdate(
       mimeType,
       locked: true,
       status: 'final',
-      fields,
       documentName,
       changeLog: `Signed by recipient ${recipient.order} (${recipientId})`,
+      changeMeta: {
+        action: 'signed',
+        actorId: recipientId,
+        actorRole: recipient.role,
+        signingMode: mode,
+        baseVersion: baseChainVersionNumber,
+        derivedFromVersion: baseChainVersionNumber,
+        signedAt,
+        source: 'client',
+      },
+      renderedBy: 'client',
+      pdfSignedAt: signedAt,
       editHistory: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: signedAt,
+      updatedAt: signedAt
     };
 
     await AuditLogModel.create({
       documentId: existingDoc._id,
       actor: recipientId,
       action: 'recipient_signed',
-      metadata: { ip, recipientOrder: recipient.order }
+      metadata: { ip, ipUnavailableReason, recipientOrder: recipient.order }
     });
+
+    const { records: signedFieldRecords, fieldIds: signedFieldIds } = await buildSignedFieldRecords({
+      documentId,
+      version: newVersionNumber,
+      recipientId,
+      fields: recipientFields,
+      eventFields,
+      signedAt,
+      ip,
+      ipUnavailableReason,
+      userAgent,
+    });
+    await upsertSignedFieldRecords(signedFieldRecords);
+
+    const sentEvents =
+      nextOrder !== null
+        ? nextRecipientsToNotify.map((r: any) => ({
+            recipientId: r.id,
+            action: 'sent',
+            sentAt: signedAt,
+            serverTimestamp: signedAt,
+            baseVersion: newVersionNumber,
+            targetVersion: newVersionNumber + 1,
+            order: r.order,
+            ip,
+            ipUnavailableReason,
+            userAgent,
+          }))
+        : [];
 
     const docUpdate: any = {
       $push: {
         versions: newVersion,
-        'signingState.signingEvents': {
-          recipientId, fields, ip, userAgent, signedAt: new Date(), version: newVersionNumber, order: seqRecipient.order,
+        signingEvents: {
+          $each: [
+            {
+              recipientId,
+              ip,
+              ipUnavailableReason,
+              userAgent,
+              signedAt,
+              version: newVersionNumber,
+              order: seqRecipient.order,
+              action: 'signed',
+              fields: eventFields,
+              fieldsHash,
+              fieldsHashAlgo: 'SHA-256',
+              serverTimestamp: signedAt,
+              baseVersion: baseChainVersionNumber,
+              client: eventClient,
+              geo: eventGeo,
+              consent: eventConsent,
+            },
+            ...sentEvents,
+          ],
         },
       },
       $set: {
         currentVersion: newVersionNumber,
         documentName: documentName,
         updatedAt: new Date(),
-        status: isFinal ? 'completed' : 'in_progress',
-        'signingState.currentOrder': nextSigner ? nextSigner.order : existingDoc.signingState.currentOrder,
+        status: allRecipientsSigned ? 'completed' : 'in_progress',
         "recipients.$[signer].status": 'signed',
-        "recipients.$[signer].signedAt": new Date(),
+        "recipients.$[signer].signedAt": signedAt,
         "recipients.$[signer].signedVersion": newVersionNumber,
       }
     };
 
-    if (nextSigner) {
+    if (nextOrder !== null) {
       docUpdate.$set[`recipients.$[next].status`] = 'sent';
     }
-    if (isFinal) {
+    if (allRecipientsSigned) {
+      docUpdate.$set.completedAt = signedAt;
+      docUpdate.$set.finalizedAt = signedAt;
       await AuditLogModel.create({
         documentId: existingDoc._id,
         actor: recipientId,
         action: 'document_finalized',
-        metadata: { ip, finalHash: hash }
+        metadata: { ip, ipUnavailableReason, finalHash: hash }
       });
     }
 
     const arrayFilters: any[] = [{ "signer.id": recipientId }];
-    if (nextSigner) {
-      arrayFilters.push({ "next.id": nextSigner.id });
+    if (nextOrder !== null) {
+      arrayFilters.push({ "next.order": nextOrder, "next.role": { $ne: 'viewer' }, "next.status": 'pending' });
     }
 
     // ⚠️ ATOMIC CHECK: Ensure base version hasn't changed (race condition protection)
@@ -268,15 +437,25 @@ async function handleSigningUpdate(
     );
 
     if (updateResult.matchedCount === 0) {
+      await deleteSignedFieldRecords({
+        documentId,
+        version: newVersionNumber,
+        recipientId,
+        fieldIds: signedFieldIds,
+      });
       return NextResponse.json({ message: 'Failed to save signing data, document state may have changed.' }, { status: 409 });
     }
 
-    if (nextSigner) {
+    if (nextOrder !== null && nextRecipientsToNotify.length > 0) {
       const updatedDoc = await DocumentModel.findById(documentId);
-      const nextRecipientData = updatedDoc.recipients.find((r: any) => r.id === nextSigner.id);
-      if (nextRecipientData && nextRecipientData.status === 'sent') {
+      for (const nextRecipientData of nextRecipientsToNotify) {
         // TODO: Pass subject/message from UI or use a template
-        await sendSigningRequestEmail(nextRecipientData, updatedDoc, { subject: "It's your turn to sign", message: "A document is waiting for your signature." }, nextRecipientData.signingToken);
+        await sendSigningRequestEmail(
+          nextRecipientData,
+          updatedDoc,
+          { subject: "It's your turn to sign", message: "A document is waiting for your signature." },
+          nextRecipientData.signingToken
+        );
       }
     }
 
@@ -288,6 +467,15 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
   for (let attempt = 0; attempt < 3; attempt++) {
     const existingDoc = await DocumentModel.findOne({ _id: documentId, userId });
     if (!existingDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+    if (existingDoc.status === 'completed') {
+      return NextResponse.json({ message: 'Completed documents are immutable. Create a new document to modify.' }, { status: 409 });
+    }
+    if (hasAnySignedRecipient(existingDoc)) {
+      return NextResponse.json({ message: 'This document has partial signatures and is immutable. Create a new signing request to modify.' }, { status: 409 });
+    }
+    if (hasAnySignedRecipient(existingDoc)) {
+      return NextResponse.json({ message: 'This document has partial signatures and is immutable. Create a new signing request to modify.' }, { status: 409 });
+    }
 
     const currentVersionIndex = existingDoc.versions.findIndex((v: any) => v.version === existingDoc.currentVersion);
     if (currentVersionIndex === -1) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
@@ -300,13 +488,14 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
     const recipientsData = formData.get('recipients') as string | null;
 
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
+    const sanitizedFields = sanitizePreparedFields(fields);
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
 
     const sessionIdFinal = sessionId || existingDoc.currentSessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     const editHistoryItem = {
       sessionId: sessionIdFinal,
-      fields,
+      fields: sanitizedFields,
       documentName: documentName || undefined,
       timestamp: new Date(),
       changeLog,
@@ -355,7 +544,7 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
         size: currentVersionData.size,
         mimeType: currentVersionData.mimeType,
         locked: false,
-        fields: fields,
+        fields: sanitizedFields,
         documentName: documentName || existingDoc.documentName,
         status: 'draft',
         changeLog: 'Document prepared for signing',
@@ -366,16 +555,30 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
 
       const updateResult = await DocumentModel.updateOne(
         { _id: documentId, userId, currentVersion: existingDoc.currentVersion },
-        {
-          $push: { versions: newVersion },
-          $set: {
-            currentVersion: newVersionNumber,
-            documentName: documentName || existingDoc.documentName,
-            recipients: recipients,
-            currentSessionId: sessionIdFinal,
-            updatedAt: new Date(),
+        [
+          {
+            $set: {
+              versions: {
+                $map: {
+                  input: { $concatArrays: ['$versions', [newVersion]] },
+                  as: 'v',
+                  in: {
+                    $cond: [
+                      { $eq: ['$$v.label', 'prepared'] },
+                      '$$v',
+                      { $mergeObjects: ['$$v', { fields: [] }] }
+                    ]
+                  }
+                }
+              },
+              currentVersion: newVersionNumber,
+              documentName: documentName || existingDoc.documentName,
+              recipients: recipients,
+              currentSessionId: sessionIdFinal,
+              updatedAt: new Date(),
+            }
           }
-        }
+        ]
       );
 
       if (updateResult.matchedCount === 0) {
@@ -396,16 +599,48 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
 
     const updatedDoc = await DocumentModel.findOneAndUpdate(
       { _id: documentId, userId, currentVersion: existingDoc.currentVersion },
-      {
-        $push: { [`versions.${currentVersionIndex}.editHistory`]: editHistoryItem },
-        $set: {
-          [`versions.${currentVersionIndex}.fields`]: fields,
-          updatedAt: new Date(),
-          documentName: documentName || existingDoc.documentName,
-          recipients: recipients,
-          currentSessionId: sessionIdFinal,
-        },
-      },
+      [
+        {
+          $set: {
+            versions: {
+              $map: {
+                input: '$versions',
+                as: 'v',
+                in: {
+                  $cond: [
+                    { $eq: ['$$v.version', existingDoc.currentVersion] },
+                    {
+                      $mergeObjects: [
+                        '$$v',
+                        {
+                          fields: sanitizedFields,
+                          editHistory: {
+                            $concatArrays: [
+                              { $ifNull: ['$$v.editHistory', []] },
+                              [editHistoryItem]
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      $cond: [
+                        { $ne: ['$$v.label', 'prepared'] },
+                        { $mergeObjects: ['$$v', { fields: [] }] },
+                        '$$v'
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            updatedAt: new Date(),
+            documentName: documentName || existingDoc.documentName,
+            recipients: recipients,
+            currentSessionId: sessionIdFinal,
+          }
+        }
+      ],
       { new: true }
     );
 
@@ -435,6 +670,9 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
   for (let attempt = 0; attempt < 3; attempt++) {
     const existingDoc = await DocumentModel.findOne({ _id: documentId, userId });
     if (!existingDoc) return NextResponse.json({ message: 'Document not found' }, { status: 404 });
+    if (existingDoc.status === 'completed') {
+      return NextResponse.json({ message: 'Completed documents are immutable. Create a new document to modify.' }, { status: 409 });
+    }
 
     const currentVersionIndex = existingDoc.versions.findIndex((v: any) => v.version === existingDoc.currentVersion);
     if (currentVersionIndex === -1) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
@@ -447,6 +685,7 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
     const changeLog = (formData.get('changeLog') as string) || 'Document updated';
 
     const fields = fieldsData ? JSON.parse(fieldsData) : [];
+    const sanitizedFields = sanitizePreparedFields(fields);
     const recipients = recipientsData ? JSON.parse(recipientsData) : [];
 
     const incomingSessionId = sessionId || existingDoc.currentSessionId || null;
@@ -489,25 +728,50 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
       // Use updateOne to bypass "Locked version" validation in save() middleware
       const updateResult = await DocumentModel.updateOne(
         { _id: documentId, userId, currentVersion: existingDoc.currentVersion },
-        {
-          $set: {
-            [`versions.${currentVersionIndex}.hash`]: hash,
-            [`versions.${currentVersionIndex}.hashAlgo`]: 'SHA-256',
-            [`versions.${currentVersionIndex}.size`]: size,
-            [`versions.${currentVersionIndex}.mimeType`]: mimeType,
-            [`versions.${currentVersionIndex}.fields`]: fields,
-            [`versions.${currentVersionIndex}.updatedAt`]: new Date(),
-            [`versions.${currentVersionIndex}.documentName`]: documentName,
-            [`versions.${currentVersionIndex}.locked`]: false,
-            [`versions.${currentVersionIndex}.storage`]: storage,
-            documentName: documentName,
-            recipients: recipients,
-            updatedAt: new Date(),
-          },
-          $unset: {
-            [`versions.${currentVersionIndex}.pdfData`]: 1
+        [
+          {
+            $set: {
+              versions: {
+                $map: {
+                  input: '$versions',
+                  as: 'v',
+                  in: {
+                    $cond: [
+                      { $eq: ['$$v.version', existingDoc.currentVersion] },
+                      {
+                        $mergeObjects: [
+                          '$$v',
+                          {
+                            hash: hash,
+                            hashAlgo: 'SHA-256',
+                            size: size,
+                            mimeType: mimeType,
+                            fields: sanitizedFields,
+                            updatedAt: new Date(),
+                            documentName: documentName,
+                            locked: false,
+                            storage: storage,
+                            pdfData: '$$REMOVE'
+                          }
+                        ]
+                      },
+                      {
+                        $cond: [
+                          { $ne: ['$$v.label', 'prepared'] },
+                          { $mergeObjects: ['$$v', { fields: [] }] },
+                          '$$v'
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              documentName: documentName,
+              recipients: recipients,
+              updatedAt: new Date(),
+            }
           }
-        }
+        ]
       );
 
       if (updateResult.matchedCount === 0) {
@@ -552,7 +816,7 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
       size,
       mimeType,
       locked: false,
-      fields,
+      fields: sanitizedFields,
       documentName,
       status: 'draft',
       changeLog,
@@ -563,16 +827,30 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
 
     const updateResult = await DocumentModel.updateOne(
       { _id: documentId, userId, currentVersion: existingDoc.currentVersion },
-      {
-        $push: { versions: newVersion },
-        $set: {
-          currentVersion: newVersionNumber,
-          documentName: documentName,
-          recipients: recipients,
-          currentSessionId: incomingSessionId,
-          updatedAt: new Date()
+      [
+        {
+          $set: {
+            versions: {
+              $map: {
+                input: { $concatArrays: ['$versions', [newVersion]] },
+                as: 'v',
+                in: {
+                  $cond: [
+                    { $eq: ['$$v.label', 'prepared'] },
+                    '$$v',
+                    { $mergeObjects: ['$$v', { fields: [] }] }
+                  ]
+                }
+              }
+            },
+            currentVersion: newVersionNumber,
+            documentName: documentName,
+            recipients: recipients,
+            currentSessionId: incomingSessionId,
+            updatedAt: new Date()
+          }
         }
-      }
+      ]
     );
 
     if (updateResult.matchedCount === 0) {
@@ -605,7 +883,7 @@ async function handleNewDocument(userId: string, formData: FormData, pdfBuffer: 
   const mimeType = getPdfMime();
   const initialSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
-  const ip = (req.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0].trim();
+  const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
 
   const newDocument = new DocumentModel({
     userId,
@@ -616,7 +894,8 @@ async function handleNewDocument(userId: string, formData: FormData, pdfBuffer: 
     versions: [],
     recipients,
     signingMode,
-    signingState: { signingEvents: [] },
+    signingEvents: [],
+    auditTrailVersion: 1,
     status: 'draft',
     updatedAt: new Date(),
     createdAt: new Date(),
@@ -696,7 +975,7 @@ async function handleNewDocument(userId: string, formData: FormData, pdfBuffer: 
       documentId: newDocument._id,
       actor: userId,
       action: 'document_created',
-      metadata: { ip }
+      metadata: { ip, ipUnavailableReason }
     });
 
     const fileUrl = `/api/documents/${newDocument._id}`;
@@ -725,22 +1004,16 @@ export async function POST(req: NextRequest) {
   try {
     const sessionUserId = await getAuthSession(req);
     const signingToken = req.headers.get('X-Signing-Token');
-    const recipientIdHeader = req.headers.get('X-Recipient-Id');
     let authorizedUserId: string | null = sessionUserId;
 
     if (signingToken) {
-      if (!recipientIdHeader) {
-        return NextResponse.json({ message: 'Recipient ID is missing' }, { status: 400 });
-      }
-      const doc = await DocumentModel.findOne({
-        "recipients.signingToken": signingToken,
-        "recipients.id": recipientIdHeader
-      });
-      if (!doc) {
-        return NextResponse.json({ message: 'Unauthorized: Invalid signing token' }, { status: 401 });
-      }
-      authorizedUserId = doc.userId.toString();
-    } else if (!sessionUserId) {
+      return NextResponse.json(
+        { message: 'Signing must be completed via the /api/sign-document endpoint.' },
+        { status: 409 }
+      );
+    }
+
+    if (!sessionUserId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 

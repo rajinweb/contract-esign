@@ -75,7 +75,7 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {getStatusIcon(version.status)}
+                {getStatusIcon(version.status ?? 'draft')}
                 <div>
                   <p className="font-medium text-gray-900">
                     Version {version.version}
@@ -89,8 +89,8 @@ const DocumentVersions: React.FC<DocumentVersionsProps> = ({
                 </div>
               </div>
               <div className="text-right">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(version.status)}`}>
-                  {version.status.charAt(0).toUpperCase() + version.status.slice(1)}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(version.status ?? 'draft')}`}>
+                  {(version.status ?? 'draft').charAt(0).toUpperCase() + (version.status ?? 'draft').slice(1)}
                 </span>
                 {version.sentAt && (
                   <p className="text-xs text-gray-500 mt-1">

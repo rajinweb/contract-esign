@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
+import SignatureModel from '@/models/Signature';
+import { getLatestPreparedVersion } from '@/lib/signing-utils';
+import { sanitizeRecipients } from '@/lib/recipient-sanitizer';
+
+function normalizeFieldOwner(field: any): 'me' | 'recipients' {
+  const owner = String(field?.fieldOwner ?? '').toLowerCase();
+  if (owner === 'me') return 'me';
+  if (owner === 'recipient' || owner === 'recipients') return 'recipients';
+  if (field?.recipientId) return 'recipients';
+  return 'me';
+}
+
+function normalizeFields(fields: any[]) {
+  if (!Array.isArray(fields)) return [];
+  return fields.map((field) => {
+    const plain = typeof field?.toObject === 'function' ? field.toObject() : { ...field };
+    return {
+      ...plain,
+      fieldOwner: normalizeFieldOwner(plain),
+    };
+  });
+}
+
 
 
 // GET - Load a document with its fields and recipients
@@ -26,8 +49,8 @@ export async function GET(req: NextRequest) {
     let authorized = false;
 
     if (signingToken) {
-      // Check if any version has this signing token
-      const hasToken = document.versions.some((v: any) => v.signingToken === signingToken);
+      // Check if any recipient has this signing token
+      const hasToken = document.recipients.some((r: any) => r.signingToken === signingToken);
       if (hasToken) {
         authorized = true;
       }
@@ -52,26 +75,72 @@ export async function GET(req: NextRequest) {
     if (!authorized) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+    if (signingToken && document.deletedAt) {
+      return NextResponse.json({ message: 'Document has been trashed.' }, { status: 410 });
+    }
 
     // Get the current version's fields
-    const currentVersion = document.versions && document.versions.length > 0
-      ? document.versions[document.currentVersion - 1]
-      : null;
+    const preparedVersion = getLatestPreparedVersion(document.versions || []);
+    let fields = normalizeFields(Array.isArray(preparedVersion?.fields) ? preparedVersion?.fields : []);
 
-    const fields = currentVersion?.fields || [];
+    const hasSignedRecipients = Array.isArray(document.recipients)
+      ? document.recipients.some((r: any) => ['signed', 'approved'].includes(r.status))
+      : false;
+    const hasSigningEvents = Array.isArray(document.signingEvents) && document.signingEvents.length > 0;
 
-    console.log(`[LOAD] Returning ${fields.length} fields from version ${document.currentVersion}`);
+    if (hasSignedRecipients || hasSigningEvents) {
+      const allowedRecipientIds = signingToken
+        ? document.recipients.filter((r: any) => r.signingToken === signingToken).map((r: any) => r.id)
+        : document.recipients.map((r: any) => r.id);
+
+      if (allowedRecipientIds.length > 0) {
+        const signedFieldRecords = await SignatureModel.find({
+          documentId: document._id,
+          recipientId: { $in: allowedRecipientIds },
+        }).lean();
+
+        const fieldValueMap = new Map<string, { value: string; version: number; signedAt: number }>();
+        for (const record of signedFieldRecords) {
+          const fieldId = String((record as any).fieldId ?? '');
+          if (!fieldId) continue;
+          const version = typeof (record as any).version === 'number' ? (record as any).version : -1;
+          const signedAt = (record as any).signedAt ? new Date((record as any).signedAt).getTime() : 0;
+          const existing = fieldValueMap.get(fieldId);
+          if (!existing || version > existing.version || (version === existing.version && signedAt > existing.signedAt)) {
+            fieldValueMap.set(fieldId, {
+              value: String((record as any).fieldValue ?? ''),
+              version,
+              signedAt,
+            });
+          }
+        }
+
+        if (fieldValueMap.size > 0) {
+          fields = fields.map((field: any) => {
+            const signedValue = fieldValueMap.get(String(field?.id ?? ''));
+            if (!signedValue) return field;
+            return { ...field, value: signedValue.value };
+          });
+        }
+      }
+    }
+
+    console.log(`[LOAD] Returning ${fields.length} fields from prepared version ${preparedVersion?.version ?? 'unknown'}`);
 
     // Return document with fields from current version
+    const safeRecipients = sanitizeRecipients(document.recipients || []);
     const responseDoc = {
       _id: document._id,
       documentId: document._id, // Add documentId for consistency
       documentName: document.documentName,
       originalFileName: document.originalFileName,
       currentVersion: document.currentVersion,
-      recipients: document.recipients,
+      derivedFromDocumentId: document.derivedFromDocumentId ?? null,
+      derivedFromVersion: document.derivedFromVersion ?? null,
+      recipients: safeRecipients,
       status: document.status,
       fields: fields, // Fields from current version
+      signingEvents: document.signingEvents ?? [],
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     };

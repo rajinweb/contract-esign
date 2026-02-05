@@ -44,6 +44,7 @@ const statusIcons: Record<Doc['status'], React.ElementType> = {
   trashed: Trash,
   expired: Clock,
   cancelled: Ban,
+  voided: Ban,
   pending: Clock,
 };
 
@@ -61,7 +62,7 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const router = useRouter();
-  const filteredDocuments = useFilteredDocs(documents.filter(doc => doc.status !== "trashed"), selectedStatus, searchQuery);
+  const filteredDocuments = useFilteredDocs(documents.filter(doc => !doc.deletedAt), selectedStatus, searchQuery);
   /* -------------------- Download -------------------- */
 
   async function handleDownloadSignedCopy(doc: Doc) {
@@ -164,10 +165,15 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
   };
 
   const handleDeleteDoc = (trashedIds: string[]) => {
+    const deletedAt = new Date();
     setDocuments(prev =>
       prev.map(doc =>
         trashedIds.includes(doc.id)
-          ? { ...doc, status: 'trashed', deletedAt: new Date() }
+          ? {
+              ...doc,
+              deletedAt,
+              statusBeforeDelete: doc.statusBeforeDelete || doc.status,
+            }
           : doc
       )
     );
@@ -259,7 +265,7 @@ export default function DocumentList({ searchQuery }: DocumentListProps) {
                   inverted
                   data-testid={`delete-doc-${doc.id}`}
                   icon={<Trash2 size={16} />}
-                  title='Delete'
+                  title="Delete"
                 />
 
                 <Button inverted

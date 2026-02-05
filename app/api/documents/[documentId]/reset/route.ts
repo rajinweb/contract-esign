@@ -18,6 +18,12 @@ export const POST = async (
         { status: 404 }
       );
     }
+    if (doc.status === 'completed') {
+      return NextResponse.json(
+        { success: false, message: 'Completed documents are immutable.' },
+        { status: 409 }
+      );
+    }
 
     let wasReset = false;
     doc.recipients.forEach((recipient: Recipient) => {

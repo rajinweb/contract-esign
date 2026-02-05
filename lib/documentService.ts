@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import DocumentModel from '@/models/Document';
 import { putObjectStream, getObjectStream, getRegion } from '@/lib/s3';
 import { createSha256Transform, sha256Buffer } from '@/lib/hash';
+import { normalizeSignedBy } from '@/lib/signing-utils';
 
 export type StoreTarget = 's3' | 'db';
 export type VersionLabel = 'original' | 'prepared' | 'signed';
@@ -25,8 +26,21 @@ export async function addVersionFromBuffer(args: {
   s3?: { bucket: string; key: string; };
   lock?: boolean;
   changeLog: string;
+  signedBy?: string | string[];
+  renderedBy?: string;
+  pdfSignedAt?: Date;
+  changeMeta?: {
+    action?: string;
+    actorId?: string;
+    actorRole?: string;
+    signingMode?: string;
+    baseVersion?: number;
+    derivedFromVersion?: number;
+    signedAt?: Date;
+    source?: 'client' | 'server' | 'system';
+  };
 }) {
-  const { documentId, userId, label, buffer, mimeType, fileName, store, s3: s3cfg, lock = false, changeLog } = args;
+  const { documentId, userId, label, buffer, mimeType, fileName, store, s3: s3cfg, lock = false, changeLog, signedBy, renderedBy, pdfSignedAt, changeMeta } = args;
 
   // Compute hash BEFORE any upload to ensure the bytes we commit are the ones we store
   const hash = await sha256Buffer(buffer);
@@ -52,10 +66,16 @@ export async function addVersionFromBuffer(args: {
     throw new Error('A storage method must be specified and configured.');
   }
 
+  const signedByChain = label === 'signed' ? normalizeSignedBy(signedBy) : [];
+
   const newVersion = {
     version: newVersionNumber,
     derivedFromVersion: doc.currentVersion,
     label,
+    signedBy: signedByChain.length > 0 ? signedByChain : undefined,
+    renderedBy: label === 'signed' ? renderedBy : undefined,
+    pdfSignedAt: label === 'signed' ? pdfSignedAt : undefined,
+    changeMeta: label === 'signed' ? changeMeta : undefined,
     storage: storage,
     hash,
     hashAlgo: 'SHA-256',
@@ -63,7 +83,7 @@ export async function addVersionFromBuffer(args: {
     mimeType,
     locked: lock,
     sharedBinary: false,
-    fields: [],
+    fields: label === 'prepared' ? [] : undefined,
     documentName: fileName,
     status: label === 'signed' ? 'final' : 'draft',
     changeLog,
@@ -88,8 +108,21 @@ export async function addVersionFromStream(args: {
   s3?: { bucket: string; key: string; };
   lock?: boolean;
   changeLog: string;
+  signedBy?: string | string[];
+  renderedBy?: string;
+  pdfSignedAt?: Date;
+  changeMeta?: {
+    action?: string;
+    actorId?: string;
+    actorRole?: string;
+    signingMode?: string;
+    baseVersion?: number;
+    derivedFromVersion?: number;
+    signedAt?: Date;
+    source?: 'client' | 'server' | 'system';
+  };
 }) {
-  const { documentId, userId, label, stream, mimeType, fileName, store, s3: s3cfg, lock = false, changeLog } = args;
+  const { documentId, userId, label, stream, mimeType, fileName, store, s3: s3cfg, lock = false, changeLog, signedBy, renderedBy, pdfSignedAt, changeMeta } = args;
 
   if (store === 'db') {
     throw new Error("Database storage ('db') is no longer supported for streams.");
@@ -119,10 +152,16 @@ export async function addVersionFromStream(args: {
 
   const storage = { provider: 's3', bucket: s3cfg.bucket, key: s3cfg.key, region: getRegion(), url: `s3://${s3cfg.bucket}/${s3cfg.key}` };
 
+  const signedByChain = label === 'signed' ? normalizeSignedBy(signedBy) : [];
+
   const newVersion = {
     version: newVersionNumber,
     derivedFromVersion: doc.currentVersion,
     label,
+    signedBy: signedByChain.length > 0 ? signedByChain : undefined,
+    renderedBy: label === 'signed' ? renderedBy : undefined,
+    pdfSignedAt: label === 'signed' ? pdfSignedAt : undefined,
+    changeMeta: label === 'signed' ? changeMeta : undefined,
     storage,
     hash,
     hashAlgo: 'SHA-256',
@@ -130,7 +169,7 @@ export async function addVersionFromStream(args: {
     mimeType,
     locked: lock,
     sharedBinary: false,
-    fields: [],
+    fields: label === 'prepared' ? [] : undefined,
     documentName: fileName,
     status: label === 'signed' ? 'final' : 'draft',
     changeLog,

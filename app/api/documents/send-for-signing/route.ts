@@ -5,6 +5,7 @@ import DocumentModel from '@/models/Document';
 import { sendSigningRequestEmail } from '@/lib/email';
 import { updateDocumentStatus } from '@/lib/statusLogic';
 import { Recipient } from '@/types/types';
+import { buildEventClient, buildEventConsent, buildEventGeo, getLatestPreparedVersion, getNextSequentialOrder, normalizeIp } from '@/lib/signing-utils';
 
 // POST - Send a document for signing
 export async function POST(req: NextRequest) {
@@ -25,11 +26,14 @@ export async function POST(req: NextRequest) {
     if (!document) {
       return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
+    if (document.status === 'completed') {
+      return NextResponse.json({ message: 'Completed documents are immutable. Create a new document to modify.' }, { status: 409 });
+    }
 
     /* ======================================================
       1️⃣ LOCK PREPARED VERSION (CANONICAL PDF)
     ====================================================== */
-    const preparedVersion = document.versions.find((v: { label: string; }) => v.label === 'prepared');
+    const preparedVersion = getLatestPreparedVersion(document.versions || []);
     if (!preparedVersion) {
       return NextResponse.json(
         { message: 'Prepared version not found' },
@@ -37,9 +41,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sentAt = new Date();
     // ✅ versions only care about immutability
     preparedVersion.locked = true;
-    preparedVersion.sentAt = new Date();
+    preparedVersion.sentAt = sentAt;
 
     /* ======================================================
        2️⃣ SET SIGNING MODE + STATE
@@ -47,6 +52,7 @@ export async function POST(req: NextRequest) {
     const signingMode = reqSigningMode || document.signingMode || 'parallel';
     document.signingMode = signingMode;
 
+    let nextOrder: number | null = null;
     if (signingMode === 'sequential') {
       const missingOrder = recipients.some(
         (r: Recipient) => r.role !== 'viewer' && typeof r.order !== 'number'
@@ -54,20 +60,12 @@ export async function POST(req: NextRequest) {
       if (missingOrder) {
         return NextResponse.json({ message: 'Order is required for sequential signing' }, { status: 400 });
       }
-
-      const signerOrders = recipients
-        .filter((r: Recipient) => r.role === 'signer')
-        .map((r: Recipient) => r.order);
-
-      document.signingState = {
-        currentOrder: Math.min(...signerOrders),
-        signingEvents: []
-      };
-    } else {
-      document.signingState = {
-        signingEvents: []
-      };
+      nextOrder = getNextSequentialOrder(recipients);
     }
+    document.signingEvents ??= [];
+    document.auditTrailVersion ??= 1;
+    const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
+    const userAgent = req.headers.get('user-agent') ?? undefined;
 
     /* ======================================================
        3️⃣ ASSIGN RECIPIENTS + TOKENS
@@ -75,7 +73,7 @@ export async function POST(req: NextRequest) {
     document.recipients = recipients.map((r: Recipient) => {
       const token = crypto.randomBytes(32).toString('hex');
       let status: 'sent' | 'pending' | 'signed' = 'sent';
-      if (signingMode === 'sequential' && r.role !== 'viewer' && r.order !== document.signingState.currentOrder) {
+      if (signingMode === 'sequential' && r.role !== 'viewer' && r.order !== nextOrder) {
         status = 'pending';
       }
 
@@ -87,6 +85,29 @@ export async function POST(req: NextRequest) {
         signedVersion: null
       };
     });
+
+    const baseVersion = preparedVersion.version;
+    const targetVersion = signingMode === 'sequential' ? document.currentVersion + 1 : undefined;
+
+    for (const recipient of document.recipients) {
+      if (recipient.status === 'sent') {
+        document.signingEvents.push({
+          recipientId: recipient.id,
+          action: 'sent',
+          sentAt: sentAt,
+          serverTimestamp: sentAt,
+          baseVersion,
+          targetVersion,
+          order: recipient.order,
+          ip,
+          ipUnavailableReason,
+          userAgent,
+          client: buildEventClient({ ip, userAgent, recipient }),
+          geo: buildEventGeo(recipient),
+          consent: buildEventConsent(recipient),
+        });
+      }
+    }
 
     updateDocumentStatus(document);
     await document.save();

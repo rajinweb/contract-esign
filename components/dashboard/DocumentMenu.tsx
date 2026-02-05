@@ -74,7 +74,7 @@ const DocumentsMenu = ({
             <FileStack className="w-5 h-5 text-slate-600" />
             <span className="font-medium text-slate-800">Documents</span>
           </div>
-          <div className="text-slate-500">{documents.filter(doc => doc.status !== "trashed").length}</div>
+          <div className="text-slate-500">{documents.filter(doc => !doc.deletedAt).length}</div>
         </button>
 
         <div>
@@ -124,7 +124,7 @@ const DocumentsMenu = ({
             <Trash2 className="w-5 h-5 text-slate-600" />
             <span>Trash </span>
           </div>
-          <div className="text-slate-500">{documents.filter(doc => doc.status == "trashed").length + trashedTemplatesCount}</div>
+          <div className="text-slate-500">{documents.filter(doc => doc.deletedAt).length + trashedTemplatesCount}</div>
         </button>
       </nav>
     </>

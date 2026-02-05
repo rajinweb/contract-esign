@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getLatestPreparedVersion } from '@/lib/signing-utils';
 
 export const runtime = 'nodejs';
 
@@ -46,11 +47,21 @@ export async function GET(
     if (!document) {
       return NextResponse.json({ message: 'Document not found or unauthorized' }, { status: 404 });
     }
+    if (token && document.deletedAt) {
+      return NextResponse.json({ message: 'Document has been trashed.' }, { status: 410 });
+    }
 
     // 3. Determine Version
     let versionNumber = document.currentVersion;
     const versionParam = url.searchParams.get('version');
-    if (versionParam) {
+
+    if (token) {
+      const preparedVersion = getLatestPreparedVersion(document.versions || []);
+      if (!preparedVersion) {
+        return NextResponse.json({ message: 'Prepared version not found' }, { status: 404 });
+      }
+      versionNumber = preparedVersion.version;
+    } else if (versionParam) {
       versionNumber = parseInt(versionParam, 10);
     }
 

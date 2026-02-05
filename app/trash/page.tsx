@@ -19,7 +19,7 @@ const TrashPage = ({ searchQuery }: { searchQuery: string }) => {
         >
           Documents
             <div className='bg-red-600 text-white  h-5 w-5  leading-5 rounded-full absolute -top-2 -right-2 text-xs'>
-              {documents.filter(doc => doc.status == "trashed").length}
+              {documents.filter(doc => doc.deletedAt).length}
               </div>
           </Button>
         <Button

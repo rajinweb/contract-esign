@@ -192,6 +192,28 @@ export async function mergeFieldsIntoPdfServer(
         const pageIndex = field.pageNumber - 1;
         const page = pages[pageIndex];
         const { width: pageWidth, height: pageHeight } = page.getSize();
+        let scaleX = 1;
+        let scaleY = 1;
+        let relativeX = field.x;
+        let relativeY = field.y;
+        if (field.pageRect?.width && field.pageRect?.height) {
+            scaleX = pageWidth / field.pageRect.width;
+            scaleY = pageHeight / field.pageRect.height;
+            if (typeof field.pageRect.left === 'number' && typeof field.pageRect.top === 'number') {
+                const candidateX = field.x - field.pageRect.left;
+                const candidateY = field.y - field.pageRect.top;
+                const withinX = candidateX >= -1 && candidateX <= field.pageRect.width + 1;
+                const withinY = candidateY >= -1 && candidateY <= field.pageRect.height + 1;
+                if (withinX && withinY) {
+                    relativeX = candidateX;
+                    relativeY = candidateY;
+                }
+            }
+        }
+        const adjustedX = relativeX * scaleX;
+        const adjustedY = pageHeight - (relativeY + field.height) * scaleY;
+        const scaledW = field.width * scaleX;
+        const scaledH = field.height * scaleY;
 
         // Text and Date fields
         if (['text', 'date'].includes(field.type) && field.value) {
@@ -199,8 +221,8 @@ export async function mergeFieldsIntoPdfServer(
                 const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
                 const fontSize = Math.min(field.height || 12, 14);
                 page.drawText(field.value, {
-                    x: field.x,
-                    y: pageHeight - field.y - field.height,
+                    x: adjustedX,
+                    y: adjustedY,
                     size: fontSize,
                     font: helveticaFont,
                     color: rgb(0, 0, 0),
@@ -242,10 +264,10 @@ export async function mergeFieldsIntoPdfServer(
                     }
 
                     page.drawImage(embeddedImage, {
-                        x: field.x,
-                        y: pageHeight - field.y - field.height,
-                        width: field.width,
-                        height: field.height,
+                        x: adjustedX,
+                        y: adjustedY,
+                        width: scaledW,
+                        height: scaledH,
                     });
                 }
             } catch (err) {

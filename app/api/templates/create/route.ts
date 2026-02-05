@@ -6,6 +6,9 @@ import DocumentModel from '@/models/Document';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import { getObjectStream, getRegion } from '@/lib/s3';
+import { getLatestPreparedVersion } from '@/lib/signing-utils';
+import { pipeline } from 'stream/promises';
 
 export async function POST(req: NextRequest) {
     await connectDB();
@@ -53,16 +56,29 @@ export async function POST(req: NextRequest) {
         const newFilePath = path.join('uploads', userId, newFileName);
         const newFileAbsolutePath = path.join(process.cwd(), newFilePath);
 
-        const originalVersion = originalDoc.versions?.[originalDoc.currentVersion - 1];
-        if (!originalVersion?.filePath) {
-            return NextResponse.json({ message: 'Original document file path not found' }, { status: 400 });
+        const preparedVersion = getLatestPreparedVersion(originalDoc.versions || []);
+        const currentVersion =
+            originalDoc.versions?.find((v: any) => v?.version === originalDoc.currentVersion) || null;
+        const fallbackOriginal = originalDoc.versions?.find((v: any) => v?.label === 'original') || null;
+        const sourceVersion = preparedVersion || currentVersion || fallbackOriginal || originalDoc.versions?.[0];
+
+        if (!sourceVersion) {
+            return NextResponse.json({ message: 'Original document version not found' }, { status: 400 });
         }
 
-        const originalFilePath = originalVersion.filePath;
-        if (fs.existsSync(originalFilePath)) {
-            fs.copyFileSync(originalFilePath, newFileAbsolutePath);
+        const sourceFilePath = sourceVersion?.filePath;
+        if (sourceFilePath && fs.existsSync(sourceFilePath)) {
+            fs.copyFileSync(sourceFilePath, newFileAbsolutePath);
+        } else if (sourceVersion?.storage?.provider === 's3' && sourceVersion.storage.key) {
+            const bucket = sourceVersion.storage.bucket || process.env.S3_BUCKET_NAME;
+            if (!bucket) {
+                return NextResponse.json({ message: 'S3 bucket not configured for template creation' }, { status: 500 });
+            }
+            const region = sourceVersion.storage.region || getRegion();
+            const stream = await getObjectStream({ bucket, key: sourceVersion.storage.key, region });
+            await pipeline(stream, fs.createWriteStream(newFileAbsolutePath));
         } else {
-            return NextResponse.json({ message: 'Original document file not found on server' }, { status: 500 });
+            return NextResponse.json({ message: 'Original document file path not found' }, { status: 400 });
         }
 
         // Generate templateFileUrl if not provided

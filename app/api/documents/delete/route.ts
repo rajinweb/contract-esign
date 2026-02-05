@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
+import AuditLogModel from '@/models/AuditLog';
+import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 import fs from 'fs';
 import path from 'path';
 import { deleteObject } from '@/lib/s3';
+import { normalizeIp } from '@/lib/signing-utils';
+
+function hasCompletionEvidence(doc: any): boolean {
+  if (doc.status === 'completed') return true;
+  if (doc.completedAt || doc.finalizedAt) return true;
+  const versions = Array.isArray(doc.versions) ? doc.versions : [];
+  if (versions.some((v: any) => v?.label === 'signed_final')) return true;
+  const recipients = Array.isArray(doc.recipients) ? doc.recipients : [];
+  const signers = recipients.filter((r: any) => r?.role === 'signer');
+  if (signers.length > 0 && signers.every((r: any) => r?.status === 'signed' && typeof r?.signedVersion === 'number')) {
+    return true;
+  }
+  const signingEvents = Array.isArray(doc.signingEvents) ? doc.signingEvents : [];
+  if (signers.length > 0 && signingEvents.length > 0) {
+    const signedSet = new Set(
+      signingEvents
+        .filter((e: any) => e?.action === 'signed' && e?.recipientId)
+        .map((e: any) => String(e.recipientId))
+    );
+    const signerIds = signers.map((s: any) => String(s.id)).filter(Boolean);
+    if (signerIds.length > 0 && signerIds.every((id: string) => signedSet.has(id))) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,11 +52,63 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No matching documents found to delete' }, { status: 200 });
     }
 
-    // Soft delete: update the status and set deletedAt for all documents
-    await DocumentModel.updateMany(
-      { _id: { $in: documentIds }, userId },
-      { $set: { status: 'trashed', deletedAt: new Date() } }
-    );
+    // Soft delete is allowed for completed documents (move to trash).
+
+    const deletedAt = new Date();
+    const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
+    const userAgent = req.headers.get('user-agent') ?? undefined;
+
+    const auditLogs: any[] = [];
+
+    // Soft delete: keep status unchanged, record statusBeforeDelete based on completion evidence.
+    // If in_progress, void before trashing to stop the signing flow.
+    const bulkOps = documents.map((doc) => {
+      const computedStatus =
+        doc.statusBeforeDelete ||
+        (hasCompletionEvidence(doc) ? 'completed' : getUpdatedDocumentStatus(doc.toObject()));
+      const shouldVoid = doc.status === 'in_progress';
+
+      const update: any = {
+        $set: {
+          deletedAt,
+          updatedAt: deletedAt,
+          statusBeforeDelete: shouldVoid ? 'voided' : computedStatus,
+        },
+      };
+
+      if (shouldVoid) {
+        update.$set.status = 'voided';
+        update.$push = {
+          signingEvents: {
+            recipientId: String(userId),
+            action: 'voided',
+            serverTimestamp: deletedAt,
+            ip,
+            ipUnavailableReason,
+            userAgent,
+          },
+        };
+        auditLogs.push({
+          documentId: doc._id,
+          actor: userId,
+          action: 'document_voided',
+          metadata: { ip, ipUnavailableReason, reason: 'trashed_in_progress' },
+        });
+      }
+
+      return {
+        updateOne: {
+          filter: { _id: doc._id, userId },
+          update,
+        },
+      };
+    });
+    if (bulkOps.length > 0) {
+      await DocumentModel.bulkWrite(bulkOps, { ordered: false });
+    }
+    if (auditLogs.length > 0) {
+      await AuditLogModel.insertMany(auditLogs, { ordered: false });
+    }
 
     return NextResponse.json({ message: `Successfully moved ${documents.length} document(s) to trash` });
   } catch (error) {
@@ -53,6 +133,19 @@ export async function DELETE(req: NextRequest) {
     if (documents.length === 0) {
       // This isn't an error, it just means no documents matched for this user.
       return NextResponse.json({ message: 'No matching documents found to delete' }, { status: 200 });
+    }
+
+    const completedDocs = documents.filter(doc =>
+      doc.status === 'completed' ||
+      doc.statusBeforeDelete === 'completed' ||
+      hasCompletionEvidence(doc) ||
+      getUpdatedDocumentStatus(doc.toObject()) === 'completed'
+    );
+    if (completedDocs.length > 0) {
+      return NextResponse.json(
+        { message: 'Completed documents are immutable and cannot be permanently deleted.' },
+        { status: 409 }
+      );
     }
 
     // Delete associated files from S3 and the filesystem

@@ -23,6 +23,23 @@ export const getFieldTypeFromComponentLabel = (label: string): string => {
 /* =====================================================
    MAIN UPLOAD HANDLER
 ===================================================== */
+const serializePageRect = (pageRect: any) => {
+  if (!pageRect || typeof pageRect !== "object") return undefined;
+  const rect = pageRect as Record<string, any>;
+  const cleaned = {
+    x: typeof rect.x === "number" ? rect.x : undefined,
+    y: typeof rect.y === "number" ? rect.y : undefined,
+    width: typeof rect.width === "number" ? rect.width : undefined,
+    height: typeof rect.height === "number" ? rect.height : undefined,
+    top: typeof rect.top === "number" ? rect.top : undefined,
+    right: typeof rect.right === "number" ? rect.right : undefined,
+    bottom: typeof rect.bottom === "number" ? rect.bottom : undefined,
+    left: typeof rect.left === "number" ? rect.left : undefined,
+  };
+  const hasAny = Object.values(cleaned).some((value) => typeof value === "number");
+  return hasAny ? cleaned : undefined;
+};
+
 export const uploadToServer = async (
     blob: Blob | null,
     documentName: string,
@@ -44,18 +61,31 @@ export const uploadToServer = async (
        NO METADATA
     ===================================================== */
     if (signingToken) {
-        const response = await fetch("/api/signedDocument", {
+        const signingFields: DocumentField[] = droppedComponents.map(comp => ({
+            id: comp.fieldId ?? comp.id?.toString() ?? crypto.randomUUID(),
+            type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
+            x: comp.x,
+            y: comp.y,
+            width: comp.width,
+            height: comp.height,
+            pageNumber: comp.pageNumber || currentPage,
+            recipientId: comp.assignedRecipientId,
+            required: comp.required !== false,
+            value: comp.data || "",
+            placeholder: comp.placeholder,
+            mimeType: comp.mimeType,
+            pageRect: serializePageRect(comp.pageRect),
+            fieldOwner: comp.fieldOwner,
+            isPrivate: comp.isPrivate
+        }));
+        const response = await fetch("/api/sign-document", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
                 token: signingToken,
-                action: "signed",
-                fields: droppedComponents.map(comp => ({
-                    fieldId: comp.id,
-                    value: comp.data
-                }))
+                fields: signingFields
             })
         });
 
@@ -128,7 +158,7 @@ export const uploadToServer = async (
        MAP CLIENT FIELDS
     =============================== */
     const clientFields: DocumentField[] = droppedComponents.map(comp => ({
-        id: comp.id?.toString() ?? crypto.randomUUID(),
+        id: comp.fieldId ?? comp.id?.toString() ?? crypto.randomUUID(),
         type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
         x: comp.x,
         y: comp.y,
@@ -140,19 +170,37 @@ export const uploadToServer = async (
         value: comp.data || "",
         placeholder: comp.placeholder,
         mimeType: comp.mimeType,
-        pageRect: comp.pageRect,
-        fieldOwner: comp.fieldOwner
+        pageRect: serializePageRect(comp.pageRect),
+        fieldOwner: comp.fieldOwner,
+        isPrivate: comp.isPrivate
     }));
 
     /* ===============================
        MERGE FIELDS (EDITOR MODE)
     =============================== */
-    const mergedFields: DocumentField[] = [
-        ...serverFields.filter(
-            sf => clientFields.some(cf => cf.id === sf.id)
-        ),
-        ...clientFields
-    ];
+    const mergedFields: DocumentField[] = [];
+    const indexById = new Map<string, number>();
+    const normalizeId = (field: DocumentField) => String(field?.id ?? '');
+
+    const upsertField = (field: DocumentField) => {
+        const id = normalizeId(field);
+        if (!id) return;
+        const existingIndex = indexById.get(id);
+        if (existingIndex === undefined) {
+            indexById.set(id, mergedFields.length);
+            mergedFields.push(field);
+        } else {
+            mergedFields[existingIndex] = field;
+        }
+    };
+
+    clientFields.forEach(upsertField);
+    serverFields.forEach((field) => {
+        const id = normalizeId(field);
+        if (!indexById.has(id)) {
+            upsertField(field);
+        }
+    });
 
     /* ===============================
        MERGE RECIPIENTS

@@ -19,6 +19,7 @@ interface PDFViewerProps {
   error?: string;
   signingToken?: string;
   isSigningMode?: boolean;
+  isReadOnly?: boolean;
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({
@@ -32,8 +33,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   error,
   signingToken,
   isSigningMode,
+  isReadOnly,
 }) => {
 const flexBoxcenter='absolute inset-0 flex items-center w-56 justify-center  text-center p-4 left-1/2 transform -translate-x-1/2'
+  const isEditingDisabled = Boolean(isSigningMode || isReadOnly);
   
   const customHeaders = useMemo(() => {
     if (!isSigningMode) return {};
@@ -81,8 +84,8 @@ const flexBoxcenter='absolute inset-0 flex items-center w-56 justify-center  tex
       {pages.map((pageNum) => (
         <Fragment key={pageNum}>
           <div className='flex justify-between w-full items-center p-2 page-brake'>
-            <small className={`${isSigningMode && 'm-auto'}`}>{pageNum} of {pages.length}</small>
-            {!isSigningMode && (
+            <small className={`${isEditingDisabled && 'm-auto'}`}>{pageNum} of {pages.length}</small>
+            {!isEditingDisabled && (
             <>
             <Button onClick={() => insertBlankPageAt(pageNum)} className='bg-transparent hover:text-white !p-0.5 rounded-sm text-[inherit]' label='+'/> 
             <div className='relative' onClick={(e) => toggleMenu(e, pageNum - 1)}>

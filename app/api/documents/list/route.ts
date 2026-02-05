@@ -2,7 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import DocumentModel from '@/models/Document';
 import { IDocumentVersion } from '@/types/types';
-import { updateDocumentStatus } from '@/lib/statusLogic';
+import { getUpdatedDocumentStatus, updateDocumentStatus } from '@/lib/statusLogic';
+
+function hasCompletionEvidence(doc: any): boolean {
+  if (doc.status === 'completed') return true;
+  if (doc.completedAt || doc.finalizedAt) return true;
+  const versions = Array.isArray(doc.versions) ? doc.versions : [];
+  if (versions.some((v: any) => v?.label === 'signed_final')) return true;
+  const recipients = Array.isArray(doc.recipients) ? doc.recipients : [];
+  const signers = recipients.filter((r: any) => r?.role === 'signer');
+  if (signers.length > 0 && signers.every((r: any) => r?.status === 'signed' && typeof r?.signedVersion === 'number')) {
+    return true;
+  }
+  const signingEvents = Array.isArray(doc.signingEvents) ? doc.signingEvents : [];
+  if (signers.length > 0 && signingEvents.length > 0) {
+    const signedSet = new Set(
+      signingEvents
+        .filter((e: any) => e?.action === 'signed' && e?.recipientId)
+        .map((e: any) => String(e.recipientId))
+    );
+    const signerIds = signers.map((s: any) => String(s.id)).filter(Boolean);
+    if (signerIds.length > 0 && signerIds.every((id: string) => signedSet.has(id))) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,12 +65,22 @@ export async function GET(req: NextRequest) {
 
     // Update document statuses before sending them
     for (const doc of documents) {
-      if (doc.status !== 'trashed') {
+      if (!doc.deletedAt && doc.status !== 'trashed') {
         updateDocumentStatus(doc);
       }
     }
 
-    const documentsWithMetadata = documents.map(doc => ({
+    const documentsWithMetadata = documents.map(doc => {
+      const effectiveStatus =
+        doc.deletedAt
+          ? (hasCompletionEvidence(doc)
+            ? 'completed'
+            : (doc.statusBeforeDelete ||
+              (doc.status === 'trashed'
+                ? getUpdatedDocumentStatus(doc.toObject())
+                : doc.status)))
+          : doc.status;
+      return {
       id: doc._id,
       userId: doc.userId,
       name: doc.documentName,
@@ -53,14 +88,16 @@ export async function GET(req: NextRequest) {
       originalFileName: doc.originalFileName,
       currentVersion: doc.currentVersion,
       totalVersions: doc.versions.length,
-      status: doc.status,
+      status: effectiveStatus,
       recipients: doc.recipients,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
       lastSentAt: doc.versions.find((v: IDocumentVersion) => !!v.sentAt)?.sentAt,
       expiresAt: doc.versions.find((v: IDocumentVersion) => v.version === doc.currentVersion)?.expiresAt,
-      deletedAt: doc.deletedAt
-    }));
+      deletedAt: doc.deletedAt,
+      statusBeforeDelete: doc.statusBeforeDelete
+      };
+    });
 
     return NextResponse.json({
       success: true,

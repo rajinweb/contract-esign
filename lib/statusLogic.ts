@@ -1,18 +1,69 @@
 import { IDocument } from "@/types/types";
 import { Document } from "mongoose";
 
+const hasCompletionEvidence = (document: IDocument): boolean => {
+  if (document.status === "completed") return true;
+  if (document.completedAt || document.finalizedAt) return true;
+
+  const versions = Array.isArray(document.versions) ? document.versions : [];
+  if (versions.some((v: any) => v?.label === "signed_final")) return true;
+
+  const recipients = Array.isArray(document.recipients) ? document.recipients : [];
+  const signers = recipients.filter((r: any) => r?.role === "signer");
+  const approvers = recipients.filter((r: any) => r?.role === "approver");
+  const approversComplete =
+    approvers.length === 0 || approvers.every((r: any) => r?.status === "approved");
+
+  if (!approversComplete) {
+    return false;
+  }
+  if (
+    signers.length > 0 &&
+    signers.every((r: any) => r?.status === "signed" && typeof r?.signedVersion === "number")
+  ) {
+    return true;
+  }
+
+  const signingEvents = Array.isArray(document.signingEvents) ? document.signingEvents : [];
+  if (signers.length > 0 && signingEvents.length > 0) {
+    const signedSet = new Set(
+      signingEvents
+        .filter((e: any) => e?.action === "signed" && e?.recipientId)
+        .map((e: any) => String(e.recipientId))
+    );
+    const signerIds = signers.map((s: any) => String(s.id)).filter(Boolean);
+    if (signerIds.length > 0 && signerIds.every((id: string) => signedSet.has(id))) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const getUpdatedDocumentStatus = (
   document: IDocument): IDocument["status"] => {
   const recipients = document.recipients || [];
+  const signers = recipients.filter((r: any) => r?.role === "signer");
+  const approvers = recipients.filter((r: any) => r?.role === "approver");
+  const approversComplete =
+    approvers.length === 0 || approvers.every((r: any) => r?.status === "approved");
+
+  // Condition: Document voided/cancelled manually
+  if (document.status === "voided") {
+    return "voided";
+  }
+  if (document.status === "cancelled") {
+    return "cancelled";
+  }
+
+  // Condition: Completion evidence should never be downgraded
+  if (hasCompletionEvidence(document)) {
+    return "completed";
+  }
 
   // Condition: No recipients or all are pending
   if (recipients.length === 0 || recipients.every((r) => r.status === "pending")) {
     return "draft";
-  }
-
-  // Condition: Document cancelled manually
-  if (document.status === "cancelled") {
-    return "cancelled";
   }
 
   // Condition: Any recipient has delivery_failed
@@ -35,40 +86,27 @@ export const getUpdatedDocumentStatus = (
     return "expired";
   }
 
-  const signersAndApprovers = recipients.filter(
-    (r) => r.role === "signer" || r.role === "approver"
-  );
+  const signersComplete =
+    signers.length > 0 &&
+    signers.every((r: any) => r?.status === "signed" && typeof r?.signedVersion === "number");
 
-  const allRequiredDone =
-    signersAndApprovers.length > 0 &&
-    signersAndApprovers.every(
-      (r) => r.status === "signed" || r.status === "approved"
-    );
-
-  // Condition: All required recipients (signers + approvers) are done
-  if (allRequiredDone) {
+  // Condition: All recipients are signed
+  if (signersComplete && approversComplete) {
     return "completed";
   }
 
-  // Condition: Only viewers present, all viewed
-  if (signersAndApprovers.length === 0) {
-    // This case is now handled by the "sent" or "in_progress" status if viewers have viewed.
-    // If there are only viewers and all have viewed, it's still "in_progress" or "sent" until all have viewed.
-    // If all viewers have viewed, and there are no signers/approvers, it should be completed.
-    // Re-evaluating this logic: if there are only viewers, and all have viewed, the document is considered "completed" for its purpose.
-    if (recipients.every(r => r.role === 'viewer' && r.status === 'viewed')) {
-      return "completed";
-    }
-  }
+  const hasSigned = recipients.some((r) => r.status === "signed");
+  const hasNotSigned = recipients.some((r) => r.status !== "signed");
 
-  // Condition: Partial signing/approving still in progress
-  // Condition: At least one recipient viewed but not completed
-  if (recipients.some((r) => r.status === "viewed")) {
+  // Condition: Partial signing (some signed, some not signed)
+  if (hasSigned && hasNotSigned) {
     return "in_progress";
   }
 
-  // Condition: At least one recipient sent but no one viewed
-  if (recipients.some((r) => r.status === "sent")) {
+  // Note: completion requires all recipients to be signed per audit policy.
+
+  // Condition: At least one recipient sent or viewed but no one signed
+  if (recipients.some((r) => r.status === "sent" || r.status === "viewed")) {
     return "sent";
   }
 

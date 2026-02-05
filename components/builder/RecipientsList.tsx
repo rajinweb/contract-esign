@@ -8,6 +8,7 @@ interface RecipientsListProps {
   onReorder?: (reorderedRecipients: Recipient[]) => void;
   isDraggable?: boolean;
   inlineView?: boolean;
+  showStatus?: boolean;
 }
 
 interface DragState {
@@ -22,6 +23,7 @@ const RecipientsList = React.memo(function RecipientsList({
   onReorder,
   isDraggable = false, 
   inlineView = false,
+  showStatus = false,
 }: RecipientsListProps) {
   const [dragState, setDragState] = useState<DragState>({
     draggingId: null,
@@ -34,6 +36,17 @@ const RecipientsList = React.memo(function RecipientsList({
 
   const itemHeight = 48;
   const itemGap = 8;
+
+  const statusStyles: Record<string, string> = {
+    signed: 'bg-green-100 text-green-700',
+    approved: 'bg-emerald-100 text-emerald-700',
+    viewed: 'bg-yellow-100 text-yellow-700',
+    sent: 'bg-blue-100 text-blue-700',
+    pending: 'bg-gray-100 text-gray-600',
+    rejected: 'bg-red-100 text-red-700',
+    delivery_failed: 'bg-red-100 text-red-700',
+    expired: 'bg-orange-100 text-orange-700',
+  };
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, recipientId: string) => {
@@ -217,6 +230,20 @@ const RecipientsList = React.memo(function RecipientsList({
                         {Icon && <Icon size={12} />}
                         {recipient.totalFields} fields
                       </span>
+                      {showStatus && (
+                        <div className="mt-1 flex items-center gap-2 text-[10px]">
+                          <span
+                            className={`px-2 py-0.5 rounded-full uppercase tracking-wide ${statusStyles[recipient.status] || 'bg-gray-100 text-gray-600'}`}
+                          >
+                            {recipient.status?.replace('_', ' ')}
+                          </span>
+                          {recipient.status === 'signed' && recipient.signedAt && (
+                            <span className="text-gray-500">
+                              {new Date(recipient.signedAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                       {/* <div className="w-5 h-5 flex items-center justify-center rounded-full text-white text-[10px] font-semibold"
                       style={{ backgroundColor: recipient.color }}> {recipient.order} 
