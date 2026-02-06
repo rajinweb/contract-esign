@@ -1,15 +1,15 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
-export const getRegion = () => process.env.AWS_REGION || 'us-east-1';
+export const getRegion = () => process.env.REGION_AWS || 'us-east-1';
 // Keep for backward compatibility
-export const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+export const REGION_AWS = process.env.REGION_AWS || 'us-east-1';
 
 const s3 = new S3Client({
   region: getRegion(),
-  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  credentials: process.env.ACCESS_AWS_KEY_ID && process.env.SECRET_AWS_ACCESS_KEY ? {
+    accessKeyId: process.env.ACCESS_AWS_KEY_ID,
+    secretAccessKey: process.env.SECRET_AWS_ACCESS_KEY,
   } : undefined,
 });
 
@@ -44,9 +44,9 @@ export async function getObjectStream(params: { bucket: string; key: string; reg
   if (region !== getRegion()) {
     client = new S3Client({
       region: region,
-      credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      credentials: process.env.ACCESS_AWS_KEY_ID && process.env.SECRET_AWS_ACCESS_KEY ? {
+        accessKeyId: process.env.ACCESS_AWS_KEY_ID,
+        secretAccessKey: process.env.SECRET_AWS_ACCESS_KEY,
       } : undefined,
     });
   }
@@ -70,9 +70,9 @@ export async function deleteObject(params: { bucket: string; key: string; region
   if (region !== getRegion()) {
     client = new S3Client({
       region: region,
-      credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      credentials: process.env.ACCESS_AWS_KEY_ID && process.env.SECRET_AWS_ACCESS_KEY ? {
+        accessKeyId: process.env.ACCESS_AWS_KEY_ID,
+        secretAccessKey: process.env.SECRET_AWS_ACCESS_KEY,
       } : undefined,
     });
   }
@@ -100,9 +100,9 @@ export async function copyObject(params: {
   if (region !== getRegion()) {
     client = new S3Client({
       region: region,
-      credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      credentials: process.env.ACCESS_AWS_KEY_ID && process.env.SECRET_AWS_ACCESS_KEY ? {
+        accessKeyId: process.env.ACCESS_AWS_KEY_ID,
+        secretAccessKey: process.env.SECRET_AWS_ACCESS_KEY,
       } : undefined,
     });
   }

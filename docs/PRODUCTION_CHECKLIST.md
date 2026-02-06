@@ -15,9 +15,9 @@ This checklist is intended to be a repeatable, safe gate before deploying the e-
   - `NEXTAUTH_SECRET`
   - `NEXTAUTH_URL`
   - `NEXT_PUBLIC_BASE_URL`
-  - `AWS_ACCESS_KEY_ID`
-  - `AWS_SECRET_ACCESS_KEY`
-  - `AWS_REGION`
+  - `ACCESS_AWS_KEY_ID`
+  - `SECRET_AWS_ACCESS_KEY`
+  - `REGION_AWS`
   - `S3_BUCKET_NAME`
   - `SMTP_HOST`
   - `SMTP_PORT`
