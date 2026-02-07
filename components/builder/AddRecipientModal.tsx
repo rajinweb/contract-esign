@@ -8,6 +8,8 @@ import Input from '../forms/Input';
 import { Button } from '../Button';
 import Modal from '../Modal';
 import { validateEmail } from '@/utils/utils';
+import CreatableSelect from 'react-select/creatable';
+import { StylesConfig } from 'react-select';
 
 interface AddRecipientModalProps {
   isOpen: boolean;
@@ -36,7 +38,6 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState<string | null>(null);
-  const [showContactsDropdown, setShowContactsDropdown] = useState<string | null>(null);
   const [editingAlias, setEditingAlias] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
@@ -151,6 +152,42 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
     }
   };
 
+  type ContactOption = { value: string; label: string; contact?: Contact };
+
+  const contactOptions: ContactOption[] = contacts.map(contact => ({
+    value: contact.email.toLowerCase(),
+    label: `${contact.firstName} ${contact.lastName}`.trim()
+      ? `${contact.firstName} ${contact.lastName}`.trim() + ` ${contact.email}`
+      : contact.email,
+    contact,
+  }));
+
+  const menuPortalTarget = typeof window !== 'undefined' ? document.body : undefined;
+
+  const getSelectStyles = (hasError: boolean): StylesConfig<ContactOption, false> => ({
+    control: (base, state) => ({
+      ...base,
+      minHeight: '36px',
+      borderColor: hasError ? '#EF4444' : state.isFocused ? '#3B82F6' : '#D1D5DB',
+      boxShadow: state.isFocused ? '0 0 0 1px #3B82F6' : 'none',
+      '&:hover': { borderColor: hasError ? '#EF4444' : state.isFocused ? '#3B82F6' : '#9CA3AF' },
+    }),
+    menuPortal: (base) => ({ ...base, zIndex: 1000001 }),
+  });
+
+  const formatContactOptionLabel = (option: ContactOption) => {
+    if (!option.contact) {
+      return <span className="text-sm text-gray-900">{option.label}</span>;
+    }
+    const name = `${option.contact.firstName} ${option.contact.lastName}`.trim();
+    return (
+      <div className="flex flex-col">
+        <span className="text-sm text-gray-900">{name || option.contact.email}</span>
+        <span className="text-xs text-gray-500">{option.contact.email}</span>
+      </div>
+    );
+  };
+
   const addRecipient = (isCC = false) => {
     setDraftRecipients(prev => {
       const existingNames = prev.map(r => r.name);
@@ -239,10 +276,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
     }
 
     updateRecipient(recipientId, { email: contact.email, name: nameToUpdate });
-    setShowContactsDropdown(null);
 
-    // 🔑 Do NOT re-run validateForm here
-    // User will only be validated on blur or on Save
   };
 
 
@@ -321,56 +355,46 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      id={`email-input-${recipient.id}`}
-                      type="email"
-                      autoComplete="off"
-                      value={recipient.email}
-                      onFocus={() => setShowContactsDropdown(recipient.id)}
-                      onBlur={() => { handleEmailBlur(recipient.id); setTimeout(() => setShowContactsDropdown(null), 150); }}
-                      onChange={e => updateRecipient(recipient.id, { email: e.target.value })}
-                      placeholder="Enter email or add from contacts"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 ${hasEmailError ? 'border-red-500' : 'border-gray-300'}`}
+                  <div className="flex-1">
+                    <CreatableSelect<ContactOption, false>
+                      instanceId={`contact-select-${recipient.id}`}
+                      isClearable
+                      isSearchable
+                      isLoading={loadingContacts}
+                      placeholder="Select or type email"
+                      options={contactOptions}
+                      formatOptionLabel={formatContactOptionLabel}
+                      getOptionValue={(option) => option.value}
+                      value={
+                        recipient.email
+                          ? contactOptions.find(option => option.value === recipient.email.toLowerCase())
+                            ?? { value: recipient.email, label: recipient.email }
+                          : null
+                      }
+                      onChange={(option) => {
+                        if (!option) {
+                          updateRecipient(recipient.id, { email: '' });
+                          return;
+                        }
+                        if (option.contact) {
+                          selectContactForRecipient(recipient.id, option.contact);
+                          return;
+                        }
+                        updateRecipient(recipient.id, { email: option.value });
+                      }}
+                      onInputChange={(inputValue, actionMeta) => {
+                        if (actionMeta.action === 'input-change') {
+                          updateRecipient(recipient.id, { email: inputValue });
+                        }
+                      }}
+                      onBlur={() => handleEmailBlur(recipient.id)}
+                      formatCreateLabel={(inputValue) => `Use \"${inputValue}\"`}
+                      isValidNewOption={(inputValue) => validateEmail(inputValue)}
+                      noOptionsMessage={() => loadingContacts ? 'Loading...' : 'No contacts found'}
+                      menuPortalTarget={menuPortalTarget}
+                      menuPosition="fixed"
+                      styles={getSelectStyles(hasEmailError)}
                     />
-                    <button
-                      onMouseDown={(e) => e.preventDefault()} // Prevents onBlur from firing on the input
-                      onClick={() => setShowContactsDropdown(showContactsDropdown === recipient.id ? null : recipient.id)}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <Users className="w-4 h-4" />
-                    </button>
-
-                    {showContactsDropdown === recipient.id && (
-                      <DropdownPortal targetId={`email-input-${recipient.id}`} dropdown={showContactsDropdown} onClose={() => setShowContactsDropdown(null)}>
-                        <div onMouseDown={(e) => e.preventDefault()} className="bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {loadingContacts ? (
-                            <div className="p-3 text-center text-gray-500">Loading...</div>
-                          ) : contacts.length > 0 ? (
-                            contacts
-                              .filter(c => {
-                                const query = (recipient.email || '').toLowerCase();
-                                const name = `${c.firstName} ${c.lastName}`.toLowerCase();
-                                return !query || c.email.toLowerCase().includes(query) || name.includes(query);
-                              })
-                              .map(contact => (
-                                <button key={contact._id} onClick={() => selectContactForRecipient(recipient.id, contact)} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left">
-                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-medium">
-                                    {contact.firstName.charAt(0)}{contact.lastName.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{contact.firstName} {contact.lastName}</p>
-                                    <p className="text-xs text-gray-500">{contact.email}</p>
-                                  </div>
-                                </button>
-                              ))
-                          ) : (
-                            <div className="p-3 text-center text-gray-500">No contacts found</div>
-                          )}
-                        </div>
-                      </DropdownPortal>
-                    )}
-
                   </div>
                   {!recipient.isCC && (
                     <div className="relative">

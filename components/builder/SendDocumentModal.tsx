@@ -78,7 +78,8 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send document');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to send document');
       }
       toast.success(`Document sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
       onSendComplete?.({

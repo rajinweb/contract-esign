@@ -57,10 +57,7 @@ export async function POST(
     const currentVersion = sourceDocument.versions.find(
       (v: any) => v.version === sourceDocument.currentVersion
     );
-    const sourceVersion =
-      sourceDocument.status === 'voided'
-        ? latestPrepared || fallbackOriginal || currentVersion
-        : currentVersion;
+    const sourceVersion = latestPrepared || fallbackOriginal || currentVersion;
 
     if (!sourceVersion?.storage?.provider || sourceVersion.storage.provider !== 's3') {
       return NextResponse.json({ message: 'Source document storage provider is unsupported.' }, { status: 400 });
@@ -76,7 +73,7 @@ export async function POST(
       userId,
       documentName: sourceDocument.documentName,
       originalFileName: sourceDocument.originalFileName,
-      currentVersion: 0,
+      currentVersion: 1,
       currentSessionId: `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       versions: [],
       recipients: derivedRecipients,
@@ -120,7 +117,46 @@ export async function POST(
       updatedAt: new Date(),
     };
 
-    newDocument.versions.push(originalVersion);
+    const preparedKey = `documents/${userId}/${newDocument._id}/prepared_1.pdf`;
+    await copyObject({
+      sourceBucket: bucket,
+      sourceKey: destinationKey,
+      destinationBucket: bucket,
+      destinationKey: preparedKey,
+      region: sourceVersion.storage.region || getRegion(),
+    });
+
+    const preparedFields = Array.isArray(latestPrepared?.fields)
+      ? latestPrepared.fields
+      : Array.isArray(sourceVersion?.fields)
+        ? sourceVersion.fields
+        : [];
+    const preparedVersion = {
+      version: 1,
+      label: 'prepared',
+      derivedFromVersion: 0,
+      storage: {
+        provider: 's3',
+        bucket,
+        key: preparedKey,
+        region: sourceVersion.storage.region || getRegion(),
+        url: `s3://${bucket}/${preparedKey}`,
+      },
+      hash: sourceVersion.hash,
+      hashAlgo: sourceVersion.hashAlgo || 'SHA-256',
+      size: sourceVersion.size,
+      mimeType: sourceVersion.mimeType,
+      locked: false,
+      fields: preparedFields,
+      documentName: sourceDocument.documentName,
+      status: 'draft',
+      changeLog: 'Document prepared for signing',
+      editHistory: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    newDocument.versions.push(originalVersion, preparedVersion);
     await newDocument.save();
 
     await AuditLogModel.create({

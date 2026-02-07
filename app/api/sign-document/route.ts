@@ -102,7 +102,6 @@ export async function POST(req: NextRequest) {
             const hasValue = value !== undefined && value !== null && String(value).trim() !== '';
             if (!hasValue) return false;
             if (field?.recipientId === recipient.id) return false;
-            if (field?.isPrivate) return true;
             // Allow previously signed recipients' values to remain visible
             return !signedRecipientIds.has(field?.recipientId);
         });
@@ -365,15 +364,7 @@ export async function GET(req: NextRequest) {
 
         let fields = normalizeFields(Array.isArray(preparedVersion?.fields) ? preparedVersion.fields : []);
 
-        if (recipient?.id) {
-            fields = fields.map((field: any) => {
-                const isPrivate = Boolean(field?.isPrivate);
-                if (isPrivate && field?.recipientId && field.recipientId !== recipient.id) {
-                    return { ...field, value: '' };
-                }
-                return field;
-            });
-        }
+        // No per-field privacy enforcement (feature removed)
 
         const signedRecipientIds = document.recipients
             .filter((r: any) => r?.status === 'signed' || r?.status === 'approved')
@@ -409,10 +400,6 @@ export async function GET(req: NextRequest) {
                     fields = fields.map((field: any) => {
                         const fieldId = String(field?.id ?? '');
                         if (!fieldId) return field;
-                        const isPrivate = Boolean(field?.isPrivate);
-                        if (isPrivate && field?.recipientId && field.recipientId !== recipient.id) {
-                            return { ...field, value: '' };
-                        }
                         const signedValue = fieldValueMap.get(fieldId);
                         if (!signedValue) return field;
                         return { ...field, value: signedValue.value };

@@ -45,6 +45,9 @@ const LoginPage: React.FC = () => {
         localStorage.setItem('User', JSON.stringify(json.user));
         setUser(json.user);
       }
+      if (json?.token) {
+        localStorage.setItem('AccessToken', json.token);
+      }
       setIsLoggedIn(true);
       router.replace('/dashboard');
       setShowModal(false)

@@ -10,6 +10,7 @@ interface MenuItem  {
   type?: 'checkbox' | 'divider';
   checked?: boolean;
   className?: string;
+  disabled?: boolean;
   action?: () => void;
 }
 
@@ -32,12 +33,15 @@ const MoreActions: React.FC<MoreActionsProps> = ({ menuItems, triggerIcon: Trigg
 
             const Icon = item.icon;
             const SubIcon = item.subIcon;
+            const isDisabled = item.disabled;
 
             return (
               <div
                 key={index}
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                className={`flex items-center px-4 py-2 text-sm text-gray-700 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer'}`}
+                aria-disabled={isDisabled}
                 onClick={() => {
+                  if (isDisabled) return;
                   if (item.action) {
                     item.action();
                   }
