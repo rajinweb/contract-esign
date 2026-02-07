@@ -27,6 +27,9 @@ const GoogleSignInButton: React.FC = () => {
     if (data?.user) {
       // Cookie-based flow: server set httpOnly cookie and returned user
       localStorage.setItem('User', JSON.stringify(data.user));
+      if (data?.token) {
+        localStorage.setItem('AccessToken', data.token);
+      }
       setUser(data.user);
       setIsLoggedIn(true);
       router.replace('/dashboard');

@@ -1,5 +1,5 @@
 "use client";
-import React, { MouseEvent, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Rnd, DraggableData } from 'react-rnd';
 import { DroppedComponent, Recipient } from '@/types/types';
 import MultilineTextField from './MultilineTextField';
@@ -21,15 +21,14 @@ interface DroppedComponentsProps {
   onAssignRecipient: (fieldId: number, recipientId: string | null) => void;
   onDuplicateField: (field: DroppedComponent) => void;
   onDeleteField: (field: DroppedComponent) => void;
-  onTogglePrivacy: (fieldId: number, isPrivate: boolean) => void;
   updateField: (data: string | null, id: number) => void;
   handleDragStop: (e: MouseEvent | TouchEvent, item: DroppedComponent, data: DraggableData) => void;
   handleResizeStop: (
     e: MouseEvent | TouchEvent,
-    item: DroppedComponent, 
-    ref: { style: { width: string; height: string } }, 
-    pos: { x: number, y: number }, 
-    delta: { width: number, height: number }
+    item: DroppedComponent,
+    ref: { style: { width: string; height: string } },
+    pos: { x: number, y: number },
+    delta?: { width: number, height: number }
   ) => void;
   textFieldRefs: React.MutableRefObject<Record<number, HTMLTextAreaElement | null>>;
   zoom: number;
@@ -50,7 +49,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   onAssignRecipient,
   onDuplicateField,
   onDeleteField,
-  onTogglePrivacy,
   updateField,
   handleDragStop,
   handleResizeStop,
@@ -217,7 +215,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
-            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e as unknown as MouseEvent, item, ref, position, delta)}
+            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e, item, ref, position, delta)}
           
             {...(!isSigningMode && !isReadOnly && isSelected && {
                 resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight'].reduce(
@@ -235,7 +233,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 })
               }
             )}
-            onClick={(e:MouseEvent)=>  {
+            onClick={(e: React.MouseEvent<HTMLDivElement>) =>  {
               if (!isCurrentUserField || isFieldReadOnly) return;
               e.stopPropagation();
               setSelectedFieldId(isSelected ? null : item.id)
@@ -255,7 +253,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
               <div className="absolute -top-12 left-0 right-0 z-50 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                {item.fieldOwner === 'me' && !isSigningMode && (
                 <Button
-                  onClick={(e) => onClickField(e as MouseEvent, item, true)}
+                  onClick={(e?: React.MouseEvent<HTMLButtonElement>) => {
+                    if (!e) return;
+                    onClickField(e, item, true);
+                  }}
                   className="shadow-lg"
                   title="Change or Add value in the field"
                   icon={<Pencil size={16} className="text-gray-600" />}
@@ -268,7 +269,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
                 onAssignRecipient={onAssignRecipient}
                 onDuplicateField={onDuplicateField}
                 onDeleteField={()=> onDeleteField(item)}
-                onTogglePrivacy={onTogglePrivacy}
                 onAddRecipients={onAddRecipients}
               />
             </div>            

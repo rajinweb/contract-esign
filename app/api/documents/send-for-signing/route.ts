@@ -6,6 +6,7 @@ import { sendSigningRequestEmail } from '@/lib/email';
 import { updateDocumentStatus } from '@/lib/statusLogic';
 import { Recipient } from '@/types/types';
 import { buildEventClient, buildEventConsent, buildEventGeo, getLatestPreparedVersion, getNextSequentialOrder, normalizeIp } from '@/lib/signing-utils';
+import { copyObject, getRegion } from '@/lib/s3';
 
 // POST - Send a document for signing
 export async function POST(req: NextRequest) {
@@ -33,7 +34,71 @@ export async function POST(req: NextRequest) {
     /* ======================================================
       1️⃣ LOCK PREPARED VERSION (CANONICAL PDF)
     ====================================================== */
-    const preparedVersion = getLatestPreparedVersion(document.versions || []);
+    let preparedVersion = getLatestPreparedVersion(document.versions || []);
+    if (!preparedVersion) {
+      const versions = Array.isArray(document.versions) ? document.versions : [];
+      const fallbackVersion =
+        versions.find((v: any) => v?.version === document.currentVersion) ||
+        versions.find((v: any) => v?.label === 'original') ||
+        versions[versions.length - 1];
+
+      if (!fallbackVersion || !fallbackVersion?.storage?.key) {
+        return NextResponse.json(
+          { message: 'Prepared version not found' },
+          { status: 400 }
+        );
+      }
+      if (fallbackVersion.storage.provider !== 's3') {
+        return NextResponse.json(
+          { message: 'Source document storage provider is unsupported.' },
+          { status: 400 }
+        );
+      }
+
+      const bucket = fallbackVersion.storage.bucket || process.env.S3_BUCKET_NAME;
+      if (!bucket) {
+        return NextResponse.json({ message: 'S3 bucket not configured.' }, { status: 500 });
+      }
+
+      const preparedVersionNumber = (document.currentVersion ?? 0) + 1;
+      const preparedKey = `documents/${userId}/${document._id}/prepared_${preparedVersionNumber}.pdf`;
+      await copyObject({
+        sourceBucket: bucket,
+        sourceKey: fallbackVersion.storage.key,
+        destinationBucket: bucket,
+        destinationKey: preparedKey,
+        region: fallbackVersion.storage.region || getRegion(),
+      });
+
+      preparedVersion = {
+        version: preparedVersionNumber,
+        label: 'prepared',
+        derivedFromVersion: fallbackVersion.version,
+        storage: {
+          provider: 's3',
+          bucket,
+          key: preparedKey,
+          region: fallbackVersion.storage.region || getRegion(),
+          url: `s3://${bucket}/${preparedKey}`,
+        },
+        hash: fallbackVersion.hash,
+        hashAlgo: fallbackVersion.hashAlgo || 'SHA-256',
+        size: fallbackVersion.size,
+        mimeType: fallbackVersion.mimeType,
+        locked: false,
+        fields: Array.isArray(fallbackVersion.fields) ? fallbackVersion.fields : [],
+        documentName: document.documentName,
+        status: 'draft',
+        changeLog: 'Document prepared for signing',
+        editHistory: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any;
+
+      document.versions.push(preparedVersion);
+      document.currentVersion = preparedVersionNumber;
+    }
+
     if (!preparedVersion) {
       return NextResponse.json(
         { message: 'Prepared version not found' },

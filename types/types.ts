@@ -141,7 +141,6 @@ export interface DroppedComponent extends DroppingField {
   placeholder?: string;
   pageRect?: PageRect | DOMRect | null;
   hasError?: boolean;
-  isPrivate?: boolean;
 }
 export interface Address {
   country?: string;
@@ -288,7 +287,6 @@ export interface DocumentField {
   mimeType?: string;
   pageRect?: PageRect | DOMRect | null;
   fieldOwner?: FieldOwner;
-  isPrivate?: boolean;
 }
 
 // Document Version & History

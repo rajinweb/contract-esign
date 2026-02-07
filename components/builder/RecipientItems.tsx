@@ -7,7 +7,7 @@ import { Type, ArrowLeft, LineSquiggle, Signature } from "lucide-react";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
 import { DroppingField, SignatureInitial } from "@/types/types";
-import { useRenderCanvas } from "@/hooks/useRenderCanvas";
+import { useRenderCanvas } from "@/hooks/builder/useRenderCanvas";
 
 /* ================= Types ================= */
 

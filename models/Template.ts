@@ -64,7 +64,6 @@ const TemplateFieldSchema = new Schema<ITemplateField>({
     value: { type: String, default: '' },
     placeholder: { type: String },
     mimeType: { type: String },
-    isPrivate: { type: Boolean, default: false },
     defaultValue: { type: String },
     helpText: { type: String },
 });

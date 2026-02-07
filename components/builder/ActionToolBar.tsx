@@ -44,6 +44,8 @@ interface ActionToolBarProps {
   onRedo: () => void;
   recipients: Recipient[];
   onSendDocument: () => void;
+  isAlreadySent?: boolean;
+  onVoidAndDerive?: () => void;
   hasUnsavedChanges: boolean;
   droppedItems: DroppedComponent[];
   onSaveAsTemplate?: () => void;
@@ -63,6 +65,8 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   onRedo,
   recipients,
   onSendDocument,
+  isAlreadySent = false,
+  onVoidAndDerive,
   hasUnsavedChanges,
   droppedItems = [],
   onSaveAsTemplate,
@@ -92,6 +96,7 @@ const menuItems = [
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const hasSelfFields = droppedItems.some(item => item.fieldOwner === 'me');
 
 
   const router = useRouter();
@@ -213,13 +218,19 @@ const menuItems = [
     setSaveStatus('saving');
     try {
       const success = await handleSavePDF({ isServerSave: true });
+      if (success === null) {
+        setSaveStatus('idle');
+        toast.error('Document not ready to save. Try again in a moment.');
+        return;
+      }
       if (success) {
         setSaveStatus('saved');
         setLastSaved(new Date());
         toast.success('Saved ✓');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } else {
-        throw new Error('Save failed');
+        setSaveStatus('idle');
+        toast.error('Save failed. Please try again.');
       }
     } catch (error) {
       setSaveStatus('idle');
@@ -383,11 +394,27 @@ const menuItems = [
             />
           <Button
             onClick={handleSendClick}
-            disabled={recipients.length === 0 || hasUnsavedChanges}
-            title={recipients.length === 0 ? "Add recipients first" : "Send document to recipients"}
+            disabled={isAlreadySent || recipients.length === 0 || hasUnsavedChanges}
+            title={
+              isAlreadySent
+                ? "This document already has an active signing request"
+                : recipients.length === 0
+                ? "Add recipients first"
+                : "Send document to recipients"
+            }
             label={`Send ${recipients.length}`}
             icon={<Send size={18}/>}
           />
+          {isAlreadySent && (
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-amber-600">Already sent</div>
+              <Button
+                onClick={() => onVoidAndDerive?.()}
+                title="Void the current request and start a new signing cycle"
+                label="Void & Create New Revision"
+              />
+            </div>
+          )}
           <Button icon={<LogOut size={16} />} inverted title="Exit from builder" onClick={()=> router.replace('/dashboard')} />
         </div>
       </div>
@@ -424,11 +451,9 @@ const menuItems = [
       <Button icon={<Eye size={16} />} label="Open Preview" inverted className="border-0 bg-gray-100 hover:bg-gray-200 text-gray-700"  />
       <div className="w-px h-6 bg-gray-200 mx-2" />
        <MoreActions  menuItems={[ 
-          { label: "Download PDF", icon: Download, action:downloadDoc },
+          { label: "Download original PDF", icon: Download, action:downloadDoc },
           { type: "divider", label: "" },
-          { label: "Merge and download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true })},
-          { type: "divider", label: "" },
-          { label: "Merge Fields Into PDF", icon: Merge, action: ()=> handleSavePDF({ isMergeFields: true })},
+          { label: "Self‑Signed Download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true }), disabled: !hasSelfFields}
          ]} triggerIcon={Download} />
              <div className="w-px h-6 bg-gray-200 mx-2" />
       <Button aria-label="Help" icon={<HelpCircle size={16} />} inverted className="border-0"/>

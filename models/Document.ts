@@ -118,7 +118,6 @@ const DocumentFieldSchema = new Schema<DocumentField>({
   placeholder: { type: String },
   mimeType: { type: String },
   fieldOwner: { type: String, default: 'recipient' },
-  isPrivate: { type: Boolean, default: false },
 });
 
 const DocumentRecipientSchema = new Schema<IDocumentRecipient>({

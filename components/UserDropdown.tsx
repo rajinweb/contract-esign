@@ -18,6 +18,7 @@ const UserDropdown = () => {
     } finally {
       // Clear local storage and state
       localStorage.removeItem('User');
+      localStorage.removeItem('AccessToken');
       setIsLoggedIn(false);
       setSelectedFile(null);
       setUser(null);

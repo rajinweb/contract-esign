@@ -1,6 +1,6 @@
 "use client";
 
-import { useRenderCanvas } from "@/hooks/useRenderCanvas";
+import { useRenderCanvas } from "@/hooks/builder/useRenderCanvas";
 import React, { useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 

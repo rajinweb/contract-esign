@@ -76,7 +76,6 @@ export const uploadToServer = async (
             mimeType: comp.mimeType,
             pageRect: serializePageRect(comp.pageRect),
             fieldOwner: comp.fieldOwner,
-            isPrivate: comp.isPrivate
         }));
         const response = await fetch("/api/sign-document", {
             method: "POST",
@@ -142,7 +141,8 @@ export const uploadToServer = async (
         `/api/documents/load?id=${documentId}`,
         {
             headers,
-            cache: "no-store"
+            cache: "no-store",
+            credentials: "include"
         }
     );
 
@@ -172,7 +172,6 @@ export const uploadToServer = async (
         mimeType: comp.mimeType,
         pageRect: serializePageRect(comp.pageRect),
         fieldOwner: comp.fieldOwner,
-        isPrivate: comp.isPrivate
     }));
 
     /* ===============================
@@ -246,7 +245,9 @@ export const uploadToServer = async (
     });
 
     if (!response.ok) {
-        throw new Error(`Upload failed (${response.status})`);
+        const errorData = await response.json().catch(() => null);
+        const message = errorData?.message || errorData?.error || `Upload failed (${response.status})`;
+        throw new Error(message);
     }
 
     const result = await response.json();
