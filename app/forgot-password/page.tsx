@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/Button';
 import Input from '@/components/forms/Input';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -84,13 +85,14 @@ const ForgotPasswordPage = () => {
               </div>
 
               {/* Submit Button */}
-              <button
+              <Button
                 type="submit"
                 disabled={isSubmitting || !email}
                 className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Sending...' : 'Send reset link'}
-              </button>
+                label={isSubmitting ? 'Sending reset link...' : 'Send reset link'}
+                
+              />
+               
 
               {/* Back to Login */}
               <p className="text-xs text-center mt-4 font-poppins">

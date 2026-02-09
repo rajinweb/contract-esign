@@ -7,7 +7,6 @@ import { FileText, Settings, PenLine, CheckLine,
   Download,
   HelpCircle,
   LayoutGrid,
-  ChevronLeft,
   ChevronDown,
   FolderIcon,
   History,
@@ -19,7 +18,8 @@ import { FileText, Settings, PenLine, CheckLine,
   LogOut,
   Save,
   Send,
-  Heart
+  Heart,
+  MoveLeft
  } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
@@ -74,9 +74,22 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   setShowModal,
   checkFieldError,
 }) => {
+const hasSelfFields = droppedItems.some(item => item.fieldOwner === 'me');
+const downloadDoc=async () => {
+      if (!isLoggedIn) {
+        setShowModal?.(true);
+        return;
+      }
+      if (!selectedFile) return;
+      const pdfDoc = await loadPdf(selectedFile as File | string );
+      const blob = await savePdfBlob(pdfDoc);
+      downloadPdf(blob, documentName);
+  }
 const menuItems = [
   { label: 'Save as Template', icon: Heart,  action:() => onSaveAsTemplate && onSaveAsTemplate()},
-  { label: 'Download', icon: Download },
+    { type: "divider", label: "" },
+  { label: "Download original PDF", icon: Download, action:downloadDoc },
+  { label: "Self‑Signed Download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true }), disabled: !hasSelfFields},
   { label: 'Download with History', icon: History },
   { label: 'History', icon: History },
   { type: 'divider' },
@@ -96,22 +109,13 @@ const menuItems = [
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const hasSelfFields = droppedItems.some(item => item.fieldOwner === 'me');
+  
 
 
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const downloadDoc=async () => {
-      if (!isLoggedIn) {
-        setShowModal?.(true);
-        return;
-      }
-      if (!selectedFile) return;
-      const pdfDoc = await loadPdf(selectedFile as File | string );
-      const blob = await savePdfBlob(pdfDoc);
-      downloadPdf(blob, documentName);
-  }
+ 
 
   const [documentMetadata, setDocumentMetadata] = useState<{
     createdAt?: Date;
@@ -261,7 +265,6 @@ const menuItems = [
     setIsUnsavedChangesDialogVisible(false);
   };
 
-  const onBackClick = () => router.back();
 
   return (
     <>
@@ -272,112 +275,115 @@ const menuItems = [
         onSaveAndContinue={handleSaveAndContinue}
       />
 
-    <div className="bg-white px-3 py-2 flex items-center">
-      <div className="flex flex-1 items-center">
-        {/* Left main section */}
-        <div className="flex flex-1 items-center min-w-0 px-1">
-          <div className="flex items-center gap-4 min-w-0">
-            {/* Back Button */}
-            <Button
-              aria-label="Press to go back"
-              tabIndex={200}
-              onClick={onBackClick}
-              icon={  <ChevronLeft size={16} />}
-              inverted={true}
-           />
-           <div
-              className="flex items-center bg-blue-50 rounded px-2 py-1 w-[350px] justify-between space-x-2"
-            >
-              <FileText  size={18} className="text-blue-600 flex-shrink-0" />
+    <div className="px-3 py-2 flex border-b">
+      {/* Left main section */}
+      <div className="flex flex-1 items-center gap-2">
+           <div className="flex items-center bg-blue-50 rounded px-2 py-1 w-[260px] justify-between space-x-2">
+              <FileText  size={16} className="text-blue-600 flex-shrink-0" />
 
               {/* Rename  */}
               {isEditingFileName ? (
-                    <>
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={documentName}
-                      onChange={(e) => setDocumentName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') setIsEditingFileName(false);
-                      }}
-                        className="truncate text-xs focus:outline-0 w-[80%] p-1"
-                    />
-                    <CheckLine
-                      size={18}
-                        className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => setIsEditingFileName(false)}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <span className="truncate text-xs w-[80%] p-1">{documentName}</span>
-                      <PenLine
-                      size={18}
-                        className="cursor-pointer text-gray-600 hover:text-blue-600"
-                        onClick={() => setIsEditingFileName(true)}
-                      />
-                    </>
-                  )}
+                <>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={documentName}
+                  onChange={(e) => setDocumentName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsEditingFileName(false);
+                  }}
+                    className="truncate text-xs focus:outline-0 p-1"
+                />
+                <CheckLine
+                  size={16}
+                    className="cursor-pointer text-gray-600 hover:text-blue-600"
+                    onClick={() => setIsEditingFileName(false)}
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="truncate text-xs">{documentName}</span>
+                  <PenLine
+                  size={16}
+                    className="cursor-pointer text-gray-600 hover:text-blue-600"
+                    onClick={() => setIsEditingFileName(true)}
+                  />
+                </>
+              )}
             </div>
-          </div>
-
           {/* ---info --*/}
-
-          <div className="ml-2 relative dropdown">
-                <button className="inline-flex items-center gap-1 rounded-full border border-gray-300 px-3 py-1 text-gray-700 text-sm hover:bg-gray-100" 
-                type="button" aria-haspopup="true" aria-expanded="true">
-                  <span>Info</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              <div className="w-[300px] mt-2 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg outline-none absolute opacity-0 invisible dropdown-menu transition-all duration-300 transform -translate-y-2 scale-95 z-20">
-                <div className="px-4 py-3 text-sm text-gray-900 space-y-1">
+          <Button className="text-xs !p-1 text-gray-700 !rounded-xl text-left relative dropdown" 
+            type="button" aria-haspopup="true" aria-expanded="true"
+            title="Info"
+            inverted
+          >
+            <span>Info</span>
+            <ChevronDown size={16}  />
+              <div className="px-4 py-3 text-sm text-gray-900 space-y-1 w-[250px] mt-2  bg-white border border-gray-200 divide-y divide-gray-100 rounded-md shadow-lg outline-none absolute opacity-0 invisible dropdown-menu transition-all duration-300 transform z-20 top-6 left-0">
+                  <div>
+                    <small className="mb-4 text-gray-500"> Created on </small>
+                    <p>{documentMetadata?.createdAt?.toLocaleString() || "Unknown"}</p>
+                  </div>
+                {documentMetadata?.lastModified && (
+                  <div>
+                  <small className="mb-4 text-gray-500">Last Modified:</small> 
+                  <p>{documentMetadata.lastModified}</p>
+                  </div>
+                  )}
+                  {documentMetadata?.author && (
                     <div>
-                      <small className="mb-4 text-gray-500"> Created on </small>
-                      <p>{documentMetadata?.createdAt?.toLocaleString() || "Unknown"}</p>
-                     </div>
-                      {documentMetadata?.lastModified && (
-                        <div>
-                        <small className="mb-4 text-gray-500">Last Modified:</small> 
-                        <p>{documentMetadata.lastModified}</p>
-                        </div>
-                       )}
-                       {documentMetadata?.author && (
-                          <div>
-                            <small className="mb-4 text-gray-500">Author:</small> 
-                            <p>{documentMetadata.author}</p>
-                          </div>
-                        )}
-                        {documentMetadata?.fileSize && (
-                          <div>
-                           <small className="text-gray-500">File size:</small>
-                          <p>{documentMetadata.fileSize}</p>
-                          </div>
-                        )}
-                 
-                      <div>
-                      <small className="text-gray-500">Documents</small>
-                        <p className="flex items-center justify-between">
-                          <span className="flex items-center gap-2"><FolderIcon size={18} /> Main</span>
-                          <a href="#">Move</a>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 pt-2">
-                        <span className="w-6 h-6 rounded-full bg-[#d5dce5] flex items-center justify-center text-xs">r</span>
-                  rajesh.chaurasia@gmail.com
+                      <small className="mb-4 text-gray-500">Author:</small> 
+                      <p>{documentMetadata.author}</p>
+                    </div>
+                  )}
+                  {documentMetadata?.fileSize && (
+                    <div>
+                      <small className="text-gray-500">File size:</small>
+                    <p>{documentMetadata.fileSize}</p>
+                    </div>
+                  )}                 
+                <small className="text-gray-500">Documents</small>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FolderIcon size={18} /> Main</span>
+                    <a href="#">Move</a>
                 </div>
               </div>
-          </div>
-          </div>
+   
+          </Button>
+          {lastSaved && (
+            <small>
+              Saved at {" "} {lastSaved.toLocaleTimeString()}
+            </small>
+          )} 
         </div>
 
         {/* Right Section */}
-        <div className="flex flex-1 min-w-0 justify-end items-center space-x-4 px-1">
-            {lastSaved && (
-                <small>
-                Saved at {lastSaved.toLocaleTimeString()}
-                </small>
-              )}
+        <div className="flex flex-1 min-w-0 justify-end items-center gap-3 px-1">
+           
+              {/* Undo / Redo */}
+            <div className="flex items-center gap-2">
+              <Button 
+                aria-label="Undo (Ctrl+Z)" 
+                inverted
+                onClick={onUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+                icon={ <Undo size={20} />}
+                className="border-0 bg-transparent"
+              />     
+              <Button 
+                aria-label="Redo (Ctrl+Y)" 
+                inverted
+                onClick={onRedo}
+                disabled={!canRedo}
+                title="Redo (Ctrl+Y)"
+                icon={ <Redo size={20} />}
+                className="border-0 bg-transparent"
+              />
+            </div>
+
+            <Button icon={<Eye size={16} />} inverted title="Preview document" />
             <MoreActions menuItems={menuItems as []} />
             <Button
               onClick={handleSave}
@@ -417,52 +423,9 @@ const menuItems = [
           )}
           <Button icon={<LogOut size={16} />} inverted title="Exit from builder" onClick={()=> router.replace('/dashboard')} />
         </div>
-      </div>
+   
     </div>
-    {/***** Toolbar *****/}
-    <div className="flex items-center gap-4 px-3 py-2 bg-white border-t border-b">
-    {/* Undo / Redo */}
-    <div className="flex items-center gap-2">
-      <Button 
-        aria-label="Undo (Ctrl+Z)" 
-        inverted
-        onClick={onUndo}
-        disabled={!canUndo}
-        title="Undo (Ctrl+Z)"
-        icon={ <Undo size={20} />}
-        className="border-0 bg-transparent"
-      />     
-      <Button 
-        aria-label="Redo (Ctrl+Y)" 
-        inverted
-        onClick={onRedo}
-        disabled={!canRedo}
-        title="Redo (Ctrl+Y)"
-        icon={ <Redo size={20} />}
-        className="border-0 bg-transparent"
-      />
-    </div>
-    <div className="w-px h-6 bg-gray-200 mx-2" />  
-    {/* Spacer */}
-    <div className="flex-grow" />
-
-    {/* Right Actions */}
-    <div className="flex items-center gap-3">
-      <Button icon={<Eye size={16} />} label="Open Preview" inverted className="border-0 bg-gray-100 hover:bg-gray-200 text-gray-700"  />
-      <div className="w-px h-6 bg-gray-200 mx-2" />
-       <MoreActions  menuItems={[ 
-          { label: "Download original PDF", icon: Download, action:downloadDoc },
-          { type: "divider", label: "" },
-          { label: "Self‑Signed Download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true }), disabled: !hasSelfFields}
-         ]} triggerIcon={Download} />
-             <div className="w-px h-6 bg-gray-200 mx-2" />
-      <Button aria-label="Help" icon={<HelpCircle size={16} />} inverted className="border-0"/>
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-      <Button aria-label="Settings" icon={<Settings size={16} />} inverted className="border-0"/>
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-      <Button aria-label="Thumbnails" icon={<LayoutGrid size={16} />} inverted className="border-0"/>
-    </div>
-  </div>
+  
   </>
   );
 };
