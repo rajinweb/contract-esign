@@ -88,7 +88,7 @@ const ForgotPasswordPage = () => {
               <Button
                 type="submit"
                 disabled={isSubmitting || !email}
-                className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full"
                 label={isSubmitting ? 'Sending reset link...' : 'Send reset link'}
                 
               />

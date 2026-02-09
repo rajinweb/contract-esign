@@ -5,6 +5,7 @@ import { ArrowBigRightDash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTemplates } from "@/hooks/useTemplates";
 import toast from "react-hot-toast";
+import { Button } from "./Button";
 
 interface Template {
   _id: string;
@@ -108,11 +109,11 @@ const ChooseTemplate = () => {
             <div className="text-gray-500">No templates available</div>
           )}
         </div>
-        <button 
+        <Button 
           onClick={() => router.push('/templates')}
-          className="bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700 transition w-60">
-          Choose Template
-        </button>
+          className="w-60"
+          label="Choose Template"
+          />
       </div>
     </section>
   );

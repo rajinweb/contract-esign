@@ -9,6 +9,7 @@ import Input from '@/components/forms/Input';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff} from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/Button';
 
 type FormValues = {
   email: string;
@@ -161,14 +162,12 @@ const LoginPage: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <button 
+            <Button 
               type="submit" 
               disabled={formState.isSubmitting}
-              className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {formState.isSubmitting ? 'Logging in...' : 'Log in'}
-            </button>
-
+              className="w-full"
+              label= {formState.isSubmitting ? 'Logging in...' : 'Log in'}
+            />
             {/* Sign Up Link */}
             <p className="text-xs text-center mt-4 font-poppins">
               <span className="text-[#64748B]">No account? </span>

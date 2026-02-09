@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { LoaderPinwheel, Upload  } from 'lucide-react';
 import Image from 'next/image';
 import useDropZone from '@/hooks/useDropZone'
+import { Button } from './Button';
 export default function UploadZone() {
   const {isLoading, handleDrop, handleSampleContract, handleFileInput}=useDropZone();
   if(isLoading){
@@ -38,9 +39,7 @@ export default function UploadZone() {
               <div className="h-full">
                 <h2 className="text-2xl font-medium text-gray-800">Send my document for signature</h2>
                 <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
-                <div className="w-full mt-4 primary-button cursor-pointer flex gap-2 items-center justify-center">
-                    <Upload size={18}/> Choose a document            
-                </div>                
+                <Button className="w-full mt-4 gap-2" icon={<Upload size={18}/>} label="Choose a document" />         
               </div>
               <div className="h-full items-center flex justify-center pointer-events-none">
                 <div>

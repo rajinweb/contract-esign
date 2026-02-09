@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Recipient, ROLES } from "@/types/types";
 import { Plus, GripVertical } from "lucide-react";
+import { Button } from "../Button";
 
 interface RecipientsListProps {
   recipients: Recipient[];
@@ -139,13 +140,12 @@ const RecipientsList = React.memo(function RecipientsList({
     { onAddRecipients && (
       <div className="bg-gray-50 border-b flex items-center justify-between p-4 text-xs">
         <span>Recipients: {recipients.length}</span>
-        <button
-          className="primary-button p-1 rounded-full"
+        <Button
+          className="p-1 rounded-full"
           onClick={onAddRecipients}
           title="Add Recipient"
-        >
-          <Plus size={16} />
-        </button>
+          icon={<Plus size={16} />}
+        />
       </div>
       )}
       {/* List */}
