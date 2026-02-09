@@ -23,7 +23,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onAddRecipients,
 }) => {
   return (
-    <div className="bg-white border-r w-72 flex flex-col select-none">
+    <div className="bg-white w-72 flex flex-col select-none">
       {!isReadOnly && (
         <Fields
           activeComponent={activeComponent}

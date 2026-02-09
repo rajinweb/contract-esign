@@ -1,7 +1,8 @@
 'use client';
-import React, { Fragment, RefObject } from 'react';
+import React, { Fragment, RefObject, useCallback } from 'react';
 import { Document, Page } from 'react-pdf';
-import { Plus, Ellipsis } from 'lucide-react';
+import { Plus, Ellipsis, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Button } from '../Button';
 
 interface PageThumbnailsProps {
   selectedFile: string | File;
@@ -24,9 +25,19 @@ const PageThumbnails: React.FC<PageThumbnailsProps> = ({
   toggleMenu,
   isSigningMode
 }) => {
+  const [toggleThumbPanel, setToggleThumbPanel] = React.useState(false);
+  const toggleCollapsExpand = () => setToggleThumbPanel(prev => !prev);
   return (
-    <aside className="w-40 overflow-auto bg-white p-5">
-      <Document file={selectedFile} className="w-26">
+    <aside className={`${toggleThumbPanel ? 'absolute w-12 right-2' : 'w-40 bg-white relative overflow-auto'}`}>
+      <div className={`p-2 py-2 ${toggleThumbPanel ? '' : 'bg-gray-50 flex items-center gap-2 border-b   text-xs font-semibold sticky top-0 z-50'}`}>
+        <Button 
+          icon={toggleThumbPanel ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+          inverted
+          onClick={toggleCollapsExpand}
+          className="!p-0 !h-7 !w-7"/>
+          {!toggleThumbPanel? 'Thumbnails' : ''}
+       </div>
+      <Document file={selectedFile} className={`w-26 p-4 ${toggleThumbPanel ? 'hidden' : ''}`}>
         {pages.map((pageNum) => (
           <Fragment key={pageNum}>
             <div

@@ -9,6 +9,7 @@ import zxcvbn from 'zxcvbn';
 import toast from 'react-hot-toast';
 import Input from '@/components/forms/Input';
 import Link from 'next/link';
+import { Button } from '@/components/Button';
 
 type FormValues = {
   name: string;
@@ -229,13 +230,12 @@ function Register() {
             </div>
 
             {/* Submit Button */}
-            <button 
+            <Button 
               type="submit" 
               disabled={formState.isSubmitting || isLoading}
-              className="primary-button w-full transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {formState.isSubmitting || isLoading ? 'Creating account...' : 'Create account'}
-            </button>
+              className="w-full"
+              label={formState.isSubmitting || isLoading ? 'Creating account...' : 'Create account'}
+            />
 
             {/* Sign In Link */}
             <p className="text-xs text-center mt-4 font-poppins">
