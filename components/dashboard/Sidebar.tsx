@@ -19,8 +19,7 @@ export const PrimarySidebar = ({
   setActive: (s: SidebarType) => void;
 }) => {
 return (
-  <aside className="w-14 border-r border-gray-200 flex flex-col justify-between">
-    <div className="pt-4 flex flex-col items-center gap-3">
+    <div className="border-r flex flex-col gap-3 p-2">
       {/* Document  click */}
       <Button
         onClick={() => setActive('documents')}
@@ -65,7 +64,6 @@ return (
       </Button>
 
     </div>
-  </aside>
 )};
 
 export const SecondarySidebar = ({
@@ -81,8 +79,7 @@ export const SecondarySidebar = ({
   templates: Template[];
   fetchTemplates: (category?: string, search?: string) => Promise<void>;
 }) => (
-  <aside className="w-72">
-    <div className="p-5 h-full overflow-auto">
+  <div className="w-64 p-5 h-full overflow-auto">
       {active === 'documents' &&
         <DocumentsMenu
           activeSecondarybar={activeSecondarybar as SecondarySidebarType}
@@ -98,6 +95,5 @@ export const SecondarySidebar = ({
           secondaryActive(e as SecondarySidebarType);
         }}
       />}
-    </div>
-  </aside>
+  </div>
 );

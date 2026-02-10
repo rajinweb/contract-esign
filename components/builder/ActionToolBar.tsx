@@ -383,7 +383,11 @@ const menuItems = [
               />
             </div>
 
-            <Button icon={<Eye size={16} />} inverted title="Preview document" />
+            <Button icon={<Eye size={16} />} inverted title="Preview Document" className="relative group">
+              <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
+                  Preview your document as it will appear to recipients. This view is read-only and does not reflect any unsaved changes.
+                </div>
+            </Button>
             <MoreActions menuItems={menuItems as []} />
             <Button
               onClick={handleSave}
