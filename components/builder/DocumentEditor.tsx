@@ -329,7 +329,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // Render
   // ==========================================================
   return (
-    <>
+    <div className="flex-1">
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}><LoginPage /></Modal>}
 
       <DocumentStatusBars
@@ -481,7 +481,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
         setShowAuditModal={setShowAuditModal}
         signingEvents={signingEvents}
       />
-    </>
+    </div>
   );
 };
 

@@ -146,7 +146,7 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   selectedFieldForDialog,
 }) => {
   return (
-    <div className="bg-[#dce0e8] flex flex-1 overflow-hidden relative">
+    <div className="bg-[#dce0e8] flex flex-1 overflow-hidden relative h-[calc(100%-53px)]">
       {!isSigningMode && (
         <>
           <EditorSidebar

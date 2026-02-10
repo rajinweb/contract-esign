@@ -23,9 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable}`}>
-        <main className='flex flex-col h-screen'>
           <LayoutWrapper>{children}</LayoutWrapper>
-        </main>
          {/* Global toaster here */}
          <Toaster
           position="top-center"

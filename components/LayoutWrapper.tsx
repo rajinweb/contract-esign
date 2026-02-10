@@ -17,10 +17,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const hideHeaderFooter = mounted && pathname && (pathname.startsWith('/builder') || pathname.startsWith('/dashboard') ||  pathname.startsWith('/sign'));
 
   return (
-    <ContextProvider>
-      {mounted && !hideHeaderFooter && <Header />}
-      {children}
-      {mounted && !hideHeaderFooter && <Footer />}
-    </ContextProvider>
+    <main className={`h-screen ${hideHeaderFooter ? 'flex' : ''}`}>
+      <ContextProvider>
+        {mounted && !hideHeaderFooter && <Header />}
+        {children}
+        {mounted && !hideHeaderFooter && <Footer />}
+      </ContextProvider>
+    </main>
   );
 }
