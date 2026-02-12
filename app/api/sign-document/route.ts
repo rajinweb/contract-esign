@@ -48,8 +48,12 @@ export async function POST(req: NextRequest) {
         if (document.deletedAt) {
             return NextResponse.json({ success: false, message: 'Document has been trashed.' }, { status: 410 });
         }
-        if (document.status === 'completed' || document.status === 'voided') {
-            return NextResponse.json({ success: false, message: 'Document is not available for signing.' }, { status: 409 });
+        if (document.status === 'completed' || document.status === 'voided' || document.status === 'rejected') {
+            const message =
+                document.status === 'rejected'
+                    ? 'This signing request was rejected.'
+                    : 'Document is not available for signing.';
+            return NextResponse.json({ success: false, message }, { status: 409 });
         }
 
         const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
@@ -359,6 +363,9 @@ export async function GET(req: NextRequest) {
         }
         const recipient = document.recipients.find((r: { signingToken: string; }) => r.signingToken === token);
         if (!recipient) return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
+        if (document.status === 'rejected' && recipient.status !== 'rejected') {
+            return NextResponse.json({ success: false, message: 'This signing request was rejected.' }, { status: 409 });
+        }
 
         //  console.log('Returning recipients to client:', JSON.stringify(document.recipients, null, 2));
 
@@ -421,7 +428,8 @@ export async function GET(req: NextRequest) {
                 recipients: safeRecipients,
                 currentRecipientId: recipient.id,
                 currentRecipient: safeCurrentRecipient,
-                status: document.status
+                status: document.status,
+                signingMode: document.signingMode,
             },
         });
     } catch (_err) {

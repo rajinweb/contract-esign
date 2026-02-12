@@ -177,3 +177,52 @@ export async function sendSigningCompletionEmail(
     throw error;
   }
 }
+
+export async function sendSigningRejectedEmail(
+  toEmail: string,
+  documentName: string,
+  rejectedBy: IDocumentRecipient
+) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const subject = `Signing request rejected: ${documentName}`;
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1>Signing Request Rejected</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb;">
+          <p><strong>${rejectedBy.name || 'A recipient'}</strong> rejected the signing request for:</p>
+          <p><strong>${documentName}</strong></p>
+          <p>You can create a new signing request if changes are needed.</p>
+        </div>
+        <div style="background-color: #f3f4f6; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px;">
+          <p style="margin: 0;">This is an automated message. Please do not reply.</p>
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: toEmail,
+      subject,
+      text: `A recipient rejected the signing request for "${documentName}".`,
+      html: htmlContent,
+    });
+
+    console.log(`✓ Rejection email sent to ${toEmail}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`✗ Failed to send rejection email to ${toEmail}:`, error);
+    throw error;
+  }
+}

@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {  Send, Clock, AlertCircle, MapPin } from 'lucide-react';
-import { Recipient } from '@/types/types';
+import { DroppedComponent, Recipient } from '@/types/types';
 import toast from 'react-hot-toast';
 import Input from '../forms/Input';
 import Modal from '../Modal';
@@ -11,6 +11,7 @@ interface SendDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   recipients: Recipient[];
+  fields?: DroppedComponent[];
   documentName: string;
   documentId?: string | null;
   onSendComplete?: (payload: { recipients: Recipient[]; signingMode: 'sequential' | 'parallel' }) => void;
@@ -21,6 +22,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   isOpen,
   onClose,
   recipients,
+  fields = [],
   setRecipients,
   documentName,
   documentId,
@@ -35,10 +37,38 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   const [hasExpiry, setHasExpiry] = useState(true);
   const [captureGps, setCaptureGps] = useState(false);
   const [sequential, setSequential] = useState(false);
+  const sequentialAllowed = recipients.length > 1;
+  const fieldStats = useMemo(() => {
+    const stats: Record<string, { total: number; required: number }> = {};
+    fields.forEach((field) => {
+      if (field.fieldOwner === 'me') return;
+      const assignedRecipientId = field.assignedRecipientId?.trim();
+      if (!assignedRecipientId) return;
+      if (!stats[assignedRecipientId]) {
+        stats[assignedRecipientId] = { total: 0, required: 0 };
+      }
+      stats[assignedRecipientId].total += 1;
+      if (field.required !== false) {
+        stats[assignedRecipientId].required += 1;
+      }
+    });
+    return stats;
+  }, [fields]);
+
+  useEffect(() => {
+    if (!sequentialAllowed && sequential) {
+      setSequential(false);
+    }
+  }, [sequentialAllowed, sequential]);
 
 
-  const handleReorder = (reorderedRecipients: Recipient[]) => {
-    setRecipients?.(reorderedRecipients);
+  const nonSigners = recipients.filter((r) => r.role !== 'signer');
+  const handleReorder = (reorderedSigners: Recipient[]) => {
+    const merged = [...reorderedSigners, ...nonSigners].map((r, idx) => ({
+      ...r,
+      order: idx + 1,
+    }));
+    setRecipients?.(merged);
   };
   const handleSend = async () => {
     if (recipients.length === 0) {
@@ -97,7 +127,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const signers = recipients.filter(r => !r.isCC);
+  const signers = recipients.filter((r) => r.role === 'signer' && !r.isCC);
   const ccRecipients = recipients.filter(r => r.isCC);
 
   return (
@@ -127,7 +157,14 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           <div className="flex items-center justify-between mb-3">
             <div>
                 <h4 className="text-sm font-medium text-gray-900">Sequential Signing</h4>
-                <p className="text-xs text-gray-500">Signers must sign in a specific order. You can re-order signers below.</p>
+                <p className="text-xs text-gray-500">
+                  Signers must sign in a specific order. You can re-order signers below.
+                </p>
+                {!sequentialAllowed && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Sequential signing is available only when there is more than one recipient.
+                  </p>
+                )}
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -136,8 +173,9 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
                     className="sr-only peer"
                     checked={sequential}
                     onChange={() => setSequential(!sequential)}
+                    disabled={!sequentialAllowed}
                 />
-                <div className="w-11 h-6 scale-75 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 scale-75 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 peer-disabled:opacity-50"></div>
             </label>
           </div>
 
@@ -146,7 +184,13 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
             <div className="mb-3">
               <p className="text-xs text-blue-600 font-medium mb-2">SIGNERS ({signers.length})</p>
               <div className="space-y-1">
-                <RecipientsList recipients={recipients} isDraggable={sequential} onReorder={handleReorder} inlineView />
+                <RecipientsList
+                  recipients={signers}
+                  isDraggable={sequential}
+                  onReorder={handleReorder}
+                  inlineView
+                  fieldStats={fieldStats}
+                />
               </div>
             </div>
           )}

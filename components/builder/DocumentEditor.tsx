@@ -52,6 +52,7 @@ export interface EditorProps {
   currentRecipientId?: string;
   onFieldsChange?: (fields: DocumentField[]) => void;
   isTemplateEditor?: boolean; // New prop to differentiate
+  guidedFieldId?: string | null;
 }
 
 // Initialize PDF worker (centralized setup)
@@ -72,6 +73,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   signingToken,
   currentRecipientId,
   onFieldsChange,
+  guidedFieldId,
 }) => {
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
@@ -132,10 +134,12 @@ const DocumentEditor: React.FC<EditorProps> = ({
     isReadOnly,
     isInProgress,
     isVoided,
+    isRejected,
     isSent,
     isAlreadySent,
     isPreviewMode,
   } = useDocumentStatusFlags({ isSigningMode, documentStatus });
+  const canEdit = !isSigningMode && !isReadOnly;
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState<boolean>(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
 
@@ -329,7 +333,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // Render
   // ==========================================================
   return (
-    <div className="flex-1">
+    <div className="flex flex-col flex-1 h-full min-h-0">
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}><LoginPage /></Modal>}
 
       <DocumentStatusBars
@@ -338,6 +342,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
         isInProgress={isInProgress}
         isSent={isSent}
         isVoided={isVoided}
+        isRejected={isRejected}
         isReadOnly={isReadOnly}
         derivedFromDocumentId={derivedFromDocumentId}
         derivedFromVersion={derivedFromVersion}
@@ -350,7 +355,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
         onShowVoid={() => setShowVoidModal(true)}
       />
 
-      {!isSigningMode && !isReadOnly &&
+      {canEdit &&
         <ActionToolBar
           documentName={documentName}
           setDocumentName={setDocumentName}
@@ -439,6 +444,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
         handleDragStop={handleDragStop}
         handleResizeStop={handleResizeStop}
         onClickField={clickField}
+        guidedFieldId={guidedFieldId}
         handleThumbnailClick={handleThumbnailClick}
         insertBlankPageAt={handleInsertBlankPage}
         toggleMenu={toggleMenu}
@@ -469,6 +475,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
       />
 
       <DocumentActionModals
+        documentStatus={documentStatus}
         showVoidModal={showVoidModal}
         setShowVoidModal={setShowVoidModal}
         isVoiding={isVoiding}

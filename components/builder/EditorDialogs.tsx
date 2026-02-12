@@ -19,6 +19,7 @@ interface EditorDialogsProps {
   setShowAddRecipients: React.Dispatch<React.SetStateAction<boolean>>;
   recipients: Recipient[];
   setRecipients: React.Dispatch<React.SetStateAction<Recipient[]>>;
+  droppedComponents: DroppedComponent[];
   showSendDocument: boolean;
   setShowSendDocument: React.Dispatch<React.SetStateAction<boolean>>;
   documentName: string;
@@ -40,6 +41,7 @@ const EditorDialogs: React.FC<EditorDialogsProps> = ({
   setShowAddRecipients,
   recipients,
   setRecipients,
+  droppedComponents,
   showSendDocument,
   setShowSendDocument,
   documentName,
@@ -103,6 +105,7 @@ const EditorDialogs: React.FC<EditorDialogsProps> = ({
               isOpen={showSendDocument}
               onClose={() => setShowSendDocument(false)}
               recipients={recipients}
+              fields={droppedComponents}
               documentName={documentName}
               documentId={documentId}
               setRecipients={setRecipients}

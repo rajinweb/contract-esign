@@ -40,6 +40,7 @@ interface EditorCanvasProps {
   isSigned?: boolean;
   onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent, isEdit?: boolean) => void;
   currentRecipientId?: string;
+  guidedFieldId?: string | null;
   selectedFile: File | string | Doc | null;
   pages: number[];
   pageRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
@@ -79,6 +80,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   isSigned,
   onClickField,
   currentRecipientId,
+  guidedFieldId,
   selectedFile,
   pages,
   pageRefs,
@@ -98,7 +100,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         accept="image/png, image/jpeg, image/jpg"
         onChange={onImgUpload}
       />
-      <div className={`flex relative overflow-auto flex-1 pb-10 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone">
+      <div className={`flex relative overflow-auto flex-1 min-h-0 pb-10 justify-center ${draggingComponent && 'cursor-fieldpicked'}`} id="dropzone">
         <div
           style={{ minHeight: `${containerHeight}px`, transform: `scale(${zoom})`, transformOrigin: 'top center' }}
           onClick={clickOnDropArea}
@@ -127,6 +129,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
             isSigned={isSigned}
             onClickField={onClickField}
             currentRecipientId={currentRecipientId}
+            guidedFieldId={guidedFieldId}
           />
           <PDFViewer
             selectedFile={selectedFile as File}

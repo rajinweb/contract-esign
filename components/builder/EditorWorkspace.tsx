@@ -72,6 +72,7 @@ interface EditorWorkspaceProps {
     delta?: { width: number; height: number }
   ) => void;
   onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent, isEdit?: boolean) => void;
+  guidedFieldId?: string | null;
 
   handleThumbnailClick: (pageNum: number) => void;
   insertBlankPageAt: (index: number) => void;
@@ -135,6 +136,7 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   handleDragStop,
   handleResizeStop,
   onClickField,
+  guidedFieldId,
   handleThumbnailClick,
   insertBlankPageAt,
   toggleMenu,
@@ -146,7 +148,7 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   selectedFieldForDialog,
 }) => {
   return (
-    <div className="bg-[#dce0e8] flex flex-1 overflow-hidden relative h-[calc(100%-53px)]">
+    <div className="bg-[#dce0e8] flex flex-1 min-h-0 overflow-hidden relative">
       {!isSigningMode && (
         <>
           <EditorSidebar
@@ -202,6 +204,7 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         isSigned={isSigned}
         onClickField={onClickField}
         currentRecipientId={currentRecipientId}
+        guidedFieldId={guidedFieldId}
         selectedFile={selectedFile}
         pages={pages}
         pageRefs={pageRefs}
@@ -223,13 +226,14 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         isSigningMode={isPreviewMode}
       />
 
-      <EditorDialogs
+  <EditorDialogs
         isSigningMode={isSigningMode}
         isReadOnly={isReadOnly}
         showAddRecipients={showAddRecipients}
         setShowAddRecipients={setShowAddRecipients}
         recipients={recipients}
         setRecipients={setRecipients}
+        droppedComponents={droppedComponents}
         showSendDocument={showSendDocument}
         setShowSendDocument={setShowSendDocument}
         documentName={documentName}

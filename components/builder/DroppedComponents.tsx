@@ -39,6 +39,7 @@ interface DroppedComponentsProps {
   isReadOnly?: boolean;
   isSigned?:boolean;
   currentRecipientId?: string;
+  guidedFieldId?: string | null;
 }
 
 const DroppedComponents: React.FC<DroppedComponentsProps> = ({ 
@@ -60,7 +61,8 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   isSigningMode,
   isReadOnly = false,
   isSigned,
-  currentRecipientId
+  currentRecipientId,
+  guidedFieldId,
 }) => {
   /* ---------------------------------- */
   /* Recipient lookup  */
@@ -180,6 +182,17 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
         const isFieldReadOnlyInSigning = isSigningMode && (!isCurrentUserField || isSigned);
         const isReadOnlyMeField = item.fieldOwner === 'me' && [''].includes(item.component);
         const isFieldReadOnly = isReadOnly || isFieldReadOnlyInSigning || isReadOnlyMeField;
+        const fieldDataId = item.fieldId ?? String(item.id);
+        const isGuidedFocus = isSigningMode && guidedFieldId && fieldDataId === guidedFieldId;
+        const showGuidedBadge =
+          Boolean(isGuidedFocus) &&
+          isCurrentUserField &&
+          item.required !== false &&
+          !isFieldReadOnly;
+        const badgeLabel =
+          typeof item.data === "string" && item.data.trim().length > 0
+            ? "Review"
+            : "Sign here";
        
         let checkEmail = false;
         if (item.data && item.component === 'Email') {
@@ -196,6 +209,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             className={`absolute cursor-pointer min-w-[150px] min-h-[50px] text-center text-sm
               ${assignedRecipient ? 'border-2' : 'bg-[#1ca4ff33]'}
               ${isSelected ? 'bg-[#1ca4ff66]' : ''}
+              ${isGuidedFocus ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
             ${assignedRecipient ? assignedLabel : ''}
             ${!isCurrentUserField ? 'opacity-50' : ''}
             `}
@@ -214,6 +228,10 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             }}
             position={{ x: item.x, y: item.y }}
             size={{ width: item.width, height: item.height }}
+            data-field-id={fieldDataId}
+            data-field-page={item.pageNumber ?? ''}
+            data-field-recipient-id={item.assignedRecipientId ?? ''}
+            data-field-required={item.required !== false ? 'true' : 'false'}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
             onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e, item, ref, position, delta)}
           
@@ -247,6 +265,21 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             enableResizing={!isSigningMode && !isReadOnly}
             data-name={assignedRecipient?.name}
           >
+            {showGuidedBadge && (
+                <div className="absolute w-full bg-yellow-400 p-2 rounded shadow-xl
+                        before:content-[''] 
+                        before:absolute 
+                        before:-bottom-2
+                        before:left-1/2 
+                        before:-translate-x-1/2 
+                        before:w-4 
+                        before:h-4 
+                        before:bg-yellow-400 
+                        before:rotate-45
+                        before:shadow-md -top-12 animate-bounce">
+                       {badgeLabel}
+                 </div>
+            )}
             {/* Field Selection Menu */}
             {isSelected && !isSigningMode && !isReadOnly && (
               <>

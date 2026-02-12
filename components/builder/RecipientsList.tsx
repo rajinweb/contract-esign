@@ -10,6 +10,7 @@ interface RecipientsListProps {
   isDraggable?: boolean;
   inlineView?: boolean;
   showStatus?: boolean;
+  fieldStats?: Record<string, { total: number; required: number }>;
 }
 
 interface DragState {
@@ -25,6 +26,7 @@ const RecipientsList = React.memo(function RecipientsList({
   isDraggable = false, 
   inlineView = false,
   showStatus = false,
+  fieldStats,
 }: RecipientsListProps) {
   const [dragState, setDragState] = useState<DragState>({
     draggingId: null,
@@ -141,7 +143,7 @@ const RecipientsList = React.memo(function RecipientsList({
       <div className="bg-gray-50 border-b flex items-center justify-between p-4 text-xs">
         <span>Recipients: {recipients.length}</span>
         <Button
-          className="p-1 rounded-full"
+          className="!p-0 !h-6 !w-6 !rounded-full"
           onClick={onAddRecipients}
           title="Add Recipient"
           icon={<Plus size={16} />}
@@ -205,15 +207,33 @@ const RecipientsList = React.memo(function RecipientsList({
                       </div>
                     )}
                     {inlineView ? ( 
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-xs min-w-0">
                         <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: recipient.color }}>
                           {recipient.order}
                         </div>
-                        <span className="font-medium">{recipient.name}</span>
-                        <span className="text-gray-600">({recipient.email})</span>
+                        <span className="font-medium truncate max-w-[140px]" title={recipient.name}>
+                          {recipient.name}
+                        </span>
+                        <span className="text-gray-600 truncate max-w-[180px]" title={recipient.email}>
+                          ({recipient.email})
+                        </span>
                         <small className=" bg-blue-100 text-blue-700 px-2  rounded">
                         {recipient.role}
                       </small>
+                      {fieldStats && recipient.role === 'signer' && (
+                        <small
+                          className={`px-2 rounded ${
+                            (fieldStats[recipient.id]?.total ?? 0) === 0
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {(fieldStats[recipient.id]?.total ?? 0)} fields
+                          {fieldStats[recipient.id]?.required
+                            ? ` (${fieldStats[recipient.id].required} required)`
+                            : ''}
+                        </small>
+                      )}
                     </div>
                     ):(
                       <>                
@@ -222,8 +242,8 @@ const RecipientsList = React.memo(function RecipientsList({
                       style={{ backgroundColor: recipient.color }} >
                       {recipient.name ? recipient.name.charAt(0).toUpperCase() : "R"}
                     </div>
-                    <div className="text-gray-800 flex-1 overflow-hidden">
-                      <span className="block w-full text-gray-500 truncate">
+                    <div className="text-gray-800 flex-1 min-w-0 overflow-hidden">
+                      <span className="block w-full text-gray-500 truncate" title={recipient.email}>
                         {recipient.email}
                       </span>
                       <span className="flex items-center gap-1">

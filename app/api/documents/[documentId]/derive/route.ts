@@ -48,8 +48,11 @@ export async function POST(
       return NextResponse.json({ message: 'Document not found' }, { status: 404 });
     }
 
-    if (sourceDocument.status !== 'completed' && sourceDocument.status !== 'voided') {
-      return NextResponse.json({ message: 'Only completed or voided documents can be derived.' }, { status: 409 });
+    if (!['completed', 'voided', 'rejected'].includes(sourceDocument.status)) {
+      return NextResponse.json(
+        { message: 'Only completed, voided, or rejected documents can be derived.' },
+        { status: 409 }
+      );
     }
 
     const latestPrepared = getLatestPreparedVersion(sourceDocument.versions || []);

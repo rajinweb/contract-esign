@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel from '@/models/Document';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
-import { sendSigningRequestEmail } from '@/lib/email';
+import { sendSigningRejectedEmail, sendSigningRequestEmail } from '@/lib/email';
 import { buildEventClient, buildEventConsent, buildEventGeo, getNextSequentialOrder, isRecipientTurn, normalizeIp } from '@/lib/signing-utils';
+import Users from '@/models/Users';
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,8 +38,12 @@ export async function POST(req: NextRequest) {
     if (document.deletedAt) {
       return NextResponse.json({ message: 'Document has been trashed.' }, { status: 410 });
     }
-    if (document.status === 'completed' || document.status === 'voided') {
-      return NextResponse.json({ message: 'Document is not available for signing.' }, { status: 409 });
+    if (document.status === 'completed' || document.status === 'voided' || document.status === 'rejected') {
+      const message =
+        document.status === 'rejected'
+          ? 'This signing request was rejected.'
+          : 'Document is not available for signing.';
+      return NextResponse.json({ message }, { status: 409 });
     }
 
     const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
@@ -138,6 +143,7 @@ export async function POST(req: NextRequest) {
 
       recipient.status = action;
       recipient.signedAt = action === 'signed' ? actionAt : undefined;
+      recipient.rejectedAt = action === 'rejected' ? actionAt : undefined;
       if (action === 'signed' && signedVersion?.version != null) {
         recipient.signedVersion = signedVersion.version;
       }
@@ -150,6 +156,7 @@ export async function POST(req: NextRequest) {
 
       recipient.status = action;
       recipient.approvedAt = action === 'approved' ? actionAt : undefined;
+      recipient.rejectedAt = action === 'rejected' ? actionAt : undefined;
     }
 
     recipient.location = location;
@@ -184,6 +191,17 @@ export async function POST(req: NextRequest) {
     if (document.status === 'completed') {
       document.completedAt ??= actionAt;
       document.finalizedAt ??= actionAt;
+    }
+    if (action === 'rejected') {
+      try {
+        const owner = await Users.findById(document.userId).lean<{ email?: unknown }>();
+        const ownerEmail = typeof owner?.email === 'string' ? owner.email : undefined;
+        if (ownerEmail) {
+          await sendSigningRejectedEmail(ownerEmail, document.documentName, recipient);
+        }
+      } catch (err) {
+        console.error('Failed to send rejection email:', err);
+      }
     }
 
     /* =====================================================

@@ -7,6 +7,7 @@ interface DocumentStatusBarsProps {
   isInProgress: boolean;
   isSent: boolean;
   isVoided: boolean;
+  isRejected: boolean;
   isReadOnly: boolean;
   derivedFromDocumentId?: string | null;
   derivedFromVersion?: number | null;
@@ -25,6 +26,7 @@ const DocumentStatusBars: React.FC<DocumentStatusBarsProps> = ({
   isInProgress,
   isSent,
   isVoided,
+  isRejected,
   isReadOnly,
   derivedFromDocumentId,
   derivedFromVersion,
@@ -162,8 +164,35 @@ const DocumentStatusBars: React.FC<DocumentStatusBarsProps> = ({
         </div>
       )}
 
+      {isRejected && (
+        <div className="flex items-center justify-between bg-red-50 border-b px-4 py-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-red-700 font-semibold">Rejected</div>
+            <div className="text-sm text-red-700">
+              This signing request was rejected and is now read-only.
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onShowAudit}
+              inverted
+              className="!rounded-full"
+            >
+              View audit trail
+            </Button>
+            <Button
+              onClick={onShowDerive}
+              className="!rounded-full"
+              disabled={isDeriving}
+            >
+              Create New Signing Request
+            </Button>
+          </div>
+        </div>
+      )}
+
       {derivedFromDocumentId && !isReadOnly && (
-        <div className="flex items-center justify-between bg-slate-50 border-b px-4 py-2 text-xs text-gray-600">
+        <div className="flex items-center justify-between bg-slate-50 border-b px-4 py-1 text-xs text-gray-600">
           <div>
             Derived from {derivedFromDocumentId}
             {derivedFromVersion != null ? ` (v${derivedFromVersion})` : ''}

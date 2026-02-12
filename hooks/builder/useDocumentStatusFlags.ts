@@ -11,25 +11,22 @@ export const useDocumentStatusFlags = ({
   documentStatus,
 }: UseDocumentStatusFlagsArgs) => {
   return useMemo(() => {
-    const isReadOnly =
-      !isSigningMode &&
-      (documentStatus === 'completed' ||
-        documentStatus === 'in_progress' ||
-        documentStatus === 'voided' ||
-        documentStatus === 'sent' ||
-        documentStatus === 'viewed');
-    const isInProgress = !isSigningMode && documentStatus === 'in_progress';
-    const isVoided = !isSigningMode && documentStatus === 'voided';
-    const isSent = !isSigningMode && (documentStatus === 'sent' || documentStatus === 'viewed');
-    const isAlreadySent =
-      !isSigningMode &&
-      (documentStatus === 'sent' || documentStatus === 'viewed' || documentStatus === 'in_progress');
+    const status = documentStatus ?? 'draft';
+    const readOnlyStatuses = new Set(['completed', 'in_progress', 'voided', 'sent', 'viewed', 'rejected']);
+
+    const isReadOnly = !isSigningMode && readOnlyStatuses.has(status);
+    const isInProgress = !isSigningMode && status === 'in_progress';
+    const isVoided = !isSigningMode && status === 'voided';
+    const isRejected = !isSigningMode && status === 'rejected';
+    const isSent = !isSigningMode && (status === 'sent' || status === 'viewed');
+    const isAlreadySent = !isSigningMode && (status === 'sent' || status === 'viewed' || status === 'in_progress');
     const isPreviewMode = isSigningMode || isReadOnly;
 
     return {
       isReadOnly,
       isInProgress,
       isVoided,
+      isRejected,
       isSent,
       isAlreadySent,
       isPreviewMode,

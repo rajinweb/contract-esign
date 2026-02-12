@@ -4,6 +4,7 @@ import { IDocument } from '@/types/types';
 import Modal from '../Modal';
 
 interface DocumentActionModalsProps {
+  documentStatus?: string | null;
   showVoidModal: boolean;
   setShowVoidModal: React.Dispatch<React.SetStateAction<boolean>>;
   isVoiding: boolean;
@@ -20,6 +21,7 @@ interface DocumentActionModalsProps {
 }
 
 const DocumentActionModals: React.FC<DocumentActionModalsProps> = ({
+  documentStatus,
   showVoidModal,
   setShowVoidModal,
   isVoiding,
@@ -32,6 +34,19 @@ const DocumentActionModals: React.FC<DocumentActionModalsProps> = ({
   setShowAuditModal,
   signingEvents,
 }) => {
+  const deriveMessage = (() => {
+    switch (documentStatus) {
+      case 'rejected':
+        return 'This signing request was rejected and is now read-only. Any modification will create a new document with a new signing cycle. The original document will remain unchanged.';
+      case 'voided':
+        return 'This signing request was voided and is now read-only. Any modification will create a new document with a new signing cycle. The original document will remain unchanged.';
+      case 'completed':
+        return 'This document has been fully signed and cannot be changed. Any modification will create a new document with a new signing cycle. The original document will remain unchanged.';
+      default:
+        return 'This document is read-only. Any modification will create a new document with a new signing cycle. The original document will remain unchanged.';
+    }
+  })();
+
   return (
     <>
       <Modal
@@ -60,8 +75,7 @@ const DocumentActionModals: React.FC<DocumentActionModalsProps> = ({
         confirmDisabled={isDeriving}
       >
         <p className="text-sm text-gray-700">
-          This document has been fully signed and cannot be changed. Any modification will create a
-          new document with a new signing cycle. The original document will remain unchanged.
+          {deriveMessage}
         </p>
       </Modal>
 

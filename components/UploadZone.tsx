@@ -1,5 +1,4 @@
 'use client';
-import React from 'react';
 import { createPortal } from "react-dom";
 import { LoaderPinwheel, Upload  } from 'lucide-react';
 import Image from 'next/image';
@@ -23,15 +22,7 @@ export default function UploadZone() {
     <section 
           className="flex gap-10 max-w-7xl mx-auto p-10"
           onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          // onDragEnter={(e) => {
-          //   e.preventDefault();
-          //   e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
-          // }}
-          // onDragLeave={(e) => {
-          //   e.preventDefault();
-          //   e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
-          // }}
+          onDragOver={(e) => e.preventDefault()}        
         >
          
           <label className="grid grid-cols-2 items-center gap-6 bg-[#ecf1f7] p-6 rounded-lg">
@@ -39,7 +30,7 @@ export default function UploadZone() {
               <div className="h-full">
                 <h2 className="text-2xl font-medium text-gray-800">Send my document for signature</h2>
                 <p className="text-gray-600 mt-2">Get your document eSigned by multiple recipients.</p>
-                <Button className="w-full mt-4 gap-2" icon={<Upload size={18}/>} label="Choose a document" />         
+                <Button className="w-full mt-4 gap-2 pointer-events-none cursor-pointer" icon={<Upload size={18}/>} label="Choose a document" />         
               </div>
               <div className="h-full items-center flex justify-center pointer-events-none">
                 <div>

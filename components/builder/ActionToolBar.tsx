@@ -1,12 +1,11 @@
 'use client';
 import React, {useEffect, useRef, useState } from "react";
-import { FileText, Settings, PenLine, CheckLine,
+import { FileText, PenLine, CheckLine,
   Undo,
   Redo,
   Eye,
   Download,
   HelpCircle,
-  LayoutGrid,
   ChevronDown,
   FolderIcon,
   History,
@@ -18,8 +17,7 @@ import { FileText, Settings, PenLine, CheckLine,
   LogOut,
   Save,
   Send,
-  Heart,
-  MoveLeft
+  Heart
  } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import { useRouter } from 'next/navigation';
@@ -180,12 +178,24 @@ const menuItems = [
 
  const validateAndSend = () => {
     const invalidFields: DroppedComponent[] = [];
-    let isRecipientFieldInvalid, isMeFieldInvalid;
+    let hasRecipientFieldInvalid = false;
+    let hasMeFieldInvalid = false;
+
+    if (!hasAssignedRecipientFields) {
+      toast.error("Assign at least one field to a recipient before sending.");
+      return;
+    }
 
     droppedItems.forEach((item) => {
-       isRecipientFieldInvalid = item.fieldOwner !== "me" && (!item.assignedRecipientId || item.assignedRecipientId.trim() === "");
-       isMeFieldInvalid = item.fieldOwner === "me" && (!item.data?.length || item.data.trim() === "");
-       
+      const assignedRecipientId = item.assignedRecipientId?.trim();
+      const isRecipientFieldInvalid =
+        item.fieldOwner !== "me" &&
+        (!assignedRecipientId || !recipientIds.has(assignedRecipientId));
+      const isMeFieldInvalid = item.fieldOwner === "me" && (!item.data?.length || item.data.trim() === "");
+
+      if (isRecipientFieldInvalid) hasRecipientFieldInvalid = true;
+      if (isMeFieldInvalid) hasMeFieldInvalid = true;
+
       if (isRecipientFieldInvalid || isMeFieldInvalid) {
         invalidFields.push({ ...item, hasError: true });
       }
@@ -199,11 +209,11 @@ const menuItems = [
       ]);
 
       // Show separate alerts
-      if (isRecipientFieldInvalid) {
-        toast.error("All fields must be assigned and completed before sending.");
+      if (hasRecipientFieldInvalid) {
+        toast.error("All recipient fields must be assigned to an active recipient before sending.");
       }
-      if (isMeFieldInvalid) {
-          toast.error(`Fill in your input field(s) before send.`);
+      if (hasMeFieldInvalid) {
+        toast.error("Fill in your input field(s) before sending.");
       }
 
       return;
@@ -265,6 +275,26 @@ const menuItems = [
     setIsUnsavedChangesDialogVisible(false);
   };
 
+  const recipientCount = recipients.length;
+  const recipientIds = new Set(recipients.map((r) => r.id));
+  const hasAssignedRecipientFields = droppedItems.some((item) => {
+    const assignedRecipientId = item.assignedRecipientId?.trim();
+    return (
+      item.fieldOwner !== "me" &&
+      assignedRecipientId &&
+      recipientIds.has(assignedRecipientId)
+    );
+  });
+  const isSendDisabled =
+    isAlreadySent || recipientCount === 0 || hasUnsavedChanges || !hasAssignedRecipientFields;
+  const sendTitle = isAlreadySent
+    ? "This document already has an active signing request"
+    : recipientCount === 0
+      ? "Add recipients first"
+      : !hasAssignedRecipientFields
+        ? "Assign at least one field to a recipient before sending"
+        : "Send document to recipients";
+
 
   return (
     <>
@@ -278,7 +308,7 @@ const menuItems = [
     <div className="px-3 py-2 flex border-b">
       {/* Left main section */}
       <div className="flex flex-1 items-center gap-2">
-           <div className="flex items-center bg-blue-50 rounded px-2 py-1 w-[260px] justify-between space-x-2">
+           <div className="flex items-center bg-blue-50 rounded px-2 py-1 w-[260px] space-x-2 relative">
               <FileText  size={16} className="text-blue-600 flex-shrink-0" />
 
               {/* Rename  */}
@@ -292,7 +322,7 @@ const menuItems = [
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') setIsEditingFileName(false);
                   }}
-                    className="truncate text-xs focus:outline-0 p-1"
+                    className="truncate text-xs focus:outline-0 p-1 w-full"
                 />
                 <CheckLine
                   size={16}
@@ -302,7 +332,7 @@ const menuItems = [
                 </>
               ) : (
                 <>
-                  <span className="truncate text-xs">{documentName}</span>
+                  <span className="truncate text-xs w-full">{documentName}</span>
                   <PenLine
                   size={16}
                     className="cursor-pointer text-gray-600 hover:text-blue-600"
@@ -404,15 +434,9 @@ const menuItems = [
             />
           <Button
             onClick={handleSendClick}
-            disabled={isAlreadySent || recipients.length === 0 || hasUnsavedChanges}
-            title={
-              isAlreadySent
-                ? "This document already has an active signing request"
-                : recipients.length === 0
-                ? "Add recipients first"
-                : "Send document to recipients"
-            }
-            label={`Send ${recipients.length}`}
+            disabled={isSendDisabled}
+            title={sendTitle}
+            label={`Send ${recipientCount}`}
             icon={<Send size={18}/>}
           />
           {isAlreadySent && (

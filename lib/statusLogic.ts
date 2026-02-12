@@ -95,11 +95,15 @@ export const getUpdatedDocumentStatus = (
     return "completed";
   }
 
-  const hasSigned = recipients.some((r) => r.status === "signed");
-  const hasNotSigned = recipients.some((r) => r.status !== "signed");
+  const hasCompletedRecipient = recipients.some(
+    (r) => r.status === "signed" || r.status === "approved"
+  );
+  const hasIncompleteRecipient = recipients.some(
+    (r) => r.status !== "signed" && r.status !== "approved"
+  );
 
-  // Condition: Partial signing (some signed, some not signed)
-  if (hasSigned && hasNotSigned) {
+  // Condition: Partial completion (some completed, some pending)
+  if (hasCompletedRecipient && hasIncompleteRecipient) {
     return "in_progress";
   }
 

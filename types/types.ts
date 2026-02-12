@@ -46,8 +46,6 @@ export const statuses = [
   { value: "in_progress", label: "In Progress", color: "text-amber-500", dot: "bg-amber-500" },
 
   // --- Completed / Finalized ---
-  { value: "signed", label: "Signed", color: "text-green-500", dot: "bg-green-500" },
-  { value: "approved", label: "Approved", color: "text-emerald-500", dot: "bg-emerald-500" },
   { value: "completed", label: "Completed", color: "text-green-600", dot: "bg-green-600" },
 
   // --- Error / Exception States ---
