@@ -50,6 +50,7 @@ interface ActionToolBarProps {
   isLoggedIn?: boolean;
   setShowModal?: (show: boolean) => void;
   checkFieldError: (updater: (prev: DroppedComponent[]) => DroppedComponent[]) => void;
+  onPreviewDocument?: () => void;
 }  
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   documentName,
@@ -71,6 +72,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   isLoggedIn = true,
   setShowModal,
   checkFieldError,
+  onPreviewDocument,
 }) => {
 const hasSelfFields = droppedItems.some(item => item.fieldOwner === 'me');
 const downloadDoc=async () => {
@@ -413,9 +415,15 @@ const menuItems = [
               />
             </div>
 
-            <Button icon={<Eye size={16} />} inverted title="Preview Document" className="relative group">
+            <Button
+              icon={<Eye size={16} />}
+              inverted
+              title="Preview Document"
+              className="relative group"
+              onClick={onPreviewDocument}
+            >
               <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
-                  Preview your document as it will appear to recipients. This view is read-only and does not reflect any unsaved changes.
+                  Preview your document exactly as recipients see it. You can interact with fields, but signing is disabled.
                 </div>
             </Button>
             <MoreActions menuItems={menuItems as []} />

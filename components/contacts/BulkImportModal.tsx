@@ -107,7 +107,7 @@ Jane,Smith,jane.smith@example.com,+0987654321,Tech Solutions,Project Manager,US,
   if (!isOpen) return null;
 
   return (
-    <Modal visible={isOpen} onClose={onClose} title="Import Contacts" width='600px'
+    <Modal visible={isOpen} onClose={onClose} title="Import Contacts" className='w-[600px]'
       cancelDisabled={isUploading} handleConfirm={handleImport} confirmDisabled={!file || isUploading}
       confirmLabel={isUploading ? 'Importing...' : 'Import Contacts'}
       confirmClass={`${isUploading && '[&_span]:animate-spin'} min-w-44`}

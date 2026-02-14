@@ -7,7 +7,7 @@ import { pdfjs } from "react-pdf";
 import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 // Project utils & types
-import { DroppingField, DroppedComponent, Recipient, DocumentField, IDocument } from '@/types/types';
+import { DroppingField, DroppedComponent, Recipient, DocumentField, IDocument, Doc } from '@/types/types';
 
 
 // Components
@@ -31,6 +31,8 @@ import { useDroppedComponentsState } from '@/hooks/builder/useDroppedComponentsS
 import { useUndoRedoControls } from '@/hooks/builder/useUndoRedoControls';
 import { useFieldUpdates } from '@/hooks/builder/useFieldUpdates';
 import { useDocumentStatusFlags } from '@/hooks/builder/useDocumentStatusFlags';
+import { useSenderPreview } from '@/hooks/builder/useSenderPreview';
+import SenderPreviewModal from './SenderPreviewModal';
 const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 const PageThumbnailMenu = dynamic(() => import('@/components/builder/PageThumbnailMenu'), { ssr: false });
 const DeletedDocumentDialog = dynamic(() => import('./DeletedDocumentDialog'), { ssr: false });
@@ -53,6 +55,7 @@ export interface EditorProps {
   onFieldsChange?: (fields: DocumentField[]) => void;
   isTemplateEditor?: boolean; // New prop to differentiate
   guidedFieldId?: string | null;
+  isPreviewOnly?: boolean;
 }
 
 // Initialize PDF worker (centralized setup)
@@ -74,11 +77,32 @@ const DocumentEditor: React.FC<EditorProps> = ({
   currentRecipientId,
   onFieldsChange,
   guidedFieldId,
+  isPreviewOnly = false,
 }) => {
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
   // ========= Context =========
-  const { selectedFile, setSelectedFile, isLoggedIn, showModal, setShowModal, user, setUser } = useContextStore();
+  const {
+    selectedFile: contextSelectedFile,
+    setSelectedFile: setContextSelectedFile,
+    isLoggedIn,
+    showModal,
+    setShowModal,
+    user,
+    setUser,
+  } = useContextStore();
+  const [previewSelectedFile, setPreviewSelectedFile] = useState<File | string | Doc | null>(null);
+  const selectedFile = isPreviewOnly ? previewSelectedFile : contextSelectedFile;
+  const setSelectedFile = useCallback(
+    (value: File | string | Doc | null) => {
+      if (isPreviewOnly) {
+        setPreviewSelectedFile(value);
+        return;
+      }
+      setContextSelectedFile(value);
+    },
+    [isPreviewOnly, setContextSelectedFile]
+  );
 
   const {
     pdfDoc,
@@ -155,6 +179,24 @@ const DocumentEditor: React.FC<EditorProps> = ({
     isSigningMode,
     initialFields,
     onFieldsChange,
+  });
+
+  const {
+    isSenderPreviewOpen,
+    senderPreviewDocument,
+    openSenderPreview,
+    closeSenderPreview,
+  } = useSenderPreview({
+    selectedFile,
+    initialFileUrl,
+    droppedComponents,
+    recipients,
+    documentId,
+    documentName,
+    initialDocumentName,
+    documentStatus,
+    currentPage,
+    onPreviewError: setError,
   });
 
   const { defaults } = useSignatureInitial({
@@ -248,6 +290,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     setError,
     autoDate,
     isEditingFileName,
+    isPreviewOnly,
   });
 
   useDocumentLoader({
@@ -280,6 +323,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     zoom,
     documentRef,
     pageRefs,
+    isPreviewOnly,
   });
 
   const {
@@ -376,6 +420,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
           isLoggedIn={isLoggedIn}
           setShowModal={setShowModal} // Pass setShowModal directly
           checkFieldError={setDroppedComponents} // Pass a function that triggers re-evaluation
+          onPreviewDocument={openSenderPreview}
         />}
 
       <SaveAsTemplateGate
@@ -487,6 +532,12 @@ const DocumentEditor: React.FC<EditorProps> = ({
         showAuditModal={showAuditModal}
         setShowAuditModal={setShowAuditModal}
         signingEvents={signingEvents}
+      />
+
+      <SenderPreviewModal
+        visible={isSenderPreviewOpen}
+        previewDocument={senderPreviewDocument}
+        onClose={closeSenderPreview}
       />
     </div>
   );

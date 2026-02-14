@@ -20,7 +20,7 @@ export default function TemplatePreviewModal({
   }
 
   return (
-    <Modal visible={isOpen} onClose={onClose} title={templateName} width='900px'>
+    <Modal visible={isOpen} onClose={onClose} title={templateName} className='w-[900px]'>
       <TemplatePreview templateUrl={templateUrl} templateName={templateName} onClose={onClose} />
     </Modal>
   );

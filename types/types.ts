@@ -287,6 +287,19 @@ export interface DocumentField {
   fieldOwner?: FieldOwner;
 }
 
+export interface SigningViewDocument {
+  id: string;
+  fileUrl: string;
+  name: string;
+  fields: DocumentField[];
+  recipients: Recipient[];
+  currentRecipientId?: string;
+  currentRecipient?: Recipient;
+  status: string;
+  signingMode?: 'sequential' | 'parallel';
+  deletedAt?: string | null;
+}
+
 // Document Version & History
 export interface IEditHistory {
   sessionId: string;

@@ -33,6 +33,7 @@ interface UseDocumentSaveArgs {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   autoDate: boolean;
   isEditingFileName: boolean;
+  isPreviewOnly: boolean;
 }
 
 export const useDocumentSave = ({
@@ -60,6 +61,7 @@ export const useDocumentSave = ({
   setError,
   autoDate,
   isEditingFileName,
+  isPreviewOnly,
 }: UseDocumentSaveArgs) => {
   const [lastSavedState, setLastSavedState] = useState<{
     components: DroppedComponent[];
@@ -81,6 +83,7 @@ export const useDocumentSave = ({
   }, []);
 
   const saveToServer = useCallback(async (): Promise<boolean> => {
+    if (isPreviewOnly) return false;
     if (!selectedFile || !pdfDoc) return false;
 
     try {
@@ -119,13 +122,16 @@ export const useDocumentSave = ({
       }
       return false;
     }
-  }, [selectedFile, pdfDoc, documentName, documentId, droppedComponents, recipients, currentPage, pageRefs, zoom, setDocumentId, setDocumentName, setSelectedFile, signingToken, documentRef, setShowDeletedDialog, markSavedState]);
+  }, [isPreviewOnly, selectedFile, pdfDoc, documentName, documentId, droppedComponents, recipients, currentPage, pageRefs, zoom, setDocumentId, setDocumentName, setSelectedFile, signingToken, documentRef, setShowDeletedDialog, markSavedState]);
 
   const handleSavePDF = useCallback(async ({
     isServerSave = false,
     isDownload = false,
     isMergeFields = false,
   }: HandleSavePDFOptions): Promise<boolean | null> => {
+    if (isPreviewOnly) {
+      return null;
+    }
     if (!isLoggedIn) {
       setShowModal(true);
       return null;
@@ -177,13 +183,13 @@ export const useDocumentSave = ({
       }
       return null;
     }
-  }, [autoDate, currentPage, documentName, documentRef, droppedComponents, isLoggedIn, pageRefs, pdfDoc, resetHistory, saveToServer, selectedFile, setDroppedComponents, setError, setPosition, setSelectedFile, setShowDeletedDialog, setShowModal]);
+  }, [autoDate, currentPage, documentName, documentRef, droppedComponents, isPreviewOnly, isLoggedIn, pageRefs, pdfDoc, resetHistory, saveToServer, selectedFile, setDroppedComponents, setError, setPosition, setSelectedFile, setShowDeletedDialog, setShowModal]);
 
   // Finalize session when user leaves the editor: persist last editHistory as metadata-only and clear session
   useEffect(() => {
     const finalizeSession = async () => {
       try {
-        if (isReadOnly) return;
+        if (isReadOnly || isPreviewOnly) return;
         if (typeof window === 'undefined') return;
         const currentDocumentId = localStorage.getItem('currentDocumentId');
         const currentSessionId = localStorage.getItem('currentSessionId');
@@ -250,12 +256,12 @@ export const useDocumentSave = ({
       finalizeSession();
       window.removeEventListener('beforeunload', finalizeSession);
     };
-  }, [droppedComponents, recipients, documentName, currentPage, isReadOnly, documentRef, pageRefs, zoom]);
+  }, [droppedComponents, recipients, documentName, currentPage, isReadOnly, isPreviewOnly, documentRef, pageRefs, zoom]);
 
   // Auto-save metadata when user finishes renaming
   useEffect(() => {
     const saveRenameIfNeeded = async () => {
-      if (isReadOnly) return;
+      if (isReadOnly || isPreviewOnly) return;
       const id = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       if (!id) return;
       if (lastSavedNameRef.current !== documentName && documentName && documentName.trim()) {
@@ -278,7 +284,7 @@ export const useDocumentSave = ({
       saveRenameIfNeeded();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditingFileName, isReadOnly]);
+  }, [isEditingFileName, isPreviewOnly, isReadOnly]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!lastSavedState) return false;

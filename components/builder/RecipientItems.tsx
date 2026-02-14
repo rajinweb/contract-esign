@@ -107,7 +107,7 @@ const RecipientItems: React.FC<
       handleCancel={onClose}
       handleConfirm={handleConfirm}
       confirmLabel="Use"
-      width="700px"
+      className="w-[700px]"
     >
       {/* MODE SWITCH */}
       {!isStamp && (

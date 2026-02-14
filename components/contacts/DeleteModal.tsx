@@ -39,7 +39,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
 
   return (
     <Modal visible={isOpen} onClose={onClose}
-      title="Delete Contacts" width="400px"
+      title="Delete Contacts" className="w-[400px]"
       handleConfirm={handleDelete}
       confirmLabel={
         isDeleting ? (

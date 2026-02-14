@@ -236,7 +236,7 @@ const UserItems: React.FC<UserItemsProps> = ({
       onClose={onClose}
       handleCancel={onClose}
       handleConfirm={screen === "select" ? handleConfirmSelect : handleAddNew}
-      width="700px"
+      className="w-[700px]"
       confirmLabel={screen === "select" ? `Use ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}` : `Add ${isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}`}
     >
       {screen === "select" ? (

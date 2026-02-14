@@ -8,7 +8,7 @@ interface ModalProps {
   onClose: () => void;
   title?: string | React.ReactNode;
   children: React.ReactNode;
-  width?: string; // e.g. "400px", "600px", "90%"
+  className?: string; 
   closeOnBackdrop?: boolean;
   closeOnEsc?: boolean;
   handleCancel?: () => void;
@@ -28,7 +28,7 @@ const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   children,
-  width = "400px",
+  className,
   closeOnBackdrop = true,
   closeOnEsc = false,
   handleConfirm,
@@ -58,12 +58,11 @@ const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50"
+      className={`fixed inset-0 z-[999999] flex items-center justify-center bg-black/50`}
       onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
-        className="relative bg-white rounded-lg shadow-xl "
-        style={{ width }}
+        className={`relative bg-white rounded-lg shadow-xl ${className}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

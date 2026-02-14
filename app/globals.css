@@ -35,6 +35,30 @@
     @apply w-8 h-8 p-1 text-gray-500 hover:text-gray-700 rounded transition hover:bg-gray-100 flex items-center justify-center;
   }
 
+  .sender-preview-modal {
+    @apply w-[96vw] md:w-[92vw] xl:w-[88vw] max-w-[1400px] h-[92vh] max-h-[92vh] rounded-xl overflow-hidden;
+  }
+
+  .sender-preview-modal > header {
+    @apply absolute top-3 right-3 z-50 border-0 p-0 bg-transparent justify-end;
+  }
+
+  .sender-preview-modal > header > div:first-child {
+    display: none;
+  }
+
+  .sender-preview-modal > header button {
+    @apply rounded-full;
+  }
+
+  .sender-preview-modal > main {
+    @apply p-0 h-full max-h-none overflow-hidden;
+  }
+   .sender-preview-modal > main  header {
+    @apply pr-14
+
+   }
+
   body {
     @apply text-[#4B5563];
     font-family: var(--font-poppins), system-ui, sans-serif; 

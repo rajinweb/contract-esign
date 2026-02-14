@@ -139,7 +139,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
       confirmDisabled={isSending || recipients.length === 0}
       confirmIcon={<Send size={16} className='mr-2' />}
       cancelDisabled={isSending}
-      width='800px' title={
+      className='w-[800px]' title={
         <>
           <h2 className="text-xl font-semibold text-gray-900">
             Send Document

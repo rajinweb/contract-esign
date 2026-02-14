@@ -20,7 +20,7 @@ const DocumentSendConfirmationModal: React.FC<DocumentSendConfirmationModalProps
       visible={visible}
       onClose={onClose}
       title="Document sent"
-      width="520px"
+      className="w-[520px]"
       cancelLabel="Go to Dashboard"
       confirmLabel="Void & Create New Revision"
       handleConfirm={onVoidAndCreateRevision}

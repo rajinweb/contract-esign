@@ -15,6 +15,7 @@ interface UseDocumentDraftArgs {
   zoom: number;
   documentRef: React.RefObject<HTMLDivElement>;
   pageRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
+  isPreviewOnly: boolean;
 }
 
 export const useDocumentDraft = ({
@@ -27,9 +28,10 @@ export const useDocumentDraft = ({
   zoom,
   documentRef,
   pageRefs,
+  isPreviewOnly,
 }: UseDocumentDraftArgs) => {
   useEffect(() => {
-    if (!documentId) return;
+    if (isPreviewOnly || !documentId) return;
 
     const timeout = setTimeout(() => {
       const canvasRect = documentRef.current?.getBoundingClientRect();
@@ -69,6 +71,7 @@ export const useDocumentDraft = ({
     documentName,
     selectedFile,
     documentId,
+    isPreviewOnly,
     currentPage,
     zoom,
     documentRef,

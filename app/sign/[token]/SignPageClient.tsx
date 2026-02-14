@@ -3,11 +3,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { LoaderPinwheel, Download, X, AlertCircle, ChevronRight, RotateCcw, RotateCcwSquare, Pin } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
-import { DocumentField, Recipient } from "@/types/types";
+import { DocumentField, Recipient, SigningViewDocument } from "@/types/types";
 import { notFound } from "next/navigation";
 import Brand from "@/components/Brand";
 import Modal from "@/components/Modal";
-import Map from "@/components/Map";
+import LocationMap from "@/components/Map";
 import { IDocumentRecipient } from "@/models/Document";
 import { Button } from "@/components/Button";
 import PermissionHintPopover from "@/components/PermissionHintPopover";
@@ -15,23 +15,14 @@ import { dedupeFieldsById } from "@/utils/builder/documentFields";
 import { isRecipientTurn } from "@/lib/signing-utils";
 
 interface SignPageClientProps {
-  token: string;
+  token?: string;
+  previewMode?: boolean;
+  previewDocument?: SigningViewDocument | null;
 }
 
 interface SignDocumentResponse {
   success: boolean;
-  document: {
-    id: string;
-    fileUrl: string;
-    name: string;
-    fields: DocumentField[];
-    recipients: Recipient[];
-    currentRecipientId?: string;
-    currentRecipient?: Recipient;
-    status: string;
-    signingMode?: 'sequential' | 'parallel';
-    deletedAt?: string | null;
-  };
+  document: SigningViewDocument;
 }
 
 interface RecipientFieldMetrics {
@@ -46,9 +37,9 @@ const EMPTY_METRICS: RecipientFieldMetrics = {
   pendingRequiredCount: 0,
 };
 
-const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
-  const [doc, setDoc] = useState<SignDocumentResponse["document"] | null>(null);
-  const [loading, setLoading] = useState(true);
+const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = false, previewDocument = null }) => {
+  const [doc, setDoc] = useState<SigningViewDocument | null>(null);
+  const [loading, setLoading] = useState(!previewMode);
   const [error, setError] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
   const [page, setPage] = useState(1);
@@ -322,6 +313,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   );
 
   const handleSignOrApprove = useCallback(async (action: Recipient["status"]) => {
+    if (previewMode) {
+      return;
+    }
     try {
       const recipientId =
         typeof window !== "undefined"
@@ -394,9 +388,83 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
       console.error('Error in handleSignOrApprove:', err);
       alert(`Failed to ${action} document: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  }, [token, captureData, currentRecipientId, currentRecipient, doc]);
+  }, [previewMode, token, captureData, currentRecipientId, currentRecipient, doc]);
 
   useEffect(() => {
+    if (!previewMode) return;
+
+    if (!previewDocument) {
+      setError("Preview document is not available.");
+      setLoading(false);
+      return;
+    }
+
+    if (previewDocument.deletedAt) {
+      setError("This document has been trashed and is no longer accessible.");
+      setLoading(false);
+      return;
+    }
+
+    setError(null);
+    setDoc(previewDocument);
+
+    const previewFields = Array.isArray(previewDocument.fields) ? previewDocument.fields : [];
+    latestFieldsRef.current = previewFields;
+    lastFieldsRef.current = '';
+
+    const previewFieldCountByRecipient = new Map<string, number>();
+    previewFields.forEach((field) => {
+      if (!field.recipientId) return;
+      previewFieldCountByRecipient.set(
+        field.recipientId,
+        (previewFieldCountByRecipient.get(field.recipientId) ?? 0) + 1
+      );
+    });
+
+    const resolvedRecipientId =
+      previewDocument.currentRecipientId ??
+      previewDocument.currentRecipient?.id ??
+      previewDocument.recipients.find((recipient) => {
+        if (recipient.isCC || recipient.role === "viewer") return false;
+        return (previewFieldCountByRecipient.get(recipient.id) ?? 0) > 0;
+      })?.id ??
+      previewDocument.recipients.find((recipient) => !recipient.isCC && recipient.role !== "viewer")?.id ??
+      previewDocument.recipients.find(
+        (recipient) => (previewFieldCountByRecipient.get(recipient.id) ?? 0) > 0
+      )?.id ??
+      previewDocument.recipients[0]?.id;
+
+    const recipient =
+      (resolvedRecipientId
+        ? previewDocument.recipients.find((r) => r.id === resolvedRecipientId)
+        : null) ?? previewDocument.currentRecipient ?? null;
+
+    if (recipient) {
+      const { normalizedRecipient, metrics, isSignedLike } = deriveRecipientState(
+        previewFields,
+        recipient
+      );
+      setCurrentRecipientId(recipient.id);
+      setCurrentRecipient(normalizedRecipient);
+      setRecipientMetrics(metrics);
+      setIsSigned(isSignedLike);
+    } else {
+      setCurrentRecipientId(undefined);
+      setCurrentRecipient(null);
+      setRecipientMetrics(EMPTY_METRICS);
+      setIsSigned(false);
+    }
+
+    setCaptureData({});
+    setIsGpsConfirmed(true);
+    setIsGpsModalOpen(false);
+    setGpsError(null);
+    setLoading(false);
+  }, [previewDocument, previewMode, deriveRecipientState]);
+
+  useEffect(() => {
+    if (previewMode) return;
+
     const fetchPdf = async () => {
       try {
         if (!token) throw new Error("Signing token not specified");
@@ -502,7 +570,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     };
 
     fetchPdf();
-  }, [token, deriveRecipientState]);
+  }, [previewMode, token, deriveRecipientState]);
 
   const handleGpsConfirm = () => {
     setIsGpsConfirmed(true);
@@ -668,7 +736,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
   // Keep sequential signers updated while they wait for earlier recipients to complete.
   const refreshDocument = useCallback(async () => {
     try {
-      if (!token) return;
+      if (previewMode || !token) return;
       const recipientId =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("recipient")
@@ -716,7 +784,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     } catch (err) {
       console.error('Error refreshing document:', err);
     }
-  }, [token, deriveRecipientState]);
+  }, [previewMode, token, deriveRecipientState]);
 
   useEffect(() => {
     if (!isSequential || isActionComplete || isRejected || isTurnAllowed) return;
@@ -759,7 +827,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
     );
   }
   if (error) return renderCenteredMessage(error);
-  if (!token) return renderCenteredMessage("Invalid link");
+  if (!previewMode && !token) return renderCenteredMessage("Invalid link");
 
   return (
     <div className="flex h-full min-h-0 flex-col w-full">
@@ -808,7 +876,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
         {/* GPS MODAL */}
         <Modal visible={isGpsModalOpen} onClose={handleGpsCancel} handleConfirm={handleGpsConfirm} title="Confirm your location">
           {captureData.location && (
-            <Map
+            <LocationMap
               latitude={captureData.location.latitude}
               longitude={captureData.location.longitude}
             />
@@ -825,6 +893,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                 initialFields={doc.fields}
                 initialRecipients={doc.recipients}
                 isSigningMode={true}
+                isPreviewOnly={previewMode}
                 isSigned={isSigned}
                 onPageChange={setPage}
                 onNumPagesChange={setNumPages}
@@ -911,7 +980,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                     <Button
                       label={finishLabel}
                       onClick={() => handleSignOrApprove(finishAction)}
-                      disabled={isSigned || !canFinish}
+                      disabled={previewMode || isSigned || !canFinish}
                       className="text-white hover:brightness-95"
                       style={
                         !isSigned && allRequiredFieldsFilled
@@ -920,9 +989,11 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                       }
                       icon={<Pin size={16} className="-rotate-45" />}
                       title={
-                        manualReview && !reviewComplete
-                          ? "Review all required fields before finishing"
-                          : undefined
+                        previewMode
+                          ? "Preview mode: finishing is disabled"
+                          : manualReview && !reviewComplete
+                            ? "Review all required fields before finishing"
+                            : undefined
                       }
                     />
                   )}
@@ -938,7 +1009,9 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token }) => {
                   {showReject && (
                     <Button
                       onClick={() => handleSignOrApprove('rejected')}
-                      className="bg-red-600 text-white hover:bg-red-700"
+                      disabled={previewMode}
+                      title={previewMode ? "Preview mode: rejection is disabled" : undefined}
+                      className={previewMode ? "" : "bg-red-600 text-white hover:bg-red-700"}
                       icon={<X size={12} />}
                       label="Reject"
                     />

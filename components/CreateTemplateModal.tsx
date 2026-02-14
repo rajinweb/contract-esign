@@ -201,7 +201,7 @@ export default function CreateTemplateModal({
   if (!isOpen) return null;
 
   return (
-    <Modal visible={isOpen} onClose={onClose} title="Create Template" width='600px'>
+    <Modal visible={isOpen} onClose={onClose} title="Create Template" className='w-[600px]'>
       {/* Tabs */}
       <div className="flex border-b border-gray-200 px-6 gap-4 justify-center">
         <button

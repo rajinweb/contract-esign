@@ -308,7 +308,7 @@ const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
       onClose={onClose}
       handleConfirm={handleSaveAndContinue}
       confirmLabel="Save and Continue"
-      width='800px' title={
+      className='w-[800px]' title={
         <>
           <h2 className="text-xl font-semibold text-gray-900">
             Add Recipients {sortedRecipients.length}

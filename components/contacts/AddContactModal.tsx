@@ -128,7 +128,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal visible={isOpen} onClose={onClose} title={editContact ? 'Edit Contact' : 'Add Contact'} width='700px'
+    <Modal visible={isOpen} onClose={onClose} title={editContact ? 'Edit Contact' : 'Add Contact'} className='w-[700px]'
       handleConfirm={handleSubmit((data) => onSubmit(data, false))}
       confirmDisabled={isSubmitting}
       confirmLabel={isSubmitting && !saveAndAddAnother
