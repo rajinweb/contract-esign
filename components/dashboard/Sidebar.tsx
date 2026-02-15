@@ -19,51 +19,52 @@ export const PrimarySidebar = ({
   setActive: (s: SidebarType) => void;
 }) => {
 return (
-    <div className="border-r flex flex-col gap-3 p-2">
+    <div className="primary-rail relative z-30 w-16 shrink-0 border-r flex flex-col gap-3 p-2">
       {/* Document  click */}
-      <Button
-        onClick={() => setActive('documents')}
-        className={`relative group border-0 ${active === 'documents'
-          ? '!bg-slate-100 '
-          : 'text-slate-500 hover:text-slate-700'
-          }`}
-        title="Documents"
-        icon={<Files className="w-5 h-5" />}
-        inverted
-      >
-        <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 min-w-36">
-          My Documents
-        </div>
-      </Button>
+    
+        <Button
+          onClick={() => setActive('documents')}
+          className={`sidebar-item-documents relative group border-0 ${active === 'documents'
+            ? '!bg-slate-100 '
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+          title="Documents"
+          icon={<Files className="w-5 h-5" />}
+          inverted
+        >
+          <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-30 min-w-36">
+            My Documents
+          </div>
+        </Button>
       {/* Contact  click */}
-      <Button
-        onClick={() => setActive('contacts')}
-        className={`relative group border-0 ${active === 'contacts'
-          ? '!bg-slate-100'
-          : 'text-slate-500 hover:text-slate-700'
-          }`}
-        inverted
-        title="Contacts"
-        icon={<Contact className="w-5 h-5" />}>
-        <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 min-w-24">
-          My Contacts
-        </div>
-      </Button>
-      <Button
-        onClick={() => setActive('account')}
-        className={`relative group border-0 ${active === 'account'
-          ? '!bg-slate-100'
-          : 'text-slate-500 hover:text-slate-700'
-          }`}
-        title="My Account"
-        inverted
-        icon={<UserCog className="w-5 h-5" />}>
-        <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 min-w-24">
-          My Account
-        </div>
-      </Button>
+        <Button
+          onClick={() => setActive('contacts')}
+          className={`sidebar-item-contacts relative group border-0 ${active === 'contacts'
+            ? '!bg-slate-100'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+          inverted
+          title="Contacts"
+          icon={<Contact className="w-5 h-5" />}>
+          <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-30 min-w-24">
+            My Contacts
+          </div>
+        </Button>
+        <Button
+          onClick={() => setActive('account')}
+          className={`sidebar-item-account relative group border-0 ${active === 'account'
+            ? '!bg-slate-100'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+          title="My Account"
+          inverted
+          icon={<UserCog className="w-5 h-5" />}>
+          <div className="absolute left-10 bottom-0 hidden group-hover:block p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-30 min-w-24">
+            My Account
+          </div>
+        </Button>
+      </div>
 
-    </div>
 )};
 
 export const SecondarySidebar = ({

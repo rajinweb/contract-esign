@@ -73,7 +73,7 @@ export default function ProfilePage() {
 
 
   return (
-    <main className=" mx-auto p-4 md:p-8 lg:p-12">
+    <>
       <header className="mb-10 flex items-center gap-6">
         <div className="relative">
           <Image
@@ -148,7 +148,7 @@ export default function ProfilePage() {
        
       </section>
 
-    </main>
+    </>
   );
 }
 
