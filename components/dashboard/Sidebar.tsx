@@ -19,9 +19,8 @@ export const PrimarySidebar = ({
   setActive: (s: SidebarType) => void;
 }) => {
 return (
-    <div className="primary-rail relative z-30 w-16 shrink-0 border-r flex flex-col gap-3 p-2">
+    <div className="relative z-30 w-16 shrink-0 border-r flex flex-col gap-3 p-2 items-center">
       {/* Document  click */}
-    
         <Button
           onClick={() => setActive('documents')}
           className={`sidebar-item-documents relative group border-0 ${active === 'documents'
@@ -73,14 +72,16 @@ export const SecondarySidebar = ({
   secondaryActive,
   templates,
   fetchTemplates,
+  className,
 }: {
   active: SidebarType,
   activeSecondarybar: SecondarySidebarType,
   secondaryActive: (s: SecondarySidebarType) => void;
   templates: Template[];
   fetchTemplates: (category?: string, search?: string) => Promise<void>;
+  className?: String;
 }) => (
-  <div className="w-64 p-5 h-full overflow-auto">
+  <div className={`w-64 p-5 h-full overflow-auto ${className}`}>
       {active === 'documents' &&
         <DocumentsMenu
           activeSecondarybar={activeSecondarybar as SecondarySidebarType}
