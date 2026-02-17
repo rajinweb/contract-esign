@@ -36,7 +36,17 @@ export function useRenderCanvas(
             const img = new Image();
             img.src = parsedValue;
             img.onload = () => {
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                // Keep image previews sharp and avoid distortion in resized containers.
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = "high";
+
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
+                const offsetX = (canvas.width - drawWidth) / 2;
+                const offsetY = (canvas.height - drawHeight) / 2;
+
+                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
             };
             return;
         }

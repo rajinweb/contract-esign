@@ -5,20 +5,23 @@ import useContextStore from '@/hooks/useContextStore';
 import Image from 'next/image';
 import { blobToURL } from '@/lib/pdf';
 import Input from '@/components/forms/Input';
-import { Camera, LoaderCircle } from 'lucide-react';
-import { User } from '@/types/types';
+import { Button } from '@/components/Button';
+import { Camera, LoaderCircle, PenLine, Stamp, Type } from 'lucide-react';
+import { itemTypes, SignatureInitial, User } from '@/types/types';
 
 import Address from '@/components/account/profile/Address';
 import FullName from '@/components/account/profile/FullName';
 import PhoneNumber from '@/components/account/profile/PhoneNumber';
 import EmailField from '@/components/account/profile/EmailField';
 import SignCard from '@/components/account/profile/SignCard';
+import UserItems from '@/components/builder/UserItems';
 
 import 'react-phone-number-input/style.css';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
   const [isSaving, setIsSaving] = useState(false);
+  const [activeLibrary, setActiveLibrary] = useState<itemTypes | null>(null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -70,6 +73,45 @@ export default function ProfilePage() {
     );
   }
   const noImage = 'https://i.pravatar.cc/40?img=5';
+  const topSignatures = [...(user.signatures || [])]
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    .slice(0, 3);
+  const topInitials = [...(user.initials || [])]
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    .slice(0, 3);
+  const topStamps = [...(user.stamps || [])]
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    .slice(0, 3);
+  const savePayloadByLabel = {
+    Signature: (updatedItems: SignatureInitial[]) => ({ signatures: updatedItems }),
+    Initials: (updatedItems: SignatureInitial[]) => ({ initials: updatedItems }),
+    Stamp: (updatedItems: SignatureInitial[]) => ({ stamps: updatedItems }),
+  } as const;
+
+  const handleLibrarySelect = async (item: SignatureInitial) => {
+    if (!activeLibrary) return;
+
+    const currentItems =
+      activeLibrary === 'Signature'
+        ? user.signatures || []
+        : activeLibrary === 'Initials'
+          ? user.initials || []
+          : user.stamps || [];
+
+    const hasSelectedItem = currentItems.some((current) => current.id === item.id);
+    const updatedItems = hasSelectedItem
+      ? currentItems.map((current) => ({
+          ...current,
+          isDefault: current.id === item.id,
+        }))
+      : [
+          ...currentItems.map((current) => ({ ...current, isDefault: false })),
+          { ...item, isDefault: true },
+        ];
+
+    await handleSave(savePayloadByLabel[activeLibrary](updatedItems));
+    setActiveLibrary(null);
+  };
 
 
   return (
@@ -137,19 +179,138 @@ export default function ProfilePage() {
               return handleSave( { ...user.address, ...updatedAddress });
             }}
           />
-          <div className="xl:col-span-2 space-y-4 rounded-xl border p-6 bg-white shadow ">
-            <h2 className="font-semibold mb-6">Default Signing Methods</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <SignCard label="Signature" user={user}  handleSave={handleSave} />
-              <SignCard label="Initials" user={user} handleSave={handleSave} />
-              <SignCard label="Stamp" user={user} handleSave={handleSave} />
+          <div className="xl:col-span-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50 px-6 py-5">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+                  <PenLine className="h-5 w-5 text-blue-600" />
+                  Default Signing Methods
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Keep your primary signature, initials, and stamp ready for faster document completion.
+                </p>
+              </div>
+              <span className="rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                Profile Defaults
+              </span>
+            </div>
+            <div className="space-y-6 p-6">
+              <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">
+                    <PenLine className="h-4 w-4 text-blue-600" />
+                    Primary Signatures
+                  </h3>
+                  <Button
+                    inverted
+                    onClick={() => setActiveLibrary('Signature')}
+                    className="h-8 !px-3 text-xs"
+                    label="Manage"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {topSignatures.map((signature) => (
+                    <SignCard
+                      key={signature.id}
+                      label="Signature"
+                      itemId={signature.id}
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  ))}
+                  {topSignatures.length < 3 && (
+                    <SignCard
+                      key="signature-create"
+                      label="Signature"
+                      forceCreate
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">
+                    <Type className="h-4 w-4 text-blue-600" />
+                    Initials
+                  </h3>
+                  <Button
+                    inverted
+                    onClick={() => setActiveLibrary('Initials')}
+                    className="h-8 !px-3 text-xs"
+                    label="Manage"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {topInitials.map((initial) => (
+                    <SignCard
+                      key={initial.id}
+                      label="Initials"
+                      itemId={initial.id}
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  ))}
+                  {topInitials.length < 3 && (
+                    <SignCard
+                      key="initials-create"
+                      label="Initials"
+                      forceCreate
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">
+                    <Stamp className="h-4 w-4 text-blue-600" />
+                    Professional Stamps
+                  </h3>
+                  <Button
+                    inverted
+                    onClick={() => setActiveLibrary('Stamp')}
+                    className="h-8 !px-3 text-xs"
+                    label="Manage"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {topStamps.map((stamp) => (
+                    <SignCard
+                      key={stamp.id}
+                      label="Stamp"
+                      itemId={stamp.id}
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  ))}
+                  {topStamps.length < 3 && (
+                    <SignCard
+                      key="stamp-create"
+                      label="Stamp"
+                      forceCreate
+                      user={user}
+                      handleSave={handleSave}
+                    />
+                  )}
+                </div>
+              </section>
             </div>
           </div>
        
       </section>
+      {activeLibrary && (
+        <UserItems
+          type={activeLibrary}
+          onClose={() => setActiveLibrary(null)}
+          onAdd={handleLibrarySelect}
+        />
+      )}
 
     </>
   );
 }
-
-

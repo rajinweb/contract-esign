@@ -9,7 +9,8 @@ interface InitialsProps {
   readOnly?: boolean;
   width?: number;
   height?: number;
-  className?:string
+  className?: string;
+  preserveAspect?: boolean;
 }
 
 const Initials: React.FC<InitialsProps> = ({
@@ -17,7 +18,8 @@ const Initials: React.FC<InitialsProps> = ({
   readOnly = true,
   width = 150,
   height = 50,
-  className
+  className,
+  preserveAspect = false,
 }) => {
   const canvasRef = useRef<SignatureCanvas>(null)
   useRenderCanvas(canvasRef, value ?? undefined, width, height);
@@ -37,7 +39,7 @@ const Initials: React.FC<InitialsProps> = ({
       canvasProps={{
         width,
         height,
-        className: `bg-white w-full h-full rounded pointer-events-none ${className}`,
+        className: `bg-white rounded pointer-events-none ${preserveAspect ? "w-full h-auto max-h-full" : "w-full h-full"} ${className}`,
         onMouseDown: handleMouseDown,
       }}
     />
