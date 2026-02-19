@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
 // Third-party
@@ -33,6 +33,7 @@ import { useFieldUpdates } from '@/hooks/builder/useFieldUpdates';
 import { useDocumentStatusFlags } from '@/hooks/builder/useDocumentStatusFlags';
 import { useSenderPreview } from '@/hooks/builder/useSenderPreview';
 import SenderPreviewModal from './SenderPreviewModal';
+import { dedupeFieldsById, mapFieldToDroppedComponent } from '@/utils/builder/documentFields';
 const LoginPage = dynamic(() => import('@/app/login/page'), { ssr: false });
 const PageThumbnailMenu = dynamic(() => import('@/components/builder/PageThumbnailMenu'), { ssr: false });
 const DeletedDocumentDialog = dynamic(() => import('./DeletedDocumentDialog'), { ssr: false });
@@ -76,6 +77,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   signingToken,
   currentRecipientId,
   onFieldsChange,
+  isTemplateEditor = false,
   guidedFieldId,
   isPreviewOnly = false,
 }) => {
@@ -174,6 +176,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   const draggingEle = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+  const templateEditorInitializedRef = useRef(false);
 
   const { droppedComponents, setDroppedComponents, internalDroppedComponents } = useDroppedComponentsState({
     isSigningMode,
@@ -291,6 +294,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     autoDate,
     isEditingFileName,
     isPreviewOnly,
+    isTemplateEditor,
   });
 
   useDocumentLoader({
@@ -299,6 +303,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
     initialFileUrl,
     initialDocumentName,
     isSigningMode,
+    isTemplateEditor,
     setRecipients,
     setSelectedFile,
     setDocumentName,
@@ -312,6 +317,51 @@ const DocumentEditor: React.FC<EditorProps> = ({
     setElementId,
     markSavedState,
   });
+
+  const templateInitialRecipients = useMemo(
+    () => (Array.isArray(initialRecipients) ? initialRecipients : []),
+    [initialRecipients]
+  );
+
+  useEffect(() => {
+    if (!isTemplateEditor) return;
+    if (templateEditorInitializedRef.current) return;
+    if (!propDocumentId) return;
+
+    const usedIds = new Set<number>();
+    const mappedInitialFields =
+      Array.isArray(initialFields) && initialFields.length > 0
+        ? dedupeFieldsById(initialFields).map((field) =>
+            mapFieldToDroppedComponent(field, usedIds)
+          )
+        : [];
+
+    setDroppedComponents(mappedInitialFields);
+    resetHistoryWithState(mappedInitialFields);
+    const maxId = Math.max(0, ...mappedInitialFields.map((component) => component.id));
+    setElementId(maxId + 1);
+
+    const baselineName = (initialDocumentName ?? documentName).trim();
+    if (baselineName) {
+      markSavedState({
+        components: mappedInitialFields,
+        name: baselineName,
+        recipients: templateInitialRecipients,
+      });
+    }
+    templateEditorInitializedRef.current = true;
+  }, [
+    isTemplateEditor,
+    propDocumentId,
+    initialFields,
+    initialDocumentName,
+    documentName,
+    setDroppedComponents,
+    resetHistoryWithState,
+    setElementId,
+    templateInitialRecipients,
+    markSavedState,
+  ]);
 
   useDocumentDraft({
     documentId,
@@ -380,24 +430,26 @@ const DocumentEditor: React.FC<EditorProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0">
       {!isLoggedIn && <Modal visible={showModal} onClose={() => setShowModal(false)}><LoginPage /></Modal>}
 
-      <DocumentStatusBars
-        isSigningMode={isSigningMode}
-        isCompleted={!isSigningMode && documentStatus === 'completed'}
-        isInProgress={isInProgress}
-        isSent={isSent}
-        isVoided={isVoided}
-        isRejected={isRejected}
-        isReadOnly={isReadOnly}
-        derivedFromDocumentId={derivedFromDocumentId}
-        derivedFromVersion={derivedFromVersion}
-        isDeriving={isDeriving}
-        isDownloadingSigned={isDownloadingSigned}
-        isVoiding={isVoiding}
-        onShowAudit={() => setShowAuditModal(true)}
-        onDownloadSigned={handleDownloadSigned}
-        onShowDerive={() => setShowDeriveModal(true)}
-        onShowVoid={() => setShowVoidModal(true)}
-      />
+      {!isTemplateEditor && (
+        <DocumentStatusBars
+          isSigningMode={isSigningMode}
+          isCompleted={!isSigningMode && documentStatus === 'completed'}
+          isInProgress={isInProgress}
+          isSent={isSent}
+          isVoided={isVoided}
+          isRejected={isRejected}
+          isReadOnly={isReadOnly}
+          derivedFromDocumentId={derivedFromDocumentId}
+          derivedFromVersion={derivedFromVersion}
+          isDeriving={isDeriving}
+          isDownloadingSigned={isDownloadingSigned}
+          isVoiding={isVoiding}
+          onShowAudit={() => setShowAuditModal(true)}
+          onDownloadSigned={handleDownloadSigned}
+          onShowDerive={() => setShowDeriveModal(true)}
+          onShowVoid={() => setShowVoidModal(true)}
+        />
+      )}
 
       {canEdit &&
         <ActionToolBar
@@ -421,24 +473,27 @@ const DocumentEditor: React.FC<EditorProps> = ({
           setShowModal={setShowModal} // Pass setShowModal directly
           checkFieldError={setDroppedComponents} // Pass a function that triggers re-evaluation
           onPreviewDocument={openSenderPreview}
+          isTemplateEditor={isTemplateEditor}
         />}
 
-      <SaveAsTemplateGate
-        showSaveAsTemplate={showSaveAsTemplate}
-        isLoggedIn={isLoggedIn}
-        setShowSaveAsTemplate={setShowSaveAsTemplate}
-        setShowModal={setShowModal}
-        documentId={documentId}
-        documentName={documentName}
-        selectedFile={selectedFile}
-        droppedComponents={droppedComponents}
-        recipients={recipients}
-        pages={pages}
-        documentRef={documentRef}
-        pageRefs={pageRefs}
-        currentPage={currentPage}
-        zoom={zoom}
-      />
+      {!isTemplateEditor && (
+        <SaveAsTemplateGate
+          showSaveAsTemplate={showSaveAsTemplate}
+          isLoggedIn={isLoggedIn}
+          setShowSaveAsTemplate={setShowSaveAsTemplate}
+          setShowModal={setShowModal}
+          documentId={documentId}
+          documentName={documentName}
+          selectedFile={selectedFile}
+          droppedComponents={droppedComponents}
+          recipients={recipients}
+          pages={pages}
+          documentRef={documentRef}
+          pageRefs={pageRefs}
+          currentPage={currentPage}
+          zoom={zoom}
+        />
+      )}
       <EditorWorkspace
         isSigningMode={isSigningMode}
         isReadOnly={isReadOnly}
@@ -512,27 +567,31 @@ const DocumentEditor: React.FC<EditorProps> = ({
       )}
       <DeletedDocumentDialog isOpen={showDeletedDialog} onClose={() => setShowDeletedDialog(false)} />
 
-      <DocumentSendConfirmationModal
-        visible={showSendConfirmation}
-        onClose={() => setShowSendConfirmation(false)}
-        onGoToDashboard={handleGoToDashboard}
-        onVoidAndCreateRevision={handleVoidFromConfirmation}
-      />
+      {!isTemplateEditor && (
+        <>
+          <DocumentSendConfirmationModal
+            visible={showSendConfirmation}
+            onClose={() => setShowSendConfirmation(false)}
+            onGoToDashboard={handleGoToDashboard}
+            onVoidAndCreateRevision={handleVoidFromConfirmation}
+          />
 
-      <DocumentActionModals
-        documentStatus={documentStatus}
-        showVoidModal={showVoidModal}
-        setShowVoidModal={setShowVoidModal}
-        isVoiding={isVoiding}
-        onVoidAndDerive={handleVoidAndDerive}
-        showDeriveModal={showDeriveModal}
-        setShowDeriveModal={setShowDeriveModal}
-        isDeriving={isDeriving}
-        onDeriveDocument={handleDeriveDocument}
-        showAuditModal={showAuditModal}
-        setShowAuditModal={setShowAuditModal}
-        signingEvents={signingEvents}
-      />
+          <DocumentActionModals
+            documentStatus={documentStatus}
+            showVoidModal={showVoidModal}
+            setShowVoidModal={setShowVoidModal}
+            isVoiding={isVoiding}
+            onVoidAndDerive={handleVoidAndDerive}
+            showDeriveModal={showDeriveModal}
+            setShowDeriveModal={setShowDeriveModal}
+            isDeriving={isDeriving}
+            onDeriveDocument={handleDeriveDocument}
+            showAuditModal={showAuditModal}
+            setShowAuditModal={setShowAuditModal}
+            signingEvents={signingEvents}
+          />
+        </>
+      )}
 
       <SenderPreviewModal
         visible={isSenderPreviewOpen}

@@ -51,9 +51,13 @@ const ChooseTemplate = () => {
       const result = await createDocumentFromTemplate(template._id, `${template.name} - ${new Date().toLocaleDateString()}`);
       if (result) {
         toast.success('Document created from template');
-        localStorage.setItem('currentDocumentId', result.documentId);
-        localStorage.setItem('currentSessionId', result.sessionId);
-        router.push(`/builder/${result.documentId}`);
+        const safeGuestId = typeof result.guestId === 'string' && result.guestId.startsWith('guest_')
+          ? result.guestId
+          : null;
+        const builderUrl = safeGuestId
+          ? `/builder/${result.documentId}?guestId=${encodeURIComponent(safeGuestId)}`
+          : `/builder/${result.documentId}`;
+        router.push(builderUrl);
       } else {
         toast.error('Failed to create document from template');
       }

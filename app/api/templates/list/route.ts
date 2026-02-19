@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/utils/db';
-import { getUserIdFromReq } from '@/lib/auth';
+import { getAuthSession } from '@/lib/api-helpers';
 import TemplateModel, { ITemplate } from '@/models/Template';
-import { FilterQuery } from 'mongoose';
+import mongoose, { FilterQuery } from 'mongoose';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
     try {
-        await connectDB();
-        const userId = await getUserIdFromReq(req);
+        const userId = await getAuthSession(req);
 
         const { searchParams } = new URL(req.url);
         const category = searchParams.get('category');
@@ -33,8 +31,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         if (isSystem || !userId) {
             query.isSystemTemplate = true;
         } else {
-            query.$or = [
+            // Support legacy datasets where `userId` might be stored as ObjectId
+            // even though new writes store it as string.
+            const ownerQueryVariants: FilterQuery<ITemplate>[] = [
                 { userId, isSystemTemplate: false },
+            ];
+
+            if (mongoose.Types.ObjectId.isValid(userId)) {
+                ownerQueryVariants.push({
+                    isSystemTemplate: false,
+                    $expr: { $eq: [{ $toString: '$userId' }, userId] },
+                } as FilterQuery<ITemplate>);
+            }
+
+            query.$or = [
+                ...ownerQueryVariants,
                 { isSystemTemplate: true }
             ];
         }

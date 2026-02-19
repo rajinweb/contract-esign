@@ -6,7 +6,7 @@ import { areDroppedComponentsEqual, areRecipientsEqual } from '@/utils/compariso
 import { blobToURL, downloadPdf, mergeFieldsIntoPdf, sanitizeFileName, savePdfBlob } from '@/lib/pdf';
 import { getFieldTypeFromComponentLabel, uploadToServer } from '@/lib/api';
 import { serializePageRect } from '@/utils/builder/pageRect';
-import { Doc, DroppedComponent, HandleSavePDFOptions, Recipient } from '@/types/types';
+import { Doc, DocumentFieldType, DroppedComponent, HandleSavePDFOptions, Recipient } from '@/types/types';
 
 interface UseDocumentSaveArgs {
   selectedFile: File | string | Doc | null;
@@ -34,6 +34,7 @@ interface UseDocumentSaveArgs {
   autoDate: boolean;
   isEditingFileName: boolean;
   isPreviewOnly: boolean;
+  isTemplateEditor?: boolean;
 }
 
 export const useDocumentSave = ({
@@ -62,6 +63,7 @@ export const useDocumentSave = ({
   autoDate,
   isEditingFileName,
   isPreviewOnly,
+  isTemplateEditor = false,
 }: UseDocumentSaveArgs) => {
   const [lastSavedState, setLastSavedState] = useState<{
     components: DroppedComponent[];
@@ -84,9 +86,85 @@ export const useDocumentSave = ({
 
   const saveToServer = useCallback(async (): Promise<boolean> => {
     if (isPreviewOnly) return false;
-    if (!selectedFile || !pdfDoc) return false;
 
     try {
+      if (isTemplateEditor) {
+        if (!documentId) return false;
+
+        const templateName = documentName.trim();
+        if (!templateName) {
+          toast.error('Template name is required.');
+          return false;
+        }
+
+        const canvasRect = documentRef.current?.getBoundingClientRect();
+        const fieldsPayload = droppedComponents.map((comp) => ({
+          id: comp.fieldId ?? comp.id?.toString() ?? crypto.randomUUID(),
+          type: getFieldTypeFromComponentLabel(comp.component) as DocumentFieldType,
+          x: comp.x,
+          y: comp.y,
+          width: comp.width,
+          height: comp.height,
+          pageNumber: comp.pageNumber || currentPage,
+          recipientId: comp.assignedRecipientId,
+          required: comp.required !== false,
+          value: comp.data || '',
+          placeholder: comp.placeholder,
+          mimeType: comp.mimeType,
+          pageRect: serializePageRect(
+            pageRefs.current[(comp.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? comp.pageRect,
+            canvasRect,
+            zoom
+          ),
+          fieldOwner: comp.fieldOwner,
+        }));
+
+        const defaultSignersPayload = recipients.map((recipient, index) => ({
+          id: recipient.id,
+          name: recipient.name,
+          email: recipient.email,
+          role: recipient.role,
+          order: typeof recipient.order === 'number' ? recipient.order : index + 1,
+        }));
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`/api/templates/${encodeURIComponent(documentId)}`, {
+          method: 'PUT',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            name: templateName,
+            fields: fieldsPayload,
+            defaultSigners: defaultSignersPayload,
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const message =
+            payload?.message || payload?.error || `Failed to update template (${response.status})`;
+          throw new Error(message);
+        }
+
+        const payload = await response.json();
+        const nextTemplateName = payload?.template?.name || templateName;
+        setDocumentName(nextTemplateName);
+        markSavedState({
+          components: droppedComponents,
+          name: nextTemplateName,
+          recipients,
+        });
+        return true;
+      }
+
+      if (!selectedFile || !pdfDoc) return false;
       const blob = await savePdfBlob(pdfDoc);
       const safeName = sanitizeFileName(documentName);
       const currentdoc = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
@@ -118,11 +196,11 @@ export const useDocumentSave = ({
       } else if (errorMessage.includes("No PDF header found") || errorMessage.includes("Failed to fetch")) {
         setShowDeletedDialog(true);
       } else {
-        toast.error("An error occurred while saving the document.");
+        toast.error(isTemplateEditor ? "An error occurred while saving the template." : "An error occurred while saving the document.");
       }
       return false;
     }
-  }, [isPreviewOnly, selectedFile, pdfDoc, documentName, documentId, droppedComponents, recipients, currentPage, pageRefs, zoom, setDocumentId, setDocumentName, setSelectedFile, signingToken, documentRef, setShowDeletedDialog, markSavedState]);
+  }, [isPreviewOnly, isTemplateEditor, documentId, documentName, documentRef, droppedComponents, currentPage, pageRefs, zoom, recipients, setDocumentName, markSavedState, selectedFile, pdfDoc, setDocumentId, setSelectedFile, signingToken, setShowDeletedDialog]);
 
   const handleSavePDF = useCallback(async ({
     isServerSave = false,
@@ -137,12 +215,13 @@ export const useDocumentSave = ({
       return null;
     }
 
+    if (isServerSave) {
+      return await saveToServer();
+    }
+
     if (!selectedFile || !pdfDoc) {
       console.error("No file selected!");
       return null;
-    }
-    if (isServerSave) {
-      return await saveToServer();
     }
 
     const canvas = documentRef.current;
@@ -189,7 +268,7 @@ export const useDocumentSave = ({
   useEffect(() => {
     const finalizeSession = async () => {
       try {
-        if (isReadOnly || isPreviewOnly) return;
+        if (isReadOnly || isPreviewOnly || isTemplateEditor) return;
         if (typeof window === 'undefined') return;
         const currentDocumentId = localStorage.getItem('currentDocumentId');
         const currentSessionId = localStorage.getItem('currentSessionId');
@@ -256,12 +335,12 @@ export const useDocumentSave = ({
       finalizeSession();
       window.removeEventListener('beforeunload', finalizeSession);
     };
-  }, [droppedComponents, recipients, documentName, currentPage, isReadOnly, isPreviewOnly, documentRef, pageRefs, zoom]);
+  }, [droppedComponents, recipients, documentName, currentPage, isReadOnly, isPreviewOnly, isTemplateEditor, documentRef, pageRefs, zoom]);
 
   // Auto-save metadata when user finishes renaming
   useEffect(() => {
     const saveRenameIfNeeded = async () => {
-      if (isReadOnly || isPreviewOnly) return;
+      if (isReadOnly || isPreviewOnly || isTemplateEditor) return;
       const id = documentId || (typeof window !== 'undefined' ? localStorage.getItem('currentDocumentId') : null);
       if (!id) return;
       if (lastSavedNameRef.current !== documentName && documentName && documentName.trim()) {
@@ -284,7 +363,7 @@ export const useDocumentSave = ({
       saveRenameIfNeeded();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditingFileName, isPreviewOnly, isReadOnly]);
+  }, [isEditingFileName, isPreviewOnly, isReadOnly, isTemplateEditor]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!lastSavedState) return false;

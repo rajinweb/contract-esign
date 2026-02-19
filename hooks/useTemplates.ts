@@ -25,11 +25,33 @@ export interface Template {
     isActive?: boolean;
 }
 
+export interface CreateDocumentFromTemplateResult {
+    documentId: string;
+    sessionId: string;
+    guestId?: string | null;
+}
+
 export function useTemplates() {
     const [templates, setTemplates] = useState<Template[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { setTrashedTemplatesCount } = useContextStore();
+    const { setTrashedTemplatesCount, isLoggedIn } = useContextStore();
+
+    const persistGuestSessionId = useCallback((guestId: unknown): string | null => {
+        if (typeof guestId === 'string' && guestId.startsWith('guest_')) {
+            localStorage.setItem('guest_session_id', guestId);
+            return guestId;
+        }
+        return null;
+    }, []);
+
+    const resolveGuestSessionId = useCallback((): string => {
+        const existing = persistGuestSessionId(localStorage.getItem('guest_session_id'));
+        if (existing) return existing;
+        const next = `guest_${uuidv4()}`;
+        persistGuestSessionId(next);
+        return next;
+    }, [persistGuestSessionId]);
     const fetchTemplates = useCallback(async (category?: string, search?: string, isActive?: boolean) => {
         setLoading(true);
         setError(null);
@@ -272,7 +294,7 @@ export function useTemplates() {
         }
     }, [fetchTrashedTemplatesCount]); // Added fetchTrashedTemplatesCount to dependencies
 
-    const createDocumentFromTemplate = useCallback(async (templateId: string, documentName?: string): Promise<{ documentId: string; sessionId: string } | null> => {
+    const createDocumentFromTemplate = useCallback(async (templateId: string, documentName?: string): Promise<CreateDocumentFromTemplateResult | null> => {
         setLoading(true);
         setError(null);
         try {
@@ -280,19 +302,18 @@ export function useTemplates() {
                 'Content-Type': 'application/json',
             };
 
-            // Get guest ID if user is not logged in (cookie-based auth can still be absent)
-            let guestId: string | null = null;
-            guestId = localStorage.getItem('guest_session_id');
-            if (!guestId) {
-                guestId = `guest_${uuidv4()}`;
-                localStorage.setItem('guest_session_id', guestId);
-            }
+            // Keep one canonical guest session id only for anonymous template usage.
+            const guestId = isLoggedIn ? null : resolveGuestSessionId();
 
             const response = await fetch('/api/templates/use', {
                 method: 'POST',
                 headers,
                 credentials: 'include',
-                body: JSON.stringify({ templateId, documentName, guestId }),
+                body: JSON.stringify({
+                    templateId,
+                    documentName,
+                    ...(guestId ? { guestId } : {}),
+                }),
             });
 
             if (!response.ok) {
@@ -306,7 +327,10 @@ export function useTemplates() {
                 }
                 throw new Error(errorPayload.message || 'Failed to create document from template');
             }
-            const data: { documentId: string, sessionId: string } = await response.json();
+            const data: CreateDocumentFromTemplateResult = await response.json();
+            localStorage.setItem('currentDocumentId', data.documentId);
+            localStorage.setItem('currentSessionId', data.sessionId);
+            persistGuestSessionId(data.guestId);
 
             return data;
         } catch (err) {
@@ -317,7 +341,7 @@ export function useTemplates() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isLoggedIn, persistGuestSessionId, resolveGuestSessionId]);
 
     const uploadTemplate = useCallback(async (file: File, templateData: Partial<Template>) => {
         setLoading(true);

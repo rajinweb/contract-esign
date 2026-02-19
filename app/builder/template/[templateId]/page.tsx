@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { Recipient } from "@/types/types";
+import { buildTemplateRecipients } from "@/lib/template-recipients";
 
 // Assuming DocumentEditor can be adapted to handle templates, or we create a new TemplateEditor
 // For now, let's adapt DocumentEditor and rename it for clarity or create a new one later.
@@ -10,9 +12,15 @@ interface Props {
   params: Promise<{ templateId: string }>;
 }
 
+function isValidObjectId(value: string): boolean {
+  return /^[a-f\d]{24}$/i.test(value);
+}
+
 async function fetchTemplateData(templateId: string) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-  if (!baseUrl) return null;
+  if (!baseUrl) {
+    return { data: null, status: null as number | null };
+  }
 
   try {
     const cookieStore = await cookies();
@@ -31,35 +39,59 @@ async function fetchTemplateData(templateId: string) {
 
     console.log("Fetch status:", res.status);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { data: null, status: res.status };
+    }
     const data = await res.json();
 
     if (data.success && data.template) {
       const fileUrl = `${baseUrl}/api/templates/${encodeURIComponent(templateId)}`;
+      const fields = data.template.fields || [];
+      const recipients = buildTemplateRecipients(
+        templateId,
+        data.template.defaultSigners || [],
+        fields
+      ) as Recipient[];
 
       return {
-        fileUrl,
-        templateName: data.template.name || null,
-        fields: data.template.fields || [],
-        recipients: data.template.defaultSigners || [], // Templates might have default signers
+        data: {
+          fileUrl,
+          templateName: data.template.name || null,
+          fields,
+          recipients,
+        },
+        status: res.status,
       };
     }
 
-    return null;
+    return { data: null, status: res.status };
   } catch (err) {
     console.error("Error fetching template:", err);
-    return null;
+    return { data: null, status: null as number | null };
   }
 }
 
 export default async function TemplateBuilderPage({ params }: Props) {
   const { templateId } = await params;
+  if (!isValidObjectId(templateId)) {
+    notFound();
+  }
   console.log("Resolved templateId:", templateId);
 
-  const initialData = await fetchTemplateData(templateId);
+  const { data: initialData, status } = await fetchTemplateData(templateId);
 
   if (!initialData) {
-    notFound();
+    if (status === 404) {
+      notFound();
+    }
+    if (status === 401) {
+      redirect('/login');
+    }
+    if (status === 403) {
+      redirect('/templates?view=my');
+    }
+    // Fallback to client-side loading when SSR fetch cannot resolve auth/context.
+    return <TemplateEditor documentId={templateId} isTemplateEditor />;
   }
 
   // Pass template-specific props to the editor.

@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Recipient, ROLES } from "@/types/types";
 import { Plus, GripVertical } from "lucide-react";
 import { Button } from "../Button";
+import { getRecipientKey } from "@/utils/builder/recipientKeys";
 
 interface RecipientsListProps {
   recipients: Recipient[];
@@ -101,8 +102,13 @@ const RecipientsList = React.memo(function RecipientsList({
         isDraggable
       ) {
         const currentIndex = recipients.findIndex(
-          (r) => r.id === dragState.draggingId
+          (r, idx) => getRecipientKey(r, idx) === dragState.draggingId
         );
+        if (currentIndex === -1) {
+          setDragState({ draggingId: null, draggedY: 0, offsetY: 0 });
+          setDragOverIndex(null);
+          return;
+        }
 
         if (currentIndex !== dragOverIndex) {
           const reordered = [...recipients];
@@ -165,13 +171,14 @@ const RecipientsList = React.memo(function RecipientsList({
         ) : (
           <div className="space-y-2">
             {recipients.map((recipient, index) => {
+              const recipientKey = getRecipientKey(recipient, index);
               const roleDef = ROLES.find(
                 (r) => r.value === recipient.role
               );
               const Icon = roleDef?.icon;
 
               const isDragging =
-                dragState.draggingId === recipient.id;
+                dragState.draggingId === recipientKey;
 
               const isOverIndex =
                 isDraggable &&
@@ -179,14 +186,14 @@ const RecipientsList = React.memo(function RecipientsList({
                 dragState.draggingId;
 
               return (
-                <div key={recipient.id}  >
+                <div key={recipientKey}  >
                   {isOverIndex &&
-                    dragState.draggingId !== recipient.id && (
+                    dragState.draggingId !== recipientKey && (
                       <div className="h-1 bg-blue-400 rounded-full mb-2 transition-all duration-150" />
                     )}
 
                   <div
-                    onMouseDown={(e) => handleMouseDown(e, recipient.id) }
+                    onMouseDown={(e) => handleMouseDown(e, recipientKey) }
                     className={`flex items-center ${inlineView ? 'bg-white': ''} gap-2 rounded-md text-xs p-2 w-full select-none transition-all
                       ${isDraggable 
                         ? isDragging
@@ -223,14 +230,14 @@ const RecipientsList = React.memo(function RecipientsList({
                       {fieldStats && recipient.role === 'signer' && (
                         <small
                           className={`px-2 rounded ${
-                            (fieldStats[recipient.id]?.total ?? 0) === 0
+                            (fieldStats[recipientKey]?.total ?? 0) === 0
                               ? 'bg-amber-100 text-amber-700'
                               : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
-                          {(fieldStats[recipient.id]?.total ?? 0)} fields
-                          {fieldStats[recipient.id]?.required
-                            ? ` (${fieldStats[recipient.id].required} required)`
+                          {(fieldStats[recipientKey]?.total ?? 0)} fields
+                          {fieldStats[recipientKey]?.required
+                            ? ` (${fieldStats[recipientKey].required} required)`
                             : ''}
                         </small>
                       )}

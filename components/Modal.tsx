@@ -28,7 +28,7 @@ const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   children,
-  className,
+  className ="w-[600px]",
   closeOnBackdrop = true,
   closeOnEsc = false,
   handleConfirm,

@@ -51,6 +51,7 @@ interface ActionToolBarProps {
   setShowModal?: (show: boolean) => void;
   checkFieldError: (updater: (prev: DroppedComponent[]) => DroppedComponent[]) => void;
   onPreviewDocument?: () => void;
+  isTemplateEditor?: boolean;
 }  
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   documentName,
@@ -73,6 +74,7 @@ const ActionToolBar: React.FC<ActionToolBarProps> = ({
   setShowModal,
   checkFieldError,
   onPreviewDocument,
+  isTemplateEditor = false,
 }) => {
 const hasSelfFields = droppedItems.some(item => item.fieldOwner === 'me');
 const downloadDoc=async () => {
@@ -86,12 +88,16 @@ const downloadDoc=async () => {
       downloadPdf(blob, documentName);
   }
 const menuItems = [
-  { label: 'Save as Template', icon: Heart,  action:() => onSaveAsTemplate && onSaveAsTemplate()},
+  ...(!isTemplateEditor ? [
+    { label: 'Save as Template', icon: Heart, action: () => onSaveAsTemplate && onSaveAsTemplate() },
     { type: "divider", label: "" },
-  { label: "Download original PDF", icon: Download, action:downloadDoc },
-  { label: "Self‑Signed Download", icon: Merge, action: ()=> handleSavePDF({ isDownload: true, isMergeFields: true }), disabled: !hasSelfFields},
-  { label: 'Download with History', icon: History },
-  { label: 'History', icon: History },
+  ] : []),
+  { label: isTemplateEditor ? "Download template PDF" : "Download original PDF", icon: Download, action:downloadDoc },
+  ...(!isTemplateEditor ? [
+    { label: "Self‑Signed Download", icon: Merge, action: () => handleSavePDF({ isDownload: true, isMergeFields: true }), disabled: !hasSelfFields },
+    { label: 'Download with History', icon: History },
+    { label: 'History', icon: History },
+  ] : []),
   { type: 'divider' },
   { label: 'Import Fields from Other Documents', icon: FileText, subtext: 'Payment Request', subIcon: FileText },
   { label: 'Payment Request', icon: LayoutDashboard },
@@ -343,6 +349,11 @@ const menuItems = [
                 </>
               )}
             </div>
+          {isTemplateEditor && (
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+              Template Editor
+            </span>
+          )}
           {/* ---info --*/}
           <Button className="text-xs !p-1 text-gray-700 !rounded-xl text-left relative dropdown" 
             type="button" aria-haspopup="true" aria-expanded="true"
@@ -418,35 +429,41 @@ const menuItems = [
             <Button
               icon={<Eye size={16} />}
               inverted
-              title="Preview Document"
+              title={isTemplateEditor ? "Preview Template" : "Preview Document"}
               className="relative group"
               onClick={onPreviewDocument}
             >
               <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
-                  Preview your document exactly as recipients see it. You can interact with fields, but signing is disabled.
+                  {isTemplateEditor
+                    ? 'Preview this template layout. Saving applies to future documents created from this template.'
+                    : 'Preview your document exactly as recipients see it. You can interact with fields, but signing is disabled.'}
                 </div>
             </Button>
             <MoreActions menuItems={menuItems as []} />
             <Button
               onClick={handleSave}
               disabled={!hasUnsavedChanges || saveStatus === 'saving'}
-              title="Save your edits."
+              title={isTemplateEditor ? 'Save template changes.' : 'Save your edits.'}
               icon={<Save size={18} />}
               label={
                   saveStatus === 'saving'
                 ? 'Saving…'
                 : saveStatus === 'saved'
                 ? 'Saved ✓'
+                : isTemplateEditor
+                ? 'Save Template'
                 : 'Save'
               }
             />
-          <Button
-            onClick={handleSendClick}
-            disabled={isSendDisabled}
-            title={sendTitle}
-            label={`Send ${recipientCount}`}
-            icon={<Send size={18}/>}
-          />
+          {!isTemplateEditor && (
+            <Button
+              onClick={handleSendClick}
+              disabled={isSendDisabled}
+              title={sendTitle}
+              label={`Send ${recipientCount}`}
+              icon={<Send size={18}/>}
+            />
+          )}
           {isAlreadySent && (
             <div className="flex items-center gap-2">
               <div className="text-xs text-amber-600">Already sent</div>
@@ -457,7 +474,12 @@ const menuItems = [
               />
             </div>
           )}
-          <Button icon={<LogOut size={16} />} inverted title="Exit from builder" onClick={()=> router.replace('/dashboard')} />
+          <Button
+            icon={<LogOut size={16} />}
+            inverted
+            title="Exit from builder"
+            onClick={() => router.replace(isTemplateEditor ? '/templates?view=my' : '/dashboard')}
+          />
         </div>
    
     </div>

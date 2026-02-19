@@ -4,32 +4,14 @@ import DocumentModel from '@/models/Document';
 import SignatureModel from '@/models/Signature';
 import { getLatestPreparedVersion } from '@/lib/signing-utils';
 import { sanitizeRecipients } from '@/lib/recipient-sanitizer';
-
-function normalizeFieldOwner(field: any): 'me' | 'recipients' {
-  const owner = String(field?.fieldOwner ?? '').toLowerCase();
-  if (owner === 'me') return 'me';
-  if (owner === 'recipient' || owner === 'recipients') return 'recipients';
-  if (field?.recipientId) return 'recipients';
-  return 'me';
-}
-
-function normalizeFields(fields: any[]) {
-  if (!Array.isArray(fields)) return [];
-  return fields.map((field) => {
-    const plain = typeof field?.toObject === 'function' ? field.toObject() : { ...field };
-    return {
-      ...plain,
-      fieldOwner: normalizeFieldOwner(plain),
-    };
-  });
-}
-
+import { normalizeFields } from '@/lib/field-normalization';
+import mongoose from 'mongoose';
 
 
 // GET - Load a document with its fields and recipients
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getAuthSession(req);
+    const userId = await getAuthSession(req, { allowGuest: true });
     const { searchParams } = new URL(req.url);
     const signingToken = searchParams.get('token') || req.headers.get('X-Signing-Token');
 
@@ -38,6 +20,9 @@ export async function GET(req: NextRequest) {
 
     if (!documentId) {
       return NextResponse.json({ message: 'Document ID missing' }, { status: 400 });
+    }
+    if (!mongoose.Types.ObjectId.isValid(documentId)) {
+      return NextResponse.json({ message: 'Document not found by ID' }, { status: 404 });
     }
 
     const document = await DocumentModel.findById(documentId);
@@ -60,14 +45,11 @@ export async function GET(req: NextRequest) {
       console.log(`[LOAD] DocUser ID: ${document.userId}, Type: ${typeof document.userId}`);
       console.log(`[LOAD] ReqUser ID: ${userId}, Type: ${typeof userId}`);
 
-    const guestId = searchParams.get('guestId');
-    const isValidGuestId = guestId && guestId.startsWith('guest_');
-
       // If the document is a template, any authenticated user can load it.
-      // Otherwise, check for ownership (creator or validated guest).
+      // Otherwise, check for ownership.
+      // `userId` already comes from JWT or validated guestId in getAuthSession().
       if (document.isTemplate ||
-        document.userId.toString() === userId ||
-        (isValidGuestId && document.userId.toString() === guestId)) {
+        document.userId.toString() === userId) {
         authorized = true;
       }
     }

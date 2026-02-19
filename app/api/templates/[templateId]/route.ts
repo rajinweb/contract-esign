@@ -4,9 +4,82 @@ import TemplateModel from '@/models/Template';
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
+import { normalizeFieldOwner } from '@/lib/field-normalization';
+import { randomUUID } from 'crypto';
 
 type RouteContext = {
   params: Promise<{ templateId: string }>
+}
+
+const TEMPLATE_CATEGORIES = new Set(['HR', 'Legal', 'Sales', 'Finance', 'Other']);
+const TEMPLATE_ROLES = new Set(['signer', 'approver', 'viewer']);
+
+function sanitizeTemplateFields(fields: unknown) {
+  if (!Array.isArray(fields)) return [];
+
+  return fields
+    .filter((field): field is Record<string, any> => Boolean(field) && typeof field === 'object')
+    .map((field) => {
+      const pageRect =
+        field.pageRect && typeof field.pageRect === 'object'
+          ? {
+              x: typeof field.pageRect.x === 'number' ? field.pageRect.x : undefined,
+              y: typeof field.pageRect.y === 'number' ? field.pageRect.y : undefined,
+              width: typeof field.pageRect.width === 'number' ? field.pageRect.width : undefined,
+              height: typeof field.pageRect.height === 'number' ? field.pageRect.height : undefined,
+              top: typeof field.pageRect.top === 'number' ? field.pageRect.top : undefined,
+              right: typeof field.pageRect.right === 'number' ? field.pageRect.right : undefined,
+              bottom: typeof field.pageRect.bottom === 'number' ? field.pageRect.bottom : undefined,
+              left: typeof field.pageRect.left === 'number' ? field.pageRect.left : undefined,
+            }
+          : undefined;
+
+      const cleanedPageRect =
+        pageRect && Object.values(pageRect).some((value) => typeof value === 'number')
+          ? pageRect
+          : undefined;
+
+      return {
+        ...field,
+        id: String(field.id ?? ''),
+        pageRect: cleanedPageRect,
+        fieldOwner: normalizeFieldOwner(field),
+      };
+    })
+    .filter((field) => field.id.length > 0);
+}
+
+function sanitizeDefaultSigners(defaultSigners: unknown) {
+  if (!Array.isArray(defaultSigners)) return [];
+
+  return defaultSigners
+    .filter((signer): signer is Record<string, any> => Boolean(signer) && typeof signer === 'object')
+    .map((signer, index) => {
+      const role =
+        typeof signer.role === 'string' && TEMPLATE_ROLES.has(signer.role)
+          ? signer.role
+          : 'signer';
+      const id =
+        typeof signer.id === 'string' && signer.id.trim().length > 0
+          ? signer.id.trim()
+          : `recipient_${randomUUID()}`;
+
+      return {
+        id,
+        name: typeof signer.name === 'string' ? signer.name.trim() : '',
+        email: typeof signer.email === 'string' ? signer.email.trim() : '',
+        role,
+        order: typeof signer.order === 'number' ? signer.order : index + 1,
+      };
+    });
+}
+
+function sanitizeTags(tags: unknown) {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((tag): tag is string => typeof tag === 'string')
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -139,8 +212,21 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Delete the template from the database
-    await TemplateModel.deleteOne({ _id: paramTemplateId, userId });
+    // Delete the template from the database.
+    // Use a compatibility owner filter because legacy rows may store `userId` as ObjectId.
+    const deleteFilter: Record<string, unknown> = {
+      _id: paramTemplateId,
+      isSystemTemplate: false,
+      $or: [
+        { userId },
+        { $expr: { $eq: [{ $toString: '$userId' }, userId] } },
+      ],
+    };
+
+    const deleteResult = await TemplateModel.deleteOne(deleteFilter);
+    if (!deleteResult.deletedCount) {
+      return NextResponse.json({ message: 'Template not found or already deleted' }, { status: 404 });
+    }
 
     console.log(`[DELETE TEMPLATE] Successfully deleted template ${paramTemplateId}`);
 
@@ -150,6 +236,100 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       message: 'Internal Server Error',
       error: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest, context: RouteContext) {
+  try {
+    const userId = await getAuthSession(req);
+    if (!userId) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { templateId: paramTemplateId } = await context.params;
+    if (!paramTemplateId || !mongoose.Types.ObjectId.isValid(paramTemplateId)) {
+      return NextResponse.json({ message: 'Invalid template ID' }, { status: 400 });
+    }
+
+    const payload = await req.json().catch(() => null);
+    if (!payload || typeof payload !== 'object') {
+      return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
+    }
+
+    const template = await TemplateModel.findById(paramTemplateId);
+    if (!template) {
+      return NextResponse.json({ message: 'Template not found' }, { status: 404 });
+    }
+    if (template.isSystemTemplate) {
+      return NextResponse.json({ message: 'Cannot edit system templates. Duplicate first.' }, { status: 403 });
+    }
+    if (!template.userId || template.userId.toString() !== userId) {
+      return NextResponse.json({ message: 'Forbidden: You can only edit your own templates' }, { status: 403 });
+    }
+
+    const updates: Record<string, any> = {};
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'name')) {
+      const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+      if (!name) {
+        return NextResponse.json({ message: 'Template name is required' }, { status: 400 });
+      }
+      updates.name = name;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
+      updates.description = typeof payload.description === 'string' ? payload.description.trim() : '';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'category')) {
+      const category = typeof payload.category === 'string' ? payload.category : '';
+      if (!TEMPLATE_CATEGORIES.has(category)) {
+        return NextResponse.json({ message: 'Invalid template category' }, { status: 400 });
+      }
+      updates.category = category;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'tags')) {
+      updates.tags = sanitizeTags(payload.tags);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'fields')) {
+      updates.fields = sanitizeTemplateFields(payload.fields);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'defaultSigners')) {
+      updates.defaultSigners = sanitizeDefaultSigners(payload.defaultSigners);
+    }
+
+    Object.assign(template, updates);
+    await template.save();
+
+    return NextResponse.json({
+      success: true,
+      template: {
+        _id: template._id,
+        templateId: template._id,
+        name: template.name,
+        description: template.description,
+        category: template.category,
+        isSystemTemplate: template.isSystemTemplate,
+        templateFileUrl: template.templateFileUrl,
+        thumbnailUrl: template.thumbnailUrl,
+        pageCount: template.pageCount,
+        tags: template.tags,
+        createdAt: template.createdAt,
+        updatedAt: template.updatedAt,
+        duplicateCount: template.duplicateCount,
+        fields: template.fields,
+        defaultSigners: template.defaultSigners,
+      },
+    });
+  } catch (error) {
+    console.error('[UPDATE TEMPLATE] API Error in PUT', error);
+    return NextResponse.json({
+      message: 'Internal Server Error',
+      error: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
 }

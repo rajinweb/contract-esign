@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server';
 import { getUserIdFromReq } from '@/lib/auth';
 import connectDB from '@/utils/db';
 
+interface AuthSessionOptions {
+  allowGuest?: boolean;
+}
+
 /**
  * Connects to the database and retrieves the user ID from the request.
  * This function is designed to be called at the beginning of an API route handler.
@@ -10,10 +14,13 @@ import connectDB from '@/utils/db';
  * @returns A promise that resolves to the user ID (string) or null if not authenticated.
  * @throws Will throw an error if the database connection fails.
  */
-export async function getAuthSession(req: NextRequest): Promise<string | null> {
+export async function getAuthSession(
+  req: NextRequest,
+  options: AuthSessionOptions = {}
+): Promise<string | null> {
   await connectDB();
   try {
-    const userId = await getUserIdFromReq(req);
+    const userId = await getUserIdFromReq(req, options);
     return userId;
   } catch (error) {
     // In a real application, you might log the error here.

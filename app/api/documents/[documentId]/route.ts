@@ -22,7 +22,7 @@ export async function GET(
     const params = await props.params;
     const { documentId } = params;
 
-    const userId = await getAuthSession(req);
+    const userId = await getAuthSession(req, { allowGuest: true });
     const url = new URL(req.url);
     const token = url.searchParams.get('token');
 
@@ -36,7 +36,8 @@ export async function GET(
       });
     }
 
-    // 2. If not found by token, try to find by userId (owner)
+    // 2. If not found by token, try to find by userId (owner).
+    // `userId` is already resolved from JWT or validated guestId via getAuthSession().
     if (!document && userId) {
       document = await DocumentModel.findOne({
         _id: documentId,

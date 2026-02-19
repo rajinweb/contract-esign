@@ -1,30 +1,89 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// ---------------- JWT Helper ----------------
-export async function getUserIdFromReq(req: NextRequest): Promise<string | null> {
-  // Try Authorization header first (JWT takes precedence for security)
+interface TokenClaims {
+  id?: string;
+  email?: string;
+}
+
+interface AuthTokenPayload {
+  id: string;
+  email?: string;
+}
+
+interface UserIdOptions {
+  allowGuest?: boolean;
+}
+
+const AUTH_COOKIE_NAME = 'token';
+const AUTH_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 3600;
+const AUTH_TOKEN_TTL = '7d';
+
+function getJwtSecret(): string | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim().length === 0) return null;
+  return secret;
+}
+
+function getTokenFromReq(req: NextRequest): string | null {
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (bearer) return bearer;
+  return req.cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
+}
 
-  // Then check cookies
-  const cookie = req.headers.get('cookie') || '';
-  const match = cookie.match(/(?:^|; )token=([^;]+)/);
-  const token = bearer || (match ? decodeURIComponent(match[1]) : null);
+export function getJwtClaimsFromReq(req: NextRequest): TokenClaims | null {
+  const token = getTokenFromReq(req);
+  const secret = getJwtSecret();
 
-  // If we have a valid JWT token, use it (prevents guestId URL manipulation)
-  if (token) {
-    const secret = process.env.JWT_SECRET;
-    if (secret) {
-      try {
-        const decoded = jwt.verify(token, secret) as JwtPayload & { id?: string };
-        if (decoded?.id) {
-          return decoded.id;
-        }
-      } catch (err) {
-        // Invalid JWT, fall through to guestId check
-      }
-    }
+  if (!token || !secret) return null;
+
+  try {
+    const decoded = jwt.verify(token, secret) as JwtPayload & { id?: string; email?: string };
+    return {
+      id: typeof decoded.id === 'string' ? decoded.id : undefined,
+      email: typeof decoded.email === 'string' ? decoded.email : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function createAuthToken(payload: AuthTokenPayload): string | null {
+  const secret = getJwtSecret();
+  if (!secret) return null;
+  return jwt.sign(
+    {
+      id: payload.id,
+      email: payload.email,
+    },
+    secret,
+    { expiresIn: AUTH_TOKEN_TTL }
+  );
+}
+
+export function setAuthTokenCookie(response: NextResponse, token: string): void {
+  response.cookies.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: AUTH_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
+// ---------------- JWT Helper ----------------
+export async function getUserIdFromReq(
+  req: NextRequest,
+  options: UserIdOptions = {}
+): Promise<string | null> {
+  const claims = getJwtClaimsFromReq(req);
+  if (claims?.id) {
+    return claims.id;
+  }
+
+  if (!options.allowGuest) {
+    return null;
   }
 
   // Only check for guestId if no valid JWT token was found

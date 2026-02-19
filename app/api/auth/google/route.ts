@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
-import jwt from 'jsonwebtoken';
 import Users from '@/models/Users';
-import { serialize } from 'cookie';
 import connectDB from '@/utils/db';
+import { createAuthToken, setAuthTokenCookie } from '@/lib/auth';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -41,13 +40,11 @@ export async function POST(req: NextRequest) {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    const jwtSecret = process.env.JWT_SECRET as string;
-    if (!jwtSecret) {
+    const appToken = createAuthToken({ id: user._id.toString(), email: user.email });
+    if (!appToken) {
       console.error('JWT_SECRET not defined');
       return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
     }
-
-    const appToken = jwt.sign({ id: user._id.toString(), email: user.email }, jwtSecret, { expiresIn: '7d' });
 
     const response = NextResponse.json({
       success: true,
@@ -55,17 +52,7 @@ export async function POST(req: NextRequest) {
       token: appToken,
     });
 
-    // Set httpOnly cookie (secure only in production)
-    response.headers.set(
-      'Set-Cookie',
-      serialize('token', appToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7 * 24 * 3600,
-      })
-    );
+    setAuthTokenCookie(response, appToken);
 
     return response;
   } catch (err) {

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import Users from '@/models/Users';
-import { serialize } from 'cookie';
 import connectDB from '@/utils/db';
+import { createAuthToken, setAuthTokenCookie } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,13 +25,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
-    const jwtSecret = process.env.JWT_SECRET as string;
-    if (!jwtSecret) {
+    const appToken = createAuthToken({ id: user._id.toString(), email: user.email });
+    if (!appToken) {
       console.error('JWT_SECRET not defined');
       return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 });
     }
-
-    const appToken = jwt.sign({ id: user._id, email: user.email }, jwtSecret, { expiresIn: '7d' });
 
     const response = NextResponse.json({
       success: true,
@@ -54,17 +51,7 @@ export async function POST(req: NextRequest) {
       token: appToken
     });
 
-    // Set httpOnly cookie (secure only in production)
-    response.headers.set(
-      'Set-Cookie',
-      serialize('token', appToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7 * 24 * 3600,
-      })
-    );
+    setAuthTokenCookie(response, appToken);
 
     return response;
 

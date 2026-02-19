@@ -224,6 +224,7 @@ export async function POST(req: NextRequest) {
             message: 'Document created from template successfully',
             documentId: newDocument._id.toString(),
             sessionId: newSessionId,
+            guestId: ownerId.startsWith('guest_') ? ownerId : null,
         }, { status: 201 });
 
     } catch (error) {

@@ -8,6 +8,7 @@ import { sendSigningRequestEmail } from '@/lib/email';
 import { buildEventClient, buildEventConsent, buildEventGeo, buildSignedBySnapshot, getLatestPreparedVersion, getLatestSignedVersion, getNextSequentialOrder, isRecipientTurn, normalizeIp } from '@/lib/signing-utils';
 import { buildSignedFieldRecords, deleteSignedFieldRecords, upsertSignedFieldRecords } from '@/lib/signed-fields';
 import { hasAnySignedRecipient } from '@/lib/document-guards';
+import { normalizeFieldOwner } from '@/lib/field-normalization';
 
 export const runtime = 'nodejs';
 
@@ -36,15 +37,6 @@ function sanitizePreparedFields(fields: any[]): any[] {
     return hasAny ? { ...rest, pageRect: cleaned } : rest;
   });
 }
-
-function normalizeFieldOwner(field: any): 'me' | 'recipients' {
-  const owner = String(field?.fieldOwner ?? '').toLowerCase();
-  if (owner === 'me') return 'me';
-  if (owner === 'recipient' || owner === 'recipients') return 'recipients';
-  if (field?.recipientId) return 'recipients';
-  return 'me';
-}
-
 
 async function handleSigningUpdate(
   documentId: string,

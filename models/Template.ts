@@ -8,6 +8,7 @@ export interface ITemplateField extends DocumentField {
 }
 
 export interface ITemplateDefaultSigner {
+    id?: string;
     name?: string;
     email?: string;
     role: 'signer' | 'approver' | 'viewer';
@@ -60,6 +61,7 @@ const TemplateFieldSchema = new Schema<ITemplateField>({
     pageNumber: { type: Number, required: true },
     pageRect: { type: TemplatePageRectSchema },
     recipientId: { type: String },
+    fieldOwner: { type: String, enum: ['me', 'recipients'] },
     required: { type: Boolean, default: true },
     value: { type: String, default: '' },
     placeholder: { type: String },
@@ -69,6 +71,7 @@ const TemplateFieldSchema = new Schema<ITemplateField>({
 });
 
 const TemplateDefaultSignerSchema = new Schema<ITemplateDefaultSigner>({
+    id: { type: String },
     name: { type: String },
     email: { type: String },
     role: { type: String, enum: ['signer', 'approver', 'viewer'], default: 'signer' },

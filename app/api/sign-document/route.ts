@@ -10,25 +10,7 @@ import { sanitizeRecipient, sanitizeRecipients } from '@/lib/recipient-sanitizer
 import { sendSigningRequestEmail } from '@/lib/email';
 import { buildSignedFieldRecords, deleteSignedFieldRecords, upsertSignedFieldRecords } from '@/lib/signed-fields';
 import SignatureModel from '@/models/Signature';
-
-function normalizeFieldOwner(field: any): 'me' | 'recipients' {
-    const owner = String(field?.fieldOwner ?? '').toLowerCase();
-    if (owner === 'me') return 'me';
-    if (owner === 'recipient' || owner === 'recipients') return 'recipients';
-    if (field?.recipientId) return 'recipients';
-    return 'me';
-}
-
-function normalizeFields(fields: any[]) {
-    if (!Array.isArray(fields)) return [];
-    return fields.map((field) => {
-        const plain = typeof field?.toObject === 'function' ? field.toObject() : { ...field };
-        return {
-            ...plain,
-            fieldOwner: normalizeFieldOwner(plain),
-        };
-    });
-}
+import { normalizeFieldOwner, normalizeFields } from '@/lib/field-normalization';
 
 
 export async function POST(req: NextRequest) {
@@ -133,6 +115,13 @@ export async function POST(req: NextRequest) {
                     value: incomingValue ?? field?.value ?? '',
                 };
             });
+        const ownerPrefilledFields = preparedFields
+            .filter((field: any) => normalizeFieldOwner(field) === 'me')
+            .filter((field: any) => {
+                const value = field?.value;
+                return value !== undefined && value !== null && String(value).trim() !== '';
+            });
+        const fieldsToRenderOnPdf = [...ownerPrefilledFields, ...recipientFields];
         const eventFields = await Promise.all(
             recipientFields.map(async (field: any) => ({
                 fieldId: String(field.id),
@@ -157,7 +146,7 @@ export async function POST(req: NextRequest) {
             });
 
             // 2️⃣ Merge fields into PDF (server-side PDF generation)
-            const mergedPdfBuffer = await mergeFieldsIntoPdfServer(basePdfStream, recipientFields);
+            const mergedPdfBuffer = await mergeFieldsIntoPdfServer(basePdfStream, fieldsToRenderOnPdf);
 
             // 3️⃣ Upload signed PDF to S3
             const signedPdfKey = `documents/${document.userId}/${document._id}/signed_${newVersionNumber}_${recipient.id}.pdf`;

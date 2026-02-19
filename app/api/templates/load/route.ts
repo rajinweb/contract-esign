@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import TemplateModel from '@/models/Template';
+import mongoose from 'mongoose';
+import { normalizeTemplateDefaultSigners } from '@/lib/template-signers';
 
 // GET - Load a template with its fields
 export async function GET(req: NextRequest) {
@@ -20,6 +22,9 @@ export async function GET(req: NextRequest) {
     if (!templateId) {
       return NextResponse.json({ message: 'Template ID missing' }, { status: 400 });
     }
+    if (!mongoose.Types.ObjectId.isValid(templateId)) {
+      return NextResponse.json({ message: 'Template not found by ID' }, { status: 404 });
+    }
 
     const template = await TemplateModel.findById(templateId);
 
@@ -28,13 +33,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Authorization check for user-created templates
-    if (!template.isSystemTemplate && template.userId.toString() !== userId) {
+    if (!template.isSystemTemplate && (!template.userId || template.userId.toString() !== userId)) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
     
     // For now, templates don't have versions like documents.
     // We assume fields are directly on the template object.
     const fields = template.fields || [];
+    const defaultSigners = normalizeTemplateDefaultSigners(
+      template.defaultSigners || [],
+      fields,
+      template._id.toString()
+    );
 
     console.log(`[LOAD TEMPLATE] Returning ${fields.length} fields for template ${template.name}`);
 
@@ -49,7 +59,7 @@ export async function GET(req: NextRequest) {
       isSystemTemplate: template.isSystemTemplate,
       category: template.category,
       description: template.description,
-      defaultSigners: template.defaultSigners,
+      defaultSigners,
       pageCount: template.pageCount,
       fileSize: template.fileSize,
       tags: template.tags,

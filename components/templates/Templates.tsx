@@ -3,7 +3,7 @@ import PdfThumbnail from '@/components/PdfThumbnails';
 import TemplatePreviewModal from '@/components/TemplatePreviewModal';
 import CreateTemplateModal from '@/components/CreateTemplateModal';
 import useContextStore from '@/hooks/useContextStore';
-import type { Template } from '@/hooks/useTemplates';
+import type { CreateDocumentFromTemplateResult, Template } from '@/hooks/useTemplates';
 import { Copy, Edit2, Eye, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -35,7 +35,7 @@ export function Templates({
   duplicateTemplate: (templateId: string) => Promise<Template | null>,
   deleteTemplate: (templateId: string) => Promise<boolean>,
   trashTemplate: (templateId: string) => Promise<Template | null>,
-  createDocumentFromTemplate: (templateId: string, documentName?: string) => Promise<{ documentId: string; sessionId: string } | null>,
+  createDocumentFromTemplate: (templateId: string, documentName?: string) => Promise<CreateDocumentFromTemplateResult | null>,
   onTemplateDeleted?: () => void,
   searchQuery: string,
   selectedCategory: string | null
@@ -80,9 +80,10 @@ export function Templates({
     if (!templateToDuplicate) return;
 
     // Optimistic UI update: add duplicated template immediately
+    const tempId = `temp_${Date.now()}`;
     const duplicatedTemplate: Template = {
       ...templateToDuplicate,
-      _id: `temp_${Date.now()}`,
+      _id: tempId,
       name: `${templateToDuplicate.name} (Copy)`,
     };
     setLocalTemplates([...localTemplates, duplicatedTemplate]);
@@ -92,7 +93,7 @@ export function Templates({
       if (result) {
         // Replace temporary template with actual response
         setLocalTemplates(prev => [
-          ...prev.filter(t => t._id !== `temp_${Date.now()}`),
+          ...prev.filter(t => t._id !== tempId),
           result
         ]);
         toast.success('Template duplicated successfully');
@@ -105,6 +106,41 @@ export function Templates({
       // Rollback on error
       setLocalTemplates(originalTemplates);
       toast.error('Failed to duplicate template');
+    } finally {
+      setOperatingTemplateId(null);
+    }
+  };
+
+  const handleEditTemplate = async (template: Template) => {
+    if (!isLoggedIn) {
+      setShowModal(true);
+      return;
+    }
+
+    if (!template.isSystemTemplate) {
+      router.push(`/builder/template/${template._id}`);
+      return;
+    }
+
+    setOperatingTemplateId(template._id);
+    try {
+      const duplicated = await duplicateTemplate(template._id);
+      if (!duplicated) {
+        toast.error('Failed to create editable copy');
+        return;
+      }
+
+      setLocalTemplates(prev => {
+        if (prev.some((item) => item._id === duplicated._id)) {
+          return prev;
+        }
+        return [...prev, duplicated];
+      });
+
+      toast.success('Template duplicated. Opening editable copy.');
+      router.push(`/builder/template/${duplicated._id}`);
+    } catch {
+      toast.error('Failed to create editable copy');
     } finally {
       setOperatingTemplateId(null);
     }
@@ -146,14 +182,18 @@ export function Templates({
     const result =  await createDocumentFromTemplate(templateId, `${templateName} - ${new Date().toLocaleDateString()}`);
     if (result) {
       toast.success('Document created from template');
-      localStorage.setItem('currentDocumentId', result.documentId);
-      localStorage.setItem('currentSessionId', result.sessionId);
+      const safeGuestId = typeof result.guestId === 'string' && result.guestId.startsWith('guest_')
+        ? result.guestId
+        : null;
+      const builderUrl = safeGuestId
+        ? `/builder/${result.documentId}?guestId=${encodeURIComponent(safeGuestId)}`
+        : `/builder/${result.documentId}`;
       
       const isEmbedded = searchParams?.get('embed') === 'true';
       if (isEmbedded && window.parent !== window) {
-        window.parent.location.href = `/builder/${result.documentId}`;
+        window.parent.location.href = builderUrl;
       } else {
-        router.push(`/builder/${result.documentId}`);
+        router.push(builderUrl);
       }
     } else {
       toast.error('Failed to create document from template');
@@ -270,24 +310,26 @@ export function Templates({
                     >
                       <Copy className={`w-4 h-4 ${operatingTemplateId === template._id ? 'animate-spin' : ''}`} />
                     </button>
-                    {isLoggedIn && !template.isSystemTemplate && (
+                    {isLoggedIn && (
                       <>
                         <button
-                          onClick={() => router.push(`/templates/${template._id}/edit`)}
+                          onClick={() => handleEditTemplate(template)}
                           className="px-3 py-2 bg-gray-700 text-gray-100 text-sm rounded hover:bg-gray-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Edit"
+                          title={template.isSystemTemplate ? 'Duplicate & Edit' : 'Edit'}
                           disabled={operatingTemplateId !== null}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setTemplateToDelete(template)}
-                          className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Delete"
-                          disabled={operatingTemplateId !== null}
-                        >
-                          <Trash2 className={`w-4 h-4 ${operatingTemplateId === template._id ? 'animate-spin' : ''}`} />
-                        </button>
+                        {!template.isSystemTemplate && (
+                          <button
+                            onClick={() => setTemplateToDelete(template)}
+                            className="px-3 py-2 bg-red-700 text-red-100 text-sm rounded hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete"
+                            disabled={operatingTemplateId !== null}
+                          >
+                            <Trash2 className={`w-4 h-4 ${operatingTemplateId === template._id ? 'animate-spin' : ''}`} />
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

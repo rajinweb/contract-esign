@@ -5,17 +5,40 @@ import DocumentEditor from "@/components/builder/DocumentEditor";
 
 interface Props {
   params: Promise<{ documentId: string }>;
+  searchParams?: Promise<{ guestId?: string | string[] }>;
 }
 
-async function fetchDocumentData(documentId: string) {
+interface InitialDocumentData {
+  fileUrl: string;
+  documentName: string | null;
+  fields: any[];
+  recipients: any[];
+}
+
+interface FetchDocumentResult {
+  data: InitialDocumentData | null;
+  status: number | null;
+}
+
+function isValidObjectId(value: string): boolean {
+  return /^[a-f\d]{24}$/i.test(value);
+}
+
+async function fetchDocumentData(documentId: string, guestId?: string): Promise<FetchDocumentResult> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-  if (!baseUrl) return null;
+  if (!baseUrl) return { data: null, status: null };
 
   try {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; ");
-
-    const url = `${baseUrl}/api/documents/load?id=${encodeURIComponent(documentId)}`;
+    const safeGuestId = typeof guestId === 'string' && guestId.startsWith('guest_')
+      ? guestId
+      : null;
+    const query = new URLSearchParams({ id: documentId });
+    if (safeGuestId) {
+      query.set('guestId', safeGuestId);
+    }
+    const url = `${baseUrl}/api/documents/load?${query.toString()}`;
     console.log("Fetching document from:", url);
 
     const res = await fetch(url, {
@@ -28,35 +51,53 @@ async function fetchDocumentData(documentId: string) {
 
     console.log("Fetch status:", res.status);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { data: null, status: res.status };
+    }
     const data = await res.json();
 
     if (data.success && data.document) {
-      const fileUrl = `${baseUrl}/api/documents/${encodeURIComponent(documentId)}`;
+      const fileUrl = safeGuestId
+        ? `${baseUrl}/api/documents/${encodeURIComponent(documentId)}?guestId=${encodeURIComponent(safeGuestId)}`
+        : `${baseUrl}/api/documents/${encodeURIComponent(documentId)}`;
 
       return {
-        fileUrl,
-        documentName: data.document.documentName || null,
-        fields: data.document.fields || [],
-        recipients: data.document.recipients || [],
+        data: {
+          fileUrl,
+          documentName: data.document.documentName || null,
+          fields: data.document.fields || [],
+          recipients: data.document.recipients || [],
+        },
+        status: res.status,
       };
     }
 
-    return null;
+    return { data: null, status: res.status };
   } catch (err) {
     console.error("Error fetching document:", err);
-    return null;
+    return { data: null, status: null };
   }
 }
 
-export default async function BuilderDoc({ params }: Props) {
+export default async function BuilderDoc({ params, searchParams }: Props) {
   const { documentId } = await params;
+  if (!isValidObjectId(documentId)) {
+    notFound();
+  }
+
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const guestIdParam = resolvedSearchParams?.guestId;
+  const guestId = Array.isArray(guestIdParam) ? guestIdParam[0] : guestIdParam;
   console.log("Resolved documentId:", documentId);
 
-  const initialData = await fetchDocumentData(documentId);
+  const { data: initialData, status } = await fetchDocumentData(documentId, guestId);
 
   if (!initialData) {
-    notFound();
+    if (status === 404) {
+      notFound();
+    }
+    // Fallback to client-side loading when SSR fetch cannot resolve auth/context.
+    return <DocumentEditor documentId={documentId} />;
   }
 
   return (

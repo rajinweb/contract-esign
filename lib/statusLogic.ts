@@ -1,44 +1,6 @@
 import { IDocument } from "@/types/types";
 import { Document } from "mongoose";
-
-const hasCompletionEvidence = (document: IDocument): boolean => {
-  if (document.status === "completed") return true;
-  if (document.completedAt || document.finalizedAt) return true;
-
-  const versions = Array.isArray(document.versions) ? document.versions : [];
-  if (versions.some((v: any) => v?.label === "signed_final")) return true;
-
-  const recipients = Array.isArray(document.recipients) ? document.recipients : [];
-  const signers = recipients.filter((r: any) => r?.role === "signer");
-  const approvers = recipients.filter((r: any) => r?.role === "approver");
-  const approversComplete =
-    approvers.length === 0 || approvers.every((r: any) => r?.status === "approved");
-
-  if (!approversComplete) {
-    return false;
-  }
-  if (
-    signers.length > 0 &&
-    signers.every((r: any) => r?.status === "signed" && typeof r?.signedVersion === "number")
-  ) {
-    return true;
-  }
-
-  const signingEvents = Array.isArray(document.signingEvents) ? document.signingEvents : [];
-  if (signers.length > 0 && signingEvents.length > 0) {
-    const signedSet = new Set(
-      signingEvents
-        .filter((e: any) => e?.action === "signed" && e?.recipientId)
-        .map((e: any) => String(e.recipientId))
-    );
-    const signerIds = signers.map((s: any) => String(s.id)).filter(Boolean);
-    if (signerIds.length > 0 && signerIds.every((id: string) => signedSet.has(id))) {
-      return true;
-    }
-  }
-
-  return false;
-};
+import { hasCompletionEvidence } from "@/lib/document-guards";
 
 export const getUpdatedDocumentStatus = (
   document: IDocument): IDocument["status"] => {
@@ -57,7 +19,7 @@ export const getUpdatedDocumentStatus = (
   }
 
   // Condition: Completion evidence should never be downgraded
-  if (hasCompletionEvidence(document)) {
+  if (hasCompletionEvidence(document, { requireApproverCompletion: true })) {
     return "completed";
   }
 
