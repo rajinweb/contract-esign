@@ -113,19 +113,6 @@ function verifyAndCoerce<T extends { type: string }>(
   return decoded as T;
 }
 
-function parseExpiresIn(duration: string): SignOptions['expiresIn'] {
-  const normalized = duration.trim();
-  const match = normalized.match(/^(\d+)(ms|s|m|h|d)$/i);
-  if (!match) {
-    const asNumber = Number(normalized);
-    if (!Number.isNaN(asNumber) && asNumber > 0) {
-      return `${asNumber}s`;
-    }
-    throw new Error(`Invalid duration format: ${duration}`);
-  }
-  return duration;
-}
-
 function signToken(payload: object, privateKey: string, expiresIn: SignOptions['expiresIn']): string {
   return jwt.sign(payload, privateKey, {
     algorithm: 'RS256',
@@ -143,7 +130,7 @@ export function signAccessToken(payload: Omit<AccessTokenPayload, 'type'>): stri
       type: 'access',
     },
     getAccessPrivateKey(),
-    parseExpiresIn(ACCESS_TOKEN_TTL)
+    parseDurationToMs(ACCESS_TOKEN_TTL) / 1000
   );
 }
 
@@ -155,7 +142,7 @@ export function signRefreshToken(payload: Omit<RefreshTokenPayload, 'type' | 'no
       type: 'refresh',
     },
     getRefreshPrivateKey(),
-    parseExpiresIn(REFRESH_TOKEN_TTL)
+    parseDurationToMs(REFRESH_TOKEN_TTL) / 1000
   );
 }
 
