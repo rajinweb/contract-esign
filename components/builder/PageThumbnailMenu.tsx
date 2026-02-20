@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { RotateCcw, ArrowUp, ArrowDown, Copy, Trash2, FileSymlink, Replace } from "lucide-react";
 import { PDFDocument, degrees } from "pdf-lib";
@@ -19,17 +19,14 @@ const PageThumbnailMenu: React.FC<Props> = ({
   onPdfUpdated,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
-
-  useEffect(() => {
-    if (triggerElement) {
-      const rect = triggerElement.getBoundingClientRect();
-      setMenuStyle({
-        position: "fixed",
-        top: `${rect.bottom}px`,
-        left: `${rect.right - 192}px`, // w-48 is 12rem = 192px
-      });
-    }
+  const menuStyle = useMemo<React.CSSProperties>(() => {
+    if (!triggerElement) return {};
+    const rect = triggerElement.getBoundingClientRect();
+    return {
+      position: "fixed",
+      top: `${rect.bottom}px`,
+      left: `${rect.right - 192}px`, // w-48 is 12rem = 192px
+    };
   }, [triggerElement]);
 
   // Close menu on outside click or scroll

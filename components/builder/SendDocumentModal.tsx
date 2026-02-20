@@ -18,6 +18,16 @@ interface SendDocumentModalProps {
   setRecipients?: (recipients: Recipient[]) => void;
 }
 
+interface SendForSigningResponse {
+  message?: string;
+  signingMode?: 'sequential' | 'parallel';
+  emailDelivery?: {
+    attempted?: number;
+    delivered?: number;
+    failed?: number;
+  };
+}
+
 const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   isOpen,
   onClose,
@@ -106,12 +116,22 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           signingMode: sequential ? 'sequential' : 'parallel',
         }),
       });
+      const payload = (await response.json().catch(() => ({}))) as SendForSigningResponse;
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to send document');
+        throw new Error(payload.message || 'Failed to send document');
       }
-      toast.success(`Document sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
+
+      const failedEmails = payload.emailDelivery?.failed ?? 0;
+      if (failedEmails > 0) {
+        toast.error(
+          payload.message ||
+            `Document sent, but ${failedEmails} notification email(s) failed to deliver.`
+        );
+      } else {
+        toast.success(`Document sent to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
+      }
+
       onSendComplete?.({
         recipients: recipientsWithSettings,
         signingMode: sequential ? 'sequential' : 'parallel',
@@ -119,7 +139,8 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error sending document:', error);
-      toast.error('Failed to send document. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to send document. Please try again.';
+      toast.error(message);
     } finally {
       setIsSending(false);
     }

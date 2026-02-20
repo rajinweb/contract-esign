@@ -1,18 +1,22 @@
 "use client";
 
-import { DroppedComponent, SignatureInitial, itemTypes } from "@/types/types";
-import { useCallback, useEffect, useState } from "react";
+import { DroppedComponent, SignatureInitial, User, itemTypes } from "@/types/types";
+import { useCallback, useEffect, useMemo } from "react";
 
-import { api } from "@/lib/api-client";
+import { api } from "@/lib/api";
 
 interface UseSignatureInitialProps {
-  user?: any;
-  setUser?: (user: any) => void;
+  user?: User | null;
+  setUser?: (user: User | null) => void;
   droppedComponents: DroppedComponent[];
   updateComponentData: (
     id: DroppedComponent["id"],
     data: SignatureInitial
   ) => void;
+}
+
+interface ProfilePatchResponse {
+  user?: User;
 }
 
 /* -------------------------------------------------------
@@ -25,19 +29,21 @@ export function useSignatureInitial({
   droppedComponents,
   updateComponentData,
 }: UseSignatureInitialProps) {
-
-  /* -----------------------------
-     Defaults (derived from user)
-  ----------------------------- */
-  const [defaults, setDefaults] = useState<{
+  const defaults = useMemo<{
     signature: SignatureInitial | null;
     initial: SignatureInitial | null;
     stamp: SignatureInitial | null;
-  }>({
-    signature: null,
-    initial: null,
-    stamp: null,
-  });
+  }>(
+    () => ({
+      signature:
+        user?.signatures?.find((s: SignatureInitial) => s.isDefault) || null,
+      initial:
+        user?.initials?.find((i: SignatureInitial) => i.isDefault) || null,
+      stamp:
+        user?.stamps?.find((s: SignatureInitial) => s.isDefault) || null,
+    }),
+    [user]
+  );
 
   /* -----------------------------
      Apply default to empty fields
@@ -56,22 +62,6 @@ export function useSignatureInitial({
     },
     [droppedComponents, updateComponentData]
   );
-
-  /* -----------------------------
-     Sync defaults from USER
-  ----------------------------- */
-  useEffect(() => {
-    if (!user) return;
-
-    setDefaults({
-      signature:
-        user.signatures?.find((s: SignatureInitial) => s.isDefault) || null,
-      initial:
-        user.initials?.find((i: SignatureInitial) => i.isDefault) || null,
-      stamp:
-        user.stamps?.find((s: SignatureInitial) => s.isDefault) || null,
-    });
-  }, [user]);
 
   /* -----------------------------
      Auto-apply defaults
@@ -107,7 +97,7 @@ export function useSignatureInitial({
       }));
 
       try {
-        const response = await api.patch("/user/profile", {
+        const response = await api.patch<ProfilePatchResponse>("/user/profile", {
           [key]: updated,
         });
 

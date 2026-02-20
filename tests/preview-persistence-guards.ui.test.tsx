@@ -1,8 +1,10 @@
+// @vitest-environment jsdom
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useDocumentDraft } from '../hooks/builder/useDocumentDraft';
 import { useDocumentSave } from '../hooks/builder/useDocumentSave';
+import type { DroppedComponent } from '../types/types';
 
 describe('preview persistence guards', () => {
   beforeEach(() => {
@@ -42,7 +44,7 @@ describe('preview persistence guards', () => {
         documentRef: { current: null },
         pageRefs: { current: [] },
         setDroppedComponents:
-          vi.fn() as unknown as React.Dispatch<React.SetStateAction<any[]>>,
+          vi.fn() as unknown as React.Dispatch<React.SetStateAction<DroppedComponent[]>>,
         resetHistory: vi.fn(),
         setPosition: vi.fn() as unknown as React.Dispatch<
           React.SetStateAction<{ x: number; y: number }>
@@ -80,7 +82,7 @@ describe('preview persistence guards', () => {
             width: 120,
             height: 40,
             data: 'Preview value',
-          } as any,
+          } as DroppedComponent,
         ],
         recipients: [],
         documentName: 'Preview Draft',

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import useContextStore from '@/hooks/useContextStore';
 
 import Image from 'next/image';
@@ -15,11 +15,14 @@ import PhoneNumber from '@/components/account/profile/PhoneNumber';
 import EmailField from '@/components/account/profile/EmailField';
 import SignCard from '@/components/account/profile/SignCard';
 import UserItems from '@/components/builder/UserItems';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { getCookieValue } from '@/utils/cookies';
 
 import 'react-phone-number-input/style.css';
 
 export default function ProfilePage() {
   const { user, setUser } = useContextStore();
+  const { updateUser } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [activeLibrary, setActiveLibrary] = useState<itemTypes | null>(null);
 
@@ -29,7 +32,7 @@ export default function ProfilePage() {
     try {
       const b64 = await blobToURL(f);
       setUser(prev => prev ? { ...prev, picture: b64 } : null);
-      handleSave({picture: b64 });
+      await handleSave({ picture: b64 });
     } catch (err) {
       console.error(err);
     }
@@ -44,25 +47,87 @@ export default function ProfilePage() {
 
 
     try {
+      const csrfToken = getCookieValue('csrf_token');
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify(updatedUser),
         credentials: 'include',
       });
 
-      if (!res.ok) throw new Error('Update failed');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.message || 'Update failed');
+      }
 
       const data = await res.json();
 
       setUser(data.user);
-      localStorage.setItem('User', JSON.stringify(data.user));
+      updateUser({
+        id: data.user?.id,
+        email: data.user?.email,
+        role: data.user?.role,
+        firstName: data.user?.firstName,
+        lastName: data.user?.lastName,
+        picture: data.user?.picture,
+      });
     } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
       throw new Error('Network error');
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateProfile = async () => {
+      try {
+        const res = await fetch('/api/user/profile', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled || !data?.user) {
+          return;
+        }
+
+        setUser(data.user);
+        updateUser({
+          id: data.user.id,
+          email: data.user.email,
+          role: data.user.role,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          picture: data.user.picture,
+        });
+      } catch {
+        // Best-effort profile hydration.
+      }
+    };
+
+    void hydrateProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setUser, updateUser, user?.id]);
 
 
   if (!user) {
@@ -176,7 +241,7 @@ export default function ProfilePage() {
               // Update local state
               setUser(prev => prev ? { ...prev, address: { ...prev.address, ...updatedAddress } } : null)
               // Save to backend (pass as Partial<User>)
-              return handleSave( { ...user.address, ...updatedAddress });
+              return handleSave({ address: { ...user.address, ...updatedAddress } });
             }}
           />
           <div className="xl:col-span-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

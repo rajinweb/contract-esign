@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IVersionDoc } from '@/models/Document';
 import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 import { sendSigningRejectedEmail, sendSigningRequestEmail } from '@/lib/email';
 import { buildEventClient, buildEventConsent, buildEventGeo, getNextSequentialOrder, isRecipientTurn, normalizeIp } from '@/lib/signing-utils';
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message }, { status: 409 });
     }
 
-    const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
+    const recipient = document.recipients.find((r: { signingToken: string; }) => r.signingToken === token);
 
     if (!recipient) {
       return NextResponse.json(
@@ -96,16 +96,16 @@ export async function POST(req: NextRequest) {
 
     const signedVersionFromRecipient =
       recipient.signedVersion != null
-        ? document.versions.find((v: any) => v.version === recipient.signedVersion)
+        ? document.versions.find((v: IVersionDoc) => v.version === recipient.signedVersion)
         : undefined;
     const signedVersionFromChain = document.versions
-      .filter((v: any) => {
+      .filter((v: IVersionDoc) => {
         if (Array.isArray(v.signedBy)) {
           return v.signedBy.includes(recipient.id);
         }
         return v.signedBy === recipient.id;
       })
-      .sort((a: any, b: any) => (b.version ?? 0) - (a.version ?? 0))[0];
+      .sort((a: IVersionDoc, b: IVersionDoc) => (b.version ?? 0) - (a.version ?? 0))[0];
     const signedVersion = signedVersionFromRecipient ?? signedVersionFromChain;
     if (action === 'signed' && !signedVersion) {
       return NextResponse.json(

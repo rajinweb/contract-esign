@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import connectDB from '@/utils/db';
 import Template from '@/models/Template';
-import Document from '@/models/Document';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';

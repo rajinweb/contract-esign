@@ -84,9 +84,6 @@ export default async function TemplateBuilderPage({ params }: Props) {
     if (status === 404) {
       notFound();
     }
-    if (status === 401) {
-      redirect('/login');
-    }
     if (status === 403) {
       redirect('/templates?view=my');
     }

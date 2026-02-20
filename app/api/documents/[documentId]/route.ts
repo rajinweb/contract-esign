@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IVersionDoc } from '@/models/Document';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getLatestPreparedVersion } from '@/lib/signing-utils';
 
@@ -66,7 +66,7 @@ export async function GET(
       versionNumber = parseInt(versionParam, 10);
     }
 
-    const versionData = document.versions.find((v: any) => v.version === versionNumber);
+    const versionData = document.versions.find((v: IVersionDoc) => v.version === versionNumber);
 
     if (!versionData) {
       return NextResponse.json({ message: 'Version not found' }, { status: 404 });
@@ -88,7 +88,7 @@ export async function GET(
 
     const fileBody = await s3Response.Body.transformToByteArray();
 
-    return new NextResponse(fileBody as any, {
+    return new NextResponse(new Uint8Array(fileBody), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'inline',

@@ -11,10 +11,11 @@ import TemplateSearch from '@/components/templates/TemplateSearch';
 
 import { useTemplates } from '@/hooks/useTemplates';
 import useContextStore from '@/hooks/useContextStore';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 import { Doc, SecondarySidebarType, SidebarType } from '@/types/types';
-import { ACCOUNT_CONFIG } from '@/config/account.config';
-import { DOCUMENT_CONFIG } from '@/config/document.config';
+import { ACCOUNT_CONFIG, type AccountConfigItem } from '@/config/account.config';
+import { DOCUMENT_CONFIG, type DocumentConfigItem } from '@/config/document.config';
 
 /* ------------------------------------------------------------------ */
 /* Constants */
@@ -25,14 +26,25 @@ const SIDEBAR_ROUTE_MAP: Array<{ match: string; sidebar: SidebarType }> = [
   { match: '/contacts', sidebar: 'contacts' },
 ];
 
-const accountViewMap: Record<string, React.ComponentType<any>> = ACCOUNT_CONFIG.reduce((acc, item) => {
+type ViewComponent = React.ComponentType<Record<string, unknown>>;
+type DocumentListItem = {
+  id: string;
+  originalFileName?: string;
+  name?: string;
+  status?: Doc['status'];
+  createdAt: string | Date;
+  deletedAt?: Date | null;
+  statusBeforeDelete?: Doc['status'];
+};
+
+const accountViewMap: Record<string, ViewComponent> = ACCOUNT_CONFIG.reduce((acc, item: AccountConfigItem) => {
     acc[item.id] = item.component;
     return acc;
-  }, {} as Record<string, React.ComponentType<any>>);
+  }, {} as Record<string, ViewComponent>);
 
-const documentViewMap: Record<string, React.ComponentType<any>> = {};
+const documentViewMap: Record<string, ViewComponent> = {};
 
-const registerDocumentViews = (items: readonly any[]) => {
+const registerDocumentViews = (items: readonly DocumentConfigItem[]) => {
   items.forEach(item => {
     if (item.component) {
       documentViewMap[item.id] = item.component;
@@ -49,9 +61,18 @@ registerDocumentViews(DOCUMENT_CONFIG);
 /* ------------------------------------------------------------------ */
 
 export default function Dashboard() {
+  const { logout } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { documents, setDocuments, isLoggedIn, searchQuery, setSearchQuery, selectedCategory, setSelectedCategory} = useContextStore();
+  const {
+    documents,
+    setDocuments,
+    isLoggedIn,
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory
+  } = useContextStore();
   const [activeSidebar, setActiveSidebar] = useState<SidebarType>('documents');
   const [activeSecondarybar, setActiveSecondarybar] = useState<SecondarySidebarType>('dash-documents');
 
@@ -107,13 +128,20 @@ export default function Dashboard() {
           credentials: 'include',
         });
 
+        if (res.status === 401) {
+          setDocuments([]);
+          await logout();
+          window.location.replace('/login');
+          return;
+        }
+
         if (!res.ok) throw new Error('Failed to fetch documents');
 
         const { success, documents = [] } = await res.json();
         if (!success || !Array.isArray(documents)) throw new Error('Invalid response');
 
         setDocuments(
-          documents.map((doc: any): Doc => ({
+          documents.map((doc: DocumentListItem): Doc => ({
             id: String(doc.id),
             documentId: String(doc.id),
             name: doc.name ?? doc.originalFileName ?? 'Untitled',
@@ -128,7 +156,7 @@ export default function Dashboard() {
           }))
         );
       } catch (e) {
-        if ((e as any).name !== 'AbortError') {
+        if (!(e instanceof Error) || e.name !== 'AbortError') {
           console.error(e);
           setDocuments([]);
         }
@@ -138,7 +166,7 @@ export default function Dashboard() {
     fetchDocs();
 
     return () => controller.abort();
-  }, [isLoggedIn, setDocuments]);
+  }, [isLoggedIn, logout, setDocuments]);
 
 
   /* ------------------------------------------------------------------ */

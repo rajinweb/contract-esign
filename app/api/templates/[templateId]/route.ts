@@ -18,19 +18,23 @@ function sanitizeTemplateFields(fields: unknown) {
   if (!Array.isArray(fields)) return [];
 
   return fields
-    .filter((field): field is Record<string, any> => Boolean(field) && typeof field === 'object')
+    .filter((field): field is Record<string, unknown> => Boolean(field) && typeof field === 'object')
     .map((field) => {
-      const pageRect =
+      const pageRectSource =
         field.pageRect && typeof field.pageRect === 'object'
+          ? (field.pageRect as Record<string, unknown>)
+          : null;
+      const pageRect =
+        pageRectSource
           ? {
-              x: typeof field.pageRect.x === 'number' ? field.pageRect.x : undefined,
-              y: typeof field.pageRect.y === 'number' ? field.pageRect.y : undefined,
-              width: typeof field.pageRect.width === 'number' ? field.pageRect.width : undefined,
-              height: typeof field.pageRect.height === 'number' ? field.pageRect.height : undefined,
-              top: typeof field.pageRect.top === 'number' ? field.pageRect.top : undefined,
-              right: typeof field.pageRect.right === 'number' ? field.pageRect.right : undefined,
-              bottom: typeof field.pageRect.bottom === 'number' ? field.pageRect.bottom : undefined,
-              left: typeof field.pageRect.left === 'number' ? field.pageRect.left : undefined,
+              x: typeof pageRectSource.x === 'number' ? pageRectSource.x : undefined,
+              y: typeof pageRectSource.y === 'number' ? pageRectSource.y : undefined,
+              width: typeof pageRectSource.width === 'number' ? pageRectSource.width : undefined,
+              height: typeof pageRectSource.height === 'number' ? pageRectSource.height : undefined,
+              top: typeof pageRectSource.top === 'number' ? pageRectSource.top : undefined,
+              right: typeof pageRectSource.right === 'number' ? pageRectSource.right : undefined,
+              bottom: typeof pageRectSource.bottom === 'number' ? pageRectSource.bottom : undefined,
+              left: typeof pageRectSource.left === 'number' ? pageRectSource.left : undefined,
             }
           : undefined;
 
@@ -53,7 +57,7 @@ function sanitizeDefaultSigners(defaultSigners: unknown) {
   if (!Array.isArray(defaultSigners)) return [];
 
   return defaultSigners
-    .filter((signer): signer is Record<string, any> => Boolean(signer) && typeof signer === 'object')
+    .filter((signer): signer is Record<string, unknown> => Boolean(signer) && typeof signer === 'object')
     .map((signer, index) => {
       const role =
         typeof signer.role === 'string' && TEMPLATE_ROLES.has(signer.role)
@@ -268,7 +272,7 @@ export async function PUT(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ message: 'Forbidden: You can only edit your own templates' }, { status: 403 });
     }
 
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
 
     if (Object.prototype.hasOwnProperty.call(payload, 'name')) {
       const name = typeof payload.name === 'string' ? payload.name.trim() : '';

@@ -41,7 +41,6 @@ export default function CreateTemplateModal({
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<FormInputs>({
     defaultValues: {
       name: '',
@@ -50,8 +49,6 @@ export default function CreateTemplateModal({
       tags: '',
     },
   });
-
-  const watchedName = watch('name');
 
   // Fetch documents for "Select Existing Document" tab
   useEffect(() => {

@@ -27,7 +27,7 @@ describe('field-normalization', () => {
     const detached = mongooseLike.toObject;
     expect(() => detached()).toThrow();
 
-    const normalized = normalizeFields([mongooseLike as any]);
+    const normalized = normalizeFields([mongooseLike as unknown]);
     expect(normalized).toHaveLength(1);
     expect(normalized[0]).toMatchObject({
       id: 'f1',
@@ -37,7 +37,7 @@ describe('field-normalization', () => {
   });
 
   it('handles nullish field entries without crashing', () => {
-    const normalized = normalizeFields([undefined as any, null as any, { id: 'f2' } as any]);
+    const normalized = normalizeFields([undefined as unknown, null as unknown, { id: 'f2' } as unknown]);
     expect(normalized).toHaveLength(3);
     expect(normalized[0].fieldOwner).toBe('me');
     expect(normalized[1].fieldOwner).toBe('me');

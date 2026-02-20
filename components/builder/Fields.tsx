@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
+import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import {
   Image as Pic,
   Signature,
@@ -39,26 +39,19 @@ export default function Fields({ activeComponent, mouseDown, setActiveComponent 
   activeComponent: DroppingField | null;
   setActiveComponent: Dispatch<SetStateAction<DroppingField | null>>;
 }) {
-  const [activeTab, setActiveTab] = useState<FieldOwner>('recipients');
-  const isManualTabChange = useRef(false);
+  const [selectedTab, setSelectedTab] = useState<FieldOwner>('recipients');
+  const activeTab = useMemo<FieldOwner>(() => {
+    if (!activeComponent?.fieldOwner) {
+      return selectedTab;
+    }
+    return activeComponent.fieldOwner === 'me' ? 'me' : 'recipients';
+  }, [activeComponent?.fieldOwner, selectedTab]);
 
   const handleTabChange = (tab: FieldOwner) => {
-    isManualTabChange.current = true;
     setActiveComponent(null);
-    setActiveTab(tab);
+    setSelectedTab(tab);
   }
-  
-  useEffect(() => {
-    if (!activeComponent?.fieldOwner) return;
-    if (isManualTabChange.current) {
-      isManualTabChange.current = false;
-      return;
-    }
-    setActiveTab(
-      activeComponent.fieldOwner === 'me' ? 'me' : 'recipients'
-    );
-  }, [activeComponent?.fieldOwner]);
-  
+
   return (
     <>
       <div className="bg-gray-50 border-b p-4 pb-0 text-xs">

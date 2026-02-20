@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       })
       .sort({ updatedAt: -1 }); // newest first
 
-    const response = trashedDocuments.map((doc: any) => {
+    const response = trashedDocuments.map((doc) => {
       const effectiveStatus =
         doc.deletedAt
           ? (hasCompletionEvidence(doc)

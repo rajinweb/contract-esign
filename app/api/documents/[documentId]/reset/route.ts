@@ -4,7 +4,7 @@ import { getUpdatedDocumentStatus } from '@/lib/statusLogic';
 import { Recipient } from '@/types/types';
 
 export const POST = async (
-  req: NextRequest,
+  _req: NextRequest,
   context: { params: Promise<{ documentId: string }> }
 ) => {
   const { documentId } = await context.params; // must await since params is a Promise in Next 15

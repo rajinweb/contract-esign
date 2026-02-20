@@ -3,25 +3,25 @@ import { usePathname } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import ContextProvider from '@/components/ContextProvider';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { AuthProvider } from '@/components/auth/AuthProvider';
+import AuthStateBridge from '@/components/auth/AuthStateBridge';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Only decide to show header/footer after client mount to avoid hydration mismatch
-  const hideHeaderFooter = mounted && pathname && (pathname.startsWith('/builder') || pathname.startsWith('/dashboard') ||  pathname.startsWith('/sign'));
+  const hideHeaderFooter =
+    pathname != null &&
+    (pathname.startsWith('/builder') || pathname.startsWith('/dashboard') || pathname.startsWith('/sign'));
 
   return (
     <main className={`h-screen ${hideHeaderFooter ? 'flex' : ''}`}>
       <ContextProvider>
-        {mounted && !hideHeaderFooter && <Header />}
-        {children}
-        {mounted && !hideHeaderFooter && <Footer />}
+        <AuthProvider>
+          <AuthStateBridge />
+          {!hideHeaderFooter && <Header />}
+          {children}
+          {!hideHeaderFooter && <Footer />}
+        </AuthProvider>
       </ContextProvider>
     </main>
   );

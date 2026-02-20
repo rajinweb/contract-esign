@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LoaderPinwheel, Download, X, AlertCircle, ChevronRight, RotateCcw, RotateCcwSquare, Pin } from "lucide-react";
+import { LoaderPinwheel, Download, X, AlertCircle, ChevronRight, RotateCcwSquare, Pin } from "lucide-react";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
 import { DocumentField, Recipient, SigningViewDocument } from "@/types/types";
@@ -42,8 +42,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = fa
   const [loading, setLoading] = useState(!previewMode);
   const [error, setError] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
-  const [page, setPage] = useState(1);
-  const [numPages, setNumPages] = useState(1);
   const [currentRecipient, setCurrentRecipient] = useState<Recipient | null>(null);
   const [currentRecipientId, setCurrentRecipientId] = useState<string>();
   const [recipientMetrics, setRecipientMetrics] = useState<RecipientFieldMetrics>(EMPTY_METRICS);
@@ -130,7 +128,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = fa
   const canAdvance = manualReview
     ? orderedRequiredFields.length > 0
     : pendingRequiredFields.length > 0;
-  const hasSingleAssignedField = recipientMetrics.assignedCount === 1;
   const hasMultipleAssignedFields = recipientMetrics.assignedCount > 1;
   const hasAssignedFields = recipientMetrics.assignedCount > 0;
   const canFinish = isApprover ? true : allRequiredFieldsFilled;
@@ -502,7 +499,7 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = fa
           setCaptureData({ device: getDeviceInfo() });
 
           const gpsCacheKey = `gps:${token}:${recipient.id}`;
-          let cachedGps: { location?: any; consent?: any } | null = null;
+          let cachedGps: Pick<IDocumentRecipient, 'location' | 'consent'> | null = null;
           if (typeof window !== "undefined") {
             try {
               const raw = window.sessionStorage.getItem(gpsCacheKey);
@@ -519,10 +516,17 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = fa
 
           if (hasCachedGps || hasServerGps) {
             const source = hasCachedGps ? cachedGps : recipient;
+            const normalizedConsent: IDocumentRecipient['consent'] | undefined = source?.consent
+              ? {
+                  locationGranted: source.consent.locationGranted,
+                  grantedAt: source.consent.grantedAt,
+                  method: source.consent.method === 'checkbox' ? 'checkbox' : 'system_prompt',
+                }
+              : undefined;
             setCaptureData(prev => ({
               ...prev,
               location: source?.location,
-              consent: source?.consent,
+              consent: normalizedConsent,
             }));
             setIsGpsConfirmed(true);
           } else if (recipient.captureGpsLocation && navigator.geolocation) {
@@ -895,8 +899,6 @@ const SignPageClient: React.FC<SignPageClientProps> = ({ token, previewMode = fa
                 isSigningMode={true}
                 isPreviewOnly={previewMode}
                 isSigned={isSigned}
-                onPageChange={setPage}
-                onNumPagesChange={setNumPages}
                 signingToken={token}
                 currentRecipientId={currentRecipientId}
                 guidedFieldId={guidedFieldId}

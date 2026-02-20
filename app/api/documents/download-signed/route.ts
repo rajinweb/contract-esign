@@ -1,18 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/utils/db';
-import DocumentModel, { IDocumentRecipient } from '@/models/Document';
+import DocumentModel, { IDocumentRecipient, IVersionDoc } from '@/models/Document';
 import SignatureModel from '@/models/Signature';
-import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { getUserIdFromReq } from '@/lib/auth';
+import { degrees, PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import { unauthorizedResponse } from '@/lib/auth';
+import { getAuthSession } from '@/lib/api-helpers';
 import { DocumentField } from '@/types/types';
 import dayjs from 'dayjs';
 import { getObjectStream } from '@/lib/s3';
 import { Readable } from 'stream';
 
 export const runtime = 'nodejs';
+type FieldValueRecord = {
+    fieldId?: string;
+    version?: number;
+    signedAt?: Date | string;
+    fieldValue?: string;
+};
+
+type SerializedBuffer = {
+    buffer?: Buffer;
+    type?: 'Buffer' | string;
+    data?: number[];
+};
+
+type DocumentFieldWithLegacyId = DocumentField & { fieldId?: string };
+
 function wrapText(
     text: string,
-    font: any,
+    font: PDFFont,
     fontSize: number,
     maxWidth: number
 ): string[] {
@@ -46,17 +61,15 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
 
 export async function GET(req: NextRequest) {
     try {
-        await connectDB();
-
         const documentId = req.nextUrl.searchParams.get('documentId');
         if (!documentId) {
             return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
         }
 
         // Get userId for authorization
-        const userId = await getUserIdFromReq(req);
+        const userId = await getAuthSession(req);
         if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse({ error: 'Unauthorized' });
         }
 
         // Fetch document (without .lean() to preserve Buffer type)
@@ -82,11 +95,11 @@ export async function GET(req: NextRequest) {
         }
 
         // Get the current version by number (do not rely on array index ordering)
-        const versionByNumber = document.versions.find((v: any) => v.version === document.currentVersion);
+        const versionByNumber = document.versions.find((v: IVersionDoc) => v.version === document.currentVersion);
         const signedVersions = (document.versions || []).filter(
-            (v: any) => typeof v?.label === 'string' && v.label.startsWith('signed') && typeof v.version === 'number'
+            (v: IVersionDoc) => typeof v?.label === 'string' && v.label.startsWith('signed') && typeof v.version === 'number'
         );
-        signedVersions.sort((a: any, b: any) => (b.version ?? 0) - (a.version ?? 0));
+        signedVersions.sort((a: IVersionDoc, b: IVersionDoc) => (b.version ?? 0) - (a.version ?? 0));
         const latestSignedVersion = signedVersions[0];
         const version = versionByNumber || latestSignedVersion || (document.versions || [])[document.versions.length - 1];
         if (!version) {
@@ -99,12 +112,16 @@ export async function GET(req: NextRequest) {
         if (version.pdfData) {
             if (Buffer.isBuffer(version.pdfData)) {
                 pdfBuffer = version.pdfData;
-            } else if ((version.pdfData as any).buffer) {
+            } else if ((version.pdfData as SerializedBuffer).buffer) {
                 // Handle if it's a mongoose Buffer object
-                pdfBuffer = Buffer.from((version.pdfData as any).buffer);
-            } else if (typeof version.pdfData === 'object' && (version.pdfData as any).type === 'Buffer' && Array.isArray((version.pdfData as any).data)) {
+                pdfBuffer = Buffer.from((version.pdfData as SerializedBuffer).buffer as Buffer);
+            } else if (
+                typeof version.pdfData === 'object' &&
+                (version.pdfData as SerializedBuffer).type === 'Buffer' &&
+                Array.isArray((version.pdfData as SerializedBuffer).data)
+            ) {
                 // Handle serialized Buffer format
-                pdfBuffer = Buffer.from((version.pdfData as any).data);
+                pdfBuffer = Buffer.from((version.pdfData as SerializedBuffer).data as number[]);
             } else {
                 console.error('Unexpected pdfData type:', typeof version.pdfData);
                 return NextResponse.json({ error: 'Invalid PDF data format' }, { status: 500 });
@@ -129,8 +146,8 @@ export async function GET(req: NextRequest) {
         const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
         // Overlay field values onto the PDF (if present)
-        const preparedVersions = (document.versions || []).filter((v: any) => v?.label === 'prepared');
-        preparedVersions.sort((a: any, b: any) => (b?.version || 0) - (a?.version || 0));
+        const preparedVersions = (document.versions || []).filter((v: IVersionDoc) => v?.label === 'prepared');
+        preparedVersions.sort((a: IVersionDoc, b: IVersionDoc) => (b?.version || 0) - (a?.version || 0));
         const preparedVersion = preparedVersions[0];
         const rawFields = Array.isArray(preparedVersion?.fields)
             ? (preparedVersion.fields as DocumentField[])
@@ -141,14 +158,15 @@ export async function GET(req: NextRequest) {
         const signedFieldRecords = await SignatureModel.find({ documentId: document._id }).lean();
         const fieldValueMap = new Map<string, { value: string; version: number; signedAt: number }>();
         for (const record of signedFieldRecords) {
-            const fieldId = String((record as any).fieldId ?? '');
+            const typedRecord = record as FieldValueRecord;
+            const fieldId = String(typedRecord.fieldId ?? '');
             if (!fieldId) continue;
-            const signedVersion = typeof (record as any).version === 'number' ? (record as any).version : -1;
-            const signedAt = (record as any).signedAt ? new Date((record as any).signedAt).getTime() : 0;
+            const signedVersion = typeof typedRecord.version === 'number' ? typedRecord.version : -1;
+            const signedAt = typedRecord.signedAt ? new Date(typedRecord.signedAt).getTime() : 0;
             const existing = fieldValueMap.get(fieldId);
             if (!existing || signedVersion > existing.version || (signedVersion === existing.version && signedAt > existing.signedAt)) {
                 fieldValueMap.set(fieldId, {
-                    value: String((record as any).fieldValue ?? ''),
+                    value: String(typedRecord.fieldValue ?? ''),
                     version: signedVersion,
                     signedAt,
                 });
@@ -156,12 +174,13 @@ export async function GET(req: NextRequest) {
         }
 
         const fields = rawFields.map((field) => {
-            const plain = typeof (field as any)?.toObject === 'function' ? (field as any).toObject() : { ...field };
-            const fieldId = String((plain as any)?.id ?? (plain as any)?.fieldId ?? '');
-            if (!fieldId) return plain as DocumentField;
+            const maybeField = field as DocumentFieldWithLegacyId & { toObject?: () => DocumentFieldWithLegacyId };
+            const plain = typeof maybeField.toObject === 'function' ? maybeField.toObject() : { ...field };
+            const fieldId = String(plain.id ?? plain.fieldId ?? '');
+            if (!fieldId) return plain as DocumentFieldWithLegacyId;
             const signedValue = fieldValueMap.get(fieldId);
-            if (!signedValue) return plain as DocumentField;
-            return { ...(plain as DocumentField), value: signedValue.value };
+            if (!signedValue) return plain as DocumentFieldWithLegacyId;
+            return { ...plain, value: signedValue.value };
         });
 
         for (const field of fields) {

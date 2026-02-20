@@ -77,15 +77,6 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
   /* Resize handles                     */
   /* ---------------------------------- */
   const cornersCSS = 'bg-blue-500 !w-3 !h-3 rounded-full';
-  const resizeHandleClasses = useMemo(
-    () => ({
-      bottomLeft: cornersCSS,
-      bottomRight: cornersCSS,
-      topLeft: cornersCSS,
-      topRight: cornersCSS,
-    }),
-    []
-  );
 
   const assignedLabel =
     'after:content-[attr(data-name)] after:block after:rounded-sm after:bg-[inherit] after:w-1/2 after:whitespace-nowrap after:text-ellipsis after:p-0.5 after:text-xs after:overflow-hidden';
@@ -168,7 +159,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
           return item.component.toLowerCase();
       }
     },
-    [updateField, textFieldRefs]
+    [isSigningMode, textFieldRefs, updateField]
   );
   /* ---------------------------------- */
   /* Render                             */
@@ -233,7 +224,7 @@ const DroppedComponents: React.FC<DroppedComponentsProps> = ({
             data-field-recipient-id={item.assignedRecipientId ?? ''}
             data-field-required={item.required !== false ? 'true' : 'false'}
             onDragStop={(e, data) => handleDragStop(e as MouseEvent, item, data)}
-            onResizeStop={(e, direction, ref, delta, position) => handleResizeStop(e, item, ref, position, delta)}
+            onResizeStop={(e, _direction, ref, delta, position) => handleResizeStop(e, item, ref, position, delta)}
           
             {...(!isSigningMode && !isReadOnly && isSelected && {
                 resizeHandleClasses: ['bottomLeft', 'bottomRight', 'topLeft', 'topRight'].reduce(

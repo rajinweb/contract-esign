@@ -11,6 +11,22 @@ export const runtime = 'nodejs';
 
 const DEFAULT_DRY_RUN_LIMIT = 200;
 
+type RetentionRequestBody = {
+  documentIds?: string[];
+  dryRun?: boolean;
+  limit?: number;
+  retentionBefore?: string;
+  retentionYears?: number;
+};
+
+type PurgeDocumentProjection = {
+  _id: unknown;
+  versions?: Array<{
+    storage?: { bucket?: string; key?: string; region?: string };
+    filePath?: string;
+  }>;
+};
+
 function getRetentionToken(req: NextRequest): string | null {
   const headerToken = req.headers.get('x-retention-token');
   if (headerToken) return headerToken;
@@ -21,7 +37,7 @@ function getRetentionToken(req: NextRequest): string | null {
   return null;
 }
 
-function parseRetentionBefore(body: any): { date: Date | null; error?: string } {
+function parseRetentionBefore(body: RetentionRequestBody): { date: Date | null; error?: string } {
   const retentionBefore = body?.retentionBefore;
   const retentionYears = body?.retentionYears;
 
@@ -82,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     await connectDB();
-    const body = await req.json().catch(() => ({}));
+    const body = (await req.json().catch(() => ({}))) as RetentionRequestBody;
     const documentIds: string[] = Array.isArray(body?.documentIds) ? body.documentIds : [];
     const dryRun = Boolean(body?.dryRun);
     const dryRunLimit =
@@ -94,7 +110,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Choose either documentIds or retention criteria' }, { status: 400 });
     }
 
-    let query: Record<string, any> = {};
+    let query: Record<string, unknown> = {};
     let mode: 'ids' | 'retention';
     let retentionBefore: Date | null = null;
 
@@ -140,8 +156,8 @@ export async function POST(req: NextRequest) {
 
     const documents = await DocumentModel.find(query)
       .select({ _id: 1, versions: 1 })
-      .lean();
-    const purgeIds = documents.map((doc: any) => doc._id);
+      .lean<PurgeDocumentProjection[]>();
+    const purgeIds = documents.map((doc: PurgeDocumentProjection) => doc._id);
 
     // Delete associated files from S3 and filesystem
     for (const doc of documents) {
@@ -186,7 +202,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: `Retention purge completed for ${documents.length} document(s)`,
-      purgedIds: purgeIds.map((id: any) => String(id)),
+      purgedIds: purgeIds.map((id: unknown) => String(id)),
       mode,
       retentionBefore: retentionBefore ? retentionBefore.toISOString() : undefined,
     });

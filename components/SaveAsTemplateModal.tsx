@@ -2,7 +2,7 @@
 import toast from 'react-hot-toast';
 import { useTemplates } from '@/hooks/useTemplates';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import type { DocumentField, Recipient } from '@/types/types';
+import type { DocumentField } from '@/types/types';
 import Modal from './Modal';
 
 const CATEGORIES = ['HR', 'Legal', 'Sales', 'Finance', 'Other'];
@@ -12,7 +12,8 @@ interface SaveAsTemplateModalProps {
   documentName: string;
   documentFileUrl: string;
   documentFields?: DocumentField[];
-  documentDefaultSigners?: Recipient[];
+  documentFieldCount?: number;
+  getDocumentFields?: () => DocumentField[];
   documentPageCount?: number;
   documentFileSize?: number;
   onClose: () => void;
@@ -31,7 +32,8 @@ export default function SaveAsTemplateModal({
   documentName,
   documentFileUrl,
   documentFields = [],
-  documentDefaultSigners = [],
+  documentFieldCount,
+  getDocumentFields,
   documentPageCount = 1,
   documentFileSize = 0,
   onClose,
@@ -61,13 +63,14 @@ export default function SaveAsTemplateModal({
         .split(',')
         .map((tag) => tag.trim())
         .filter((tag) => tag);
+      const fieldsToPersist = getDocumentFields ? getDocumentFields() : documentFields;
 
       const result = await createTemplate({
         name: data.name,
         description: data.description,
         category: data.category,
         templateFileUrl: documentFileUrl,
-        fields: documentFields,
+        fields: fieldsToPersist,
         defaultSigners: [], // Don't include recipients in template
         pageCount: documentPageCount,
         fileSize: documentFileSize,
@@ -92,6 +95,7 @@ export default function SaveAsTemplateModal({
       console.error('Error saving template:', error);
     }
   };
+  const visibleFieldCount = documentFieldCount ?? documentFields.length;
 
   return (
       <Modal visible={true} 
@@ -172,9 +176,9 @@ export default function SaveAsTemplateModal({
             <p className="text-xs text-gray-600">
               <span className="font-medium">Pages:</span> {documentPageCount}
             </p>
-            {documentFields.length > 0 && (
+            {visibleFieldCount > 0 && (
               <p className="text-xs text-gray-600">
-                <span className="font-medium">Fields:</span> {documentFields.length}
+                <span className="font-medium">Fields:</span> {visibleFieldCount}
               </p>
             )}
             <p className="text-xs text-gray-500 mt-2">

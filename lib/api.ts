@@ -1,4 +1,6 @@
 import { DocumentField, DroppedComponent, Recipient, UploadResult, DocumentFieldType } from "@/types/types";
+import { getInMemoryAccessToken } from "@/lib/accessTokenStore";
+import { serializePageRect } from "@/utils/builder/pageRect";
 
 /* =====================================================
    FIELD TYPE MAPPING
@@ -23,22 +25,6 @@ export const getFieldTypeFromComponentLabel = (label: string): string => {
 /* =====================================================
    MAIN UPLOAD HANDLER
 ===================================================== */
-const serializePageRect = (pageRect: any) => {
-  if (!pageRect || typeof pageRect !== "object") return undefined;
-  const rect = pageRect as Record<string, any>;
-  const cleaned = {
-    x: typeof rect.x === "number" ? rect.x : undefined,
-    y: typeof rect.y === "number" ? rect.y : undefined,
-    width: typeof rect.width === "number" ? rect.width : undefined,
-    height: typeof rect.height === "number" ? rect.height : undefined,
-    top: typeof rect.top === "number" ? rect.top : undefined,
-    right: typeof rect.right === "number" ? rect.right : undefined,
-    bottom: typeof rect.bottom === "number" ? rect.bottom : undefined,
-    left: typeof rect.left === "number" ? rect.left : undefined,
-  };
-  const hasAny = Object.values(cleaned).some((value) => typeof value === "number");
-  return hasAny ? cleaned : undefined;
-};
 
 export const uploadToServer = async (
     blob: Blob | null,
@@ -125,10 +111,7 @@ export const uploadToServer = async (
        AUTH HEADERS
     =============================== */
     const headers: Record<string, string> = {};
-    const token =
-        typeof window !== "undefined"
-            ? localStorage.getItem("AccessToken")
-            : null;
+    const token = getInMemoryAccessToken();
 
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -266,4 +249,29 @@ export const uploadToServer = async (
     }
 
     return result;
+};
+
+async function requestJson<TResponse = unknown>(
+  method: "GET" | "POST" | "PATCH",
+  url: string,
+  data?: unknown
+): Promise<TResponse> {
+  const response = await fetch(`/api${url}`, {
+    method,
+    ...(data !== undefined
+      ? {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      : {}),
+    credentials: "include",
+  });
+
+  return response.json() as Promise<TResponse>;
+}
+
+export const api = {
+  get: <TResponse = unknown>(url: string) => requestJson<TResponse>("GET", url),
+  post: <TResponse = unknown>(url: string, data: unknown) => requestJson<TResponse>("POST", url, data),
+  patch: <TResponse = unknown>(url: string, data: unknown) => requestJson<TResponse>("PATCH", url, data),
 };

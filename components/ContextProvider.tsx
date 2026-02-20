@@ -1,13 +1,8 @@
 'use client';
-import React, { createContext, useState, useEffect } from 'react';
+import { createContext, useState } from 'react';
 import { Doc, ContextValue, ContextProviderProps, User } from '@/types/types';
-import { pdfjs } from 'react-pdf';
-import { initializePdfWorker } from '@/utils/pdfjsSetup';
 
 export const ContextStore = createContext<ContextValue | undefined>(undefined);
-
-// Initialize the PDF.js worker (centralized setup)
-initializePdfWorker(pdfjs);
 
 const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedFile, setSelectedFile] = useState<string | File | Doc | null>(null);
@@ -19,32 +14,6 @@ const ContextProvider = ({ children }: ContextProviderProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [trashedTemplatesCount, setTrashedTemplatesCount] = useState(0);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const userJson = localStorage.getItem('User');
-    if (userJson) {
-      try {
-        setUser(JSON.parse(userJson));
-        setIsLoggedIn(true);
-      } catch {
-        setUser(null);
-        setIsLoggedIn(false);
-      }
-    }
-  }, []);
-
-   // persist user when it changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const storedUser = localStorage.getItem('User');
-    const currentUserString = user ? JSON.stringify(user) : null;
-
-    if (currentUserString && currentUserString !== storedUser) {
-      localStorage.setItem('User', currentUserString);
-    } else if (!currentUserString && storedUser) {
-      localStorage.removeItem('User');
-    }
-  }, [user]);
 const contextObject=
   {
       selectedFile,

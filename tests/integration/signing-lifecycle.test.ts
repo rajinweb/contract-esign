@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { Readable } from 'node:stream';
 import { NextRequest } from 'next/server';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IDocumentRecipient, ISigningEvent, IVersionDoc } from '@/models/Document';
 import SignatureModel from '@/models/Signature';
 import { connectTestDb, disconnectTestDb, resetTestDb } from '../helpers/db';
 
 vi.mock('@/lib/s3', () => ({
-  getObjectStream: vi.fn(async () => Readable.from([Buffer.from('%PDF-1.4 base')]) as any),
+  getObjectStream: vi.fn(async () => Readable.from([Buffer.from('%PDF-1.4 base')])),
   putObjectStream: vi.fn(async () => undefined),
   getRegion: vi.fn(() => 'us-east-1'),
 }));
@@ -21,7 +21,10 @@ vi.mock('@/lib/email', () => ({
 
 import { POST as signDocument } from '@/app/api/sign-document/route';
 
-function buildBaseVersions(fieldOverrides?: Record<string, any>) {
+type RecipientSeed = Partial<IDocumentRecipient>;
+type EventFieldSeed = Record<string, unknown>;
+
+function buildBaseVersions(fieldOverrides?: EventFieldSeed) {
   const baseStorage = {
     provider: 's3',
     bucket: 'test-bucket',
@@ -85,7 +88,7 @@ function buildBaseVersions(fieldOverrides?: Record<string, any>) {
   ];
 }
 
-function buildRecipients(overrides?: Partial<any>[]) {
+function buildRecipients(overrides?: RecipientSeed[]) {
   const base = [
     {
       id: 'r1',
@@ -114,8 +117,8 @@ function buildRecipients(overrides?: Partial<any>[]) {
 
 async function seedDocument(args: {
   signingMode: 'sequential' | 'parallel';
-  recipients?: Partial<any>[];
-  fieldOverrides?: Record<string, any>;
+  recipients?: RecipientSeed[];
+  fieldOverrides?: EventFieldSeed;
 }) {
   return DocumentModel.create({
     userId: 'user-1',
@@ -129,10 +132,7 @@ async function seedDocument(args: {
   });
 }
 
-const shouldRunIntegration = process.env.RUN_INTEGRATION === '1';
-const describeIntegration = shouldRunIntegration ? describe : describe.skip;
-
-describeIntegration('signing lifecycle (integration)', () => {
+describe('signing lifecycle (integration)', () => {
   beforeAll(async () => {
     process.env.S3_BUCKET_NAME = 'test-bucket';
     await connectTestDb();
@@ -171,26 +171,26 @@ describeIntegration('signing lifecycle (integration)', () => {
     expect(updated?.currentVersion).toBe(2);
     expect(updated?.status).toBe('in_progress');
 
-    const signedVersion = updated?.versions.find((v: any) => v.version === 2);
+    const signedVersion = updated?.versions.find((v: IVersionDoc) => v.version === 2);
     expect(signedVersion?.label).toBe('signed_by_order_1');
     expect(signedVersion?.derivedFromVersion).toBe(1);
     expect(signedVersion?.signedBy).toEqual(['r1']);
     expect(signedVersion?.fields).toBeUndefined();
 
-    const r1 = updated?.recipients.find((r: any) => r.id === 'r1');
-    const r2 = updated?.recipients.find((r: any) => r.id === 'r2');
+    const r1 = updated?.recipients.find((r: IDocumentRecipient) => r.id === 'r1');
+    const r2 = updated?.recipients.find((r: IDocumentRecipient) => r.id === 'r2');
     expect(r1?.status).toBe('signed');
     expect(r1?.signedVersion).toBe(2);
     expect(r2?.status).toBe('sent');
 
     const signedEvent = updated?.signingEvents.find(
-      (e: any) => e.action === 'signed' && e.recipientId === 'r1'
+      (e: ISigningEvent) => e.action === 'signed' && e.recipientId === 'r1'
     );
     expect(signedEvent?.version).toBe(2);
     expect(signedEvent?.baseVersion).toBe(1);
     expect(signedEvent?.fields?.[0]?.fieldId).toBe('f1');
 
-    const sentEvents = updated?.signingEvents.filter((e: any) => e.action === 'sent');
+    const sentEvents = updated?.signingEvents.filter((e: ISigningEvent) => e.action === 'sent');
     expect(sentEvents?.length).toBe(1);
     expect(sentEvents?.[0]?.recipientId).toBe('r2');
 
@@ -219,7 +219,7 @@ describeIntegration('signing lifecycle (integration)', () => {
 
     const updated = await DocumentModel.findById(document._id).lean();
     expect(updated?.currentVersion).toBe(1);
-    expect(updated?.versions.find((v: any) => v.label?.startsWith('signed'))).toBeUndefined();
+    expect(updated?.versions.find((v: IVersionDoc) => v.label?.startsWith('signed'))).toBeUndefined();
   });
 
   it('parallel: allows any signer and does not advance others', async () => {
@@ -250,15 +250,15 @@ describeIntegration('signing lifecycle (integration)', () => {
     const updated = await DocumentModel.findById(document._id).lean();
     expect(updated?.status).toBe('in_progress');
 
-    const r1 = updated?.recipients.find((r: any) => r.id === 'r1');
-    const r2 = updated?.recipients.find((r: any) => r.id === 'r2');
+    const r1 = updated?.recipients.find((r: IDocumentRecipient) => r.id === 'r1');
+    const r2 = updated?.recipients.find((r: IDocumentRecipient) => r.id === 'r2');
     expect(r1?.status).toBe('sent');
     expect(r2?.status).toBe('signed');
 
-    const signedVersion = updated?.versions.find((v: any) => v.version === 2);
+    const signedVersion = updated?.versions.find((v: IVersionDoc) => v.version === 2);
     expect(signedVersion?.label).toBe('signed_by_order_2');
 
-    const sentEvents = updated?.signingEvents.filter((e: any) => e.action === 'sent');
+    const sentEvents = updated?.signingEvents.filter((e: ISigningEvent) => e.action === 'sent');
     expect(sentEvents?.length).toBe(0);
   });
 });

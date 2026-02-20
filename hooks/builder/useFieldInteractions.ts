@@ -19,7 +19,6 @@ interface UseFieldInteractionsArgs {
   setRecipients: React.Dispatch<React.SetStateAction<Recipient[]>>;
   draggingComponent: DroppingField | null;
   setDraggingComponent: React.Dispatch<React.SetStateAction<DroppingField | null>>;
-  draggingEle: React.RefObject<HTMLDivElement>;
   setPosition: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   elementId: number;
   setElementId: React.Dispatch<React.SetStateAction<number>>;
@@ -44,7 +43,6 @@ export const useFieldInteractions = ({
   setRecipients,
   draggingComponent,
   setDraggingComponent,
-  draggingEle,
   setPosition,
   elementId,
   setElementId,
@@ -58,6 +56,15 @@ export const useFieldInteractions = ({
   setPhotoDialog,
   imageRef,
 }: UseFieldInteractionsArgs) => {
+  const isPaletteDrag = useCallback(
+    (candidate: DroppingField | null) => {
+      if (!candidate) return false;
+      const candidateId = (candidate as unknown as { id?: unknown }).id;
+      return typeof candidateId !== 'number';
+    },
+    []
+  );
+
   const handleDragStart = useCallback(() => {
     document.body.classList.add('dragging-no-select');
   }, []);
@@ -90,17 +97,22 @@ export const useFieldInteractions = ({
   );
 
   const mouseMoveOnDropArea = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
-    if (draggingComponent && draggingEle.current) {
-      draggingEle.current.style.display = 'block';
-      setPosition({ x: e.clientX - 65, y: e.clientY });
-    }
-  }, [draggingComponent, draggingEle, setPosition]);
+    if (!isPaletteDrag(draggingComponent)) return;
+    setPosition({ x: e.clientX - 65, y: e.clientY });
+  }, [draggingComponent, isPaletteDrag, setPosition]);
 
   const clickOnDropArea = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (isSigningMode) {
       return;
     }
-    if (!draggingComponent || e.target instanceof HTMLElement && e.target.closest('.react-draggable') || e.target instanceof HTMLElement && e.target?.closest('.page-brake')) return;
+    if (
+      !draggingComponent ||
+      !isPaletteDrag(draggingComponent) ||
+      (e.target instanceof HTMLElement && e.target.closest('.react-draggable')) ||
+      (e.target instanceof HTMLElement && e.target?.closest('.page-brake'))
+    ) {
+      return;
+    }
 
     setSelectedFieldId(null);
 
@@ -148,17 +160,20 @@ export const useFieldInteractions = ({
       return newComponents;
     });
     setElementId((id) => id + 1);
+    setDraggingComponent(null);
   }, [
     currentPage,
     documentRef,
     draggingComponent,
     elementId,
     isSigningMode,
+    isPaletteDrag,
     pageRefs,
     recipients,
     saveState,
     setDroppedComponents,
     setElementId,
+    setDraggingComponent,
     setSelectedFieldId,
     zoom,
   ]);
@@ -225,7 +240,7 @@ export const useFieldInteractions = ({
           const shouldResetStatus =
             recipientId !== null &&
             r.id === recipientId &&
-            r.status === 'signed' || r.status === 'approved' &&
+            (r.status === 'signed' || r.status === 'approved') &&
             previousRecipientId !== recipientId;
 
           if (shouldResetStatus) {
@@ -336,12 +351,12 @@ export const useFieldInteractions = ({
 
   const mouseLeaveOnDropArea = useCallback(() => {
     document.body.classList.remove('dragging-no-select');
-    if (draggingEle.current) {
-      draggingEle.current.style.display = 'none';
+    if (isPaletteDrag(draggingComponent)) {
+      setDraggingComponent(null);
     }
-  }, [draggingEle]);
+  }, [draggingComponent, isPaletteDrag, setDraggingComponent]);
 
-  const clickField = useCallback((event: ReactMouseEvent<Element>, item: DroppedComponent, isEdit?: boolean) => {
+  const clickField = useCallback((event: ReactMouseEvent<Element>, item: DroppedComponent) => {
     event.stopPropagation();
     setDraggingComponent(item);
 

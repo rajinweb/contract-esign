@@ -1,8 +1,8 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import countryList from 'react-select-country-list';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { Button } from '@/components/Button';
 import Input from '@/components/forms/Input';
 import { User } from '@/types/types';
@@ -28,25 +28,27 @@ export default function Address({ user, isSaving, handleSave }: AddressProps) {
 
   const countries = countryList().getData();
 
-  const defaultValues: AddressFormValues = {
-    country: user.address?.country || null,
-    street: user.address?.street || '',
-    apartment: user.address?.apartment || '',
-    city: user.address?.city || '',
-    state: user.address?.state || '',
-    zip: user.address?.zip || '',
-  };
+  const defaultValues: AddressFormValues = useMemo(
+    () => ({
+      country: user.address?.country || null,
+      street: user.address?.street || '',
+      apartment: user.address?.apartment || '',
+      city: user.address?.city || '',
+      state: user.address?.state || '',
+      zip: user.address?.zip || '',
+    }),
+    [user.address]
+  );
 
-  const { control, handleSubmit, reset, watch } = useForm<AddressFormValues>({
+  const { control, handleSubmit, reset } = useForm<AddressFormValues>({
     defaultValues,
   });
 
-  // Watch all fields to detect changes
-  const watchedValues = watch();
+  const watchedValues = useWatch({ control });
 
   useEffect(() => {
     reset(defaultValues);
-  }, [user.address]);
+  }, [defaultValues, reset]);
 
   const hasChanges = () => {
     const current = defaultValues;
@@ -81,7 +83,7 @@ export default function Address({ user, isSaving, handleSave }: AddressProps) {
       await handleSave({ address: { ...data, country: data.country || undefined } });
       setIsEditing(false);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to save address. Please try again.');
     }
   };

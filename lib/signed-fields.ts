@@ -14,12 +14,35 @@ function normalizeFieldValue(value: unknown): string {
 }
 
 type EventFieldHash = { fieldId: string; fieldHash: string };
+type SignedFieldInput = {
+  id?: string;
+  fieldId?: string;
+  type?: string;
+  value?: unknown;
+};
 
-export async function buildSignedFieldRecords(args: {
-  documentId: any;
+type SignedFieldRecord = {
+  documentId: unknown;
   version: number;
   recipientId: string;
-  fields: any[];
+  fieldId: string;
+  fieldType: string;
+  fieldValue: string;
+  fieldValueHash: string;
+  fieldHash: string;
+  payloadHash: string;
+  signatureImageHash?: string;
+  signedAt: Date;
+  ip?: string;
+  ipUnavailableReason?: string;
+  userAgent: string;
+};
+
+export async function buildSignedFieldRecords(args: {
+  documentId: unknown;
+  version: number;
+  recipientId: string;
+  fields: SignedFieldInput[];
   eventFields?: EventFieldHash[];
   signedAt: Date;
   ip?: string;
@@ -46,7 +69,7 @@ export async function buildSignedFieldRecords(args: {
   });
 
   const records = await Promise.all(
-    (fields || []).map(async (field: any) => {
+    (fields || []).map(async (field: SignedFieldInput) => {
       const fieldId = String(field?.id ?? field?.fieldId ?? '');
       if (!fieldId) return null;
 
@@ -89,13 +112,13 @@ export async function buildSignedFieldRecords(args: {
     })
   );
 
-  const filtered = records.filter(Boolean) as Record<string, any>[];
+  const filtered = records.filter(Boolean) as SignedFieldRecord[];
   const fieldIds = filtered.map((record) => String(record.fieldId));
 
   return { records: filtered, fieldIds };
 }
 
-export async function upsertSignedFieldRecords(records: Record<string, any>[]) {
+export async function upsertSignedFieldRecords(records: SignedFieldRecord[]) {
   if (!records || records.length === 0) return;
   const ops = records.map((record) => ({
     updateOne: {
@@ -113,7 +136,7 @@ export async function upsertSignedFieldRecords(records: Record<string, any>[]) {
 }
 
 export async function deleteSignedFieldRecords(args: {
-  documentId: any;
+  documentId: unknown;
   version: number;
   recipientId: string;
   fieldIds: string[];

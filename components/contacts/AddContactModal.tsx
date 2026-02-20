@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
 import { Contact } from '@/types/types';
 import toast from 'react-hot-toast';
 import Input from '../forms/Input';

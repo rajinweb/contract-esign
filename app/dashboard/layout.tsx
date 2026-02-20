@@ -1,16 +1,8 @@
 import type { ReactNode } from 'react';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { requireRefreshSessionOrRedirect } from '@/lib/requireRefreshSession';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  
- const cookieStore = await cookies();
- const token = cookieStore.get('token')?.value;
+  await requireRefreshSessionOrRedirect();
 
-  if (!token) {
-    console.log('No token found, redirecting to login');
-    redirect('/login');
-  }
- 
   return <>{children}</>;
 }

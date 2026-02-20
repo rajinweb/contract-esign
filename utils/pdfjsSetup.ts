@@ -6,14 +6,28 @@
 
 let isInitialized = false;
 
-export function initializePdfWorker(pdfjs: any): void {
+interface PdfjsLike {
+  version: string;
+  GlobalWorkerOptions: {
+    workerSrc: string;
+  };
+}
+
+export function initializePdfWorker(pdfjs: PdfjsLike): void {
   if (isInitialized) return;
   
   try {
-    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+    // Prefer the locally bundled worker to avoid runtime CDN fetch issues.
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
     isInitialized = true;
   } catch (error) {
-    console.error('Failed to initialize PDF worker:', error);
+    // Fallback for bundlers/environments that cannot resolve import.meta.url.
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    isInitialized = true;
+    console.warn('Falling back to CDN PDF worker source:', error);
   }
 }
 

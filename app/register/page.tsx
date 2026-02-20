@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -18,6 +18,8 @@ type FormValues = {
   confirmPassword: string;
   picture?: string | null;
 };
+
+const MIN_PASSWORD_LENGTH = 6;
 
 function Register() {
   const router = useRouter();
@@ -39,7 +41,30 @@ function Register() {
     }
     setIsLoading(true);
     try {
-      const payload = { name: data.name, email: data.email, password: data.password, picture: data.picture };
+      const fullName = data.name.trim();
+      const nameParts = fullName.split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+      const payload: {
+        name: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        password: string;
+        picture?: string;
+      } = {
+        name: fullName,
+        firstName,
+        lastName,
+        email: data.email,
+        password: data.password,
+      };
+
+      if (typeof data.picture === 'string' && data.picture.trim().length > 0) {
+        payload.picture = data.picture.trim();
+      }
+
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         credentials: 'include',
@@ -48,7 +73,8 @@ function Register() {
       });
       const json = await res.json().catch(() => null);      
       if (!res.ok) {
-        toast.error(json?.message || 'Registration failed');
+        const errorMessage = json?.errors?.[0] || json?.message || 'Registration failed';
+        toast.error(errorMessage);
         return;
       }
       toast.success('Registration successful! Please log in.');
@@ -169,24 +195,30 @@ function Register() {
             </div>
 
             {/* Password Input */}
-            <div className="mb-3 relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter password"
-                {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'At least 6 characters' } })}
-                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
+            <div className="mb-3">
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter password"
+                  {...register('password', {
+                    required: 'Password is required',
+                    minLength: { value: MIN_PASSWORD_LENGTH, message: `At least ${MIN_PASSWORD_LENGTH} characters` },
+                  })}
+                  className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {formState.errors.password && (
                 <p className="text-xs text-red-500 mt-1">{formState.errors.password.message}</p>
               )}
@@ -206,24 +238,27 @@ function Register() {
             </div>
 
             {/* Confirm Password Input */}
-            <div className="mb-3 relative">
-              <Input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm password"
-                {...register('confirmPassword', { required: 'Please confirm your password' })}
-                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
+            <div className="mb-3">
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm password"
+                  {...register('confirmPassword', { required: 'Please confirm your password' })}
+                  className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-400 hover:text-gray-600"
+                  aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {formState.errors.confirmPassword && (
                 <p className="text-xs text-red-500 mt-1">{formState.errors.confirmPassword.message}</p>
               )}

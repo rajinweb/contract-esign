@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { Doc, DroppedComponent, DocumentFieldType, Recipient } from '@/types/types';
+import { Doc, DocumentField, DocumentFieldType, DroppedComponent } from '@/types/types';
 import { getFieldTypeFromComponentLabel } from '@/lib/api';
 import { serializePageRect } from '@/utils/builder/pageRect';
 
@@ -16,7 +16,6 @@ interface SaveAsTemplateGateProps {
   documentName: string;
   selectedFile: string | File | Doc | null;
   droppedComponents: DroppedComponent[];
-  recipients: Recipient[];
   pages: number[];
   documentRef: React.RefObject<HTMLDivElement>;
   pageRefs: React.MutableRefObject<Array<HTMLDivElement | null>>;
@@ -33,7 +32,6 @@ const SaveAsTemplateGate: React.FC<SaveAsTemplateGateProps> = ({
   documentName,
   selectedFile,
   droppedComponents,
-  recipients,
   pages,
   documentRef,
   pageRefs,
@@ -46,7 +44,29 @@ const SaveAsTemplateGate: React.FC<SaveAsTemplateGateProps> = ({
     }
   }, [showSaveAsTemplate, isLoggedIn, setShowModal]);
 
-  if (!showSaveAsTemplate || !isLoggedIn) return null;
+  const buildDocumentFields = (): DocumentField[] => {
+    const canvasRect = documentRef.current?.getBoundingClientRect() ?? null;
+    const pageRects = pageRefs.current.map((pageEl) => pageEl?.getBoundingClientRect() ?? null);
+
+    return droppedComponents.map((c) => ({
+      id: c.fieldId ?? String(c.id),
+      type: getFieldTypeFromComponentLabel(c.component || '') as DocumentFieldType,
+      x: c.x,
+      y: c.y,
+      width: c.width,
+      height: c.height,
+      pageNumber: c.pageNumber,
+      pageRect: serializePageRect(
+        pageRects[(c.pageNumber ?? currentPage) - 1] ?? c.pageRect,
+        canvasRect,
+        zoom
+      ),
+      recipientId: c.assignedRecipientId,
+      required: c.required !== undefined ? c.required : true,
+      value: c.data || '',
+      placeholder: c.placeholder,
+    }));
+  };
 
   const documentFileUrl =
     typeof selectedFile === 'string'
@@ -55,33 +75,15 @@ const SaveAsTemplateGate: React.FC<SaveAsTemplateGateProps> = ({
         ? (selectedFile.fileUrl as string | undefined) ?? ''
         : '';
 
+  if (!showSaveAsTemplate || !isLoggedIn) return null;
+
   return (
     <SaveAsTemplateModal
       documentId={documentId}
       documentName={documentName || 'Untitled'}
       documentFileUrl={documentFileUrl}
-      documentFields={droppedComponents.map((c) => {
-        const canvasRect = documentRef.current?.getBoundingClientRect();
-        return {
-          id: c.fieldId ?? String(c.id),
-          type: getFieldTypeFromComponentLabel(c.component || '') as DocumentFieldType,
-          x: c.x,
-          y: c.y,
-          width: c.width,
-          height: c.height,
-          pageNumber: c.pageNumber,
-          pageRect: serializePageRect(
-            pageRefs.current[(c.pageNumber ?? currentPage) - 1]?.getBoundingClientRect() ?? c.pageRect,
-            canvasRect,
-            zoom
-          ),
-          recipientId: c.assignedRecipientId,
-          required: c.required !== undefined ? c.required : true,
-          value: c.data || '',
-          placeholder: c.placeholder,
-        };
-      })}
-      documentDefaultSigners={recipients}
+      documentFieldCount={droppedComponents.length}
+      getDocumentFields={buildDocumentFields}
       documentPageCount={pages.length}
       documentFileSize={0}
       onClose={() => setShowSaveAsTemplate(false)}

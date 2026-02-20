@@ -7,7 +7,7 @@ import { Transform } from 'stream';
 export function createSha256Transform(): { transform: Transform; digestPromise: Promise<string> } {
   const hash = createHash('sha256');
   const transform = new Transform({
-    transform(chunk, encoding, callback) {
+    transform(chunk, _encoding, callback) {
       hash.update(chunk);
       this.push(chunk);
       callback();

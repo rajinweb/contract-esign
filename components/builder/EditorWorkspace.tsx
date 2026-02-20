@@ -1,14 +1,16 @@
 'use client';
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { DraggableData } from 'react-rnd';
 
 import UploadZone from '@/components/UploadZone';
 import EditorSidebar from './EditorSidebar';
-import PageThumbnails from './PageThumbnails';
 import Footer from './Footer';
-import EditorCanvas from './EditorCanvas';
 import EditorDialogs from './EditorDialogs';
 import { Doc, DroppedComponent, DroppingField, FieldOwner, Recipient } from '@/types/types';
+
+const PageThumbnails = dynamic(() => import('./PageThumbnails'), { ssr: false });
+const EditorCanvas = dynamic(() => import('./EditorCanvas'), { ssr: false });
 
 interface EditorWorkspaceProps {
   isSigningMode: boolean;
@@ -33,7 +35,6 @@ interface EditorWorkspaceProps {
   mouseDownOnField: (component: string, event: React.MouseEvent<HTMLDivElement>, fieldOwner: FieldOwner) => void;
   handleAddRecipients: () => void;
 
-  draggingEle: React.RefObject<HTMLDivElement>;
   position: { x: number; y: number };
   imageRef: React.RefObject<HTMLInputElement>;
   onImgUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -71,7 +72,7 @@ interface EditorWorkspaceProps {
     pos: { x: number; y: number },
     delta?: { width: number; height: number }
   ) => void;
-  onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent, isEdit?: boolean) => void;
+  onClickField: (event: React.MouseEvent<Element>, item: DroppedComponent) => void;
   guidedFieldId?: string | null;
 
   handleThumbnailClick: (pageNum: number) => void;
@@ -107,7 +108,6 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   setDraggingComponent,
   mouseDownOnField,
   handleAddRecipients,
-  draggingEle,
   position,
   imageRef,
   onImgUpload,
@@ -147,6 +147,12 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   setCanvasFields,
   selectedFieldForDialog,
 }) => {
+  const showDragPreview = (() => {
+    if (!draggingComponent) return false;
+    const candidateId = (draggingComponent as unknown as { id?: unknown }).id;
+    return typeof candidateId !== 'number';
+  })();
+
   return (
     <div className="bg-[#dce0e8] flex flex-1 min-h-0 overflow-hidden relative">
       {!isSigningMode && (
@@ -161,15 +167,14 @@ const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
             onAddRecipients={handleAddRecipients}
           />
           {!selectedFile && (<UploadZone />)}
-          {draggingComponent && (
+          {showDragPreview && (
             <div
               className="bg-[#f4faff] border border-1 border-blue-300 px-2 text-center text-[12px] fixed min-w-[100px] z-[999999] left-[7px] top-[38px]"
               style={{
                 transform: `translate(${position.x + 50}px, ${position.y + 2}px)`,
               }}
-              ref={draggingEle}
             >
-              {draggingComponent.component}
+              {draggingComponent?.component}
             </div>
           )}
         </>

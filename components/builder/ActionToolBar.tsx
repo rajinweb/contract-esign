@@ -24,9 +24,9 @@ import { useRouter } from 'next/navigation';
 
 import useContextStore from "@/hooks/useContextStore";
 import MoreActions from "../MoreActionMenu";
-import { HandleSavePDFOptions, Recipient, DroppedComponent } from "@/types/types";
+import { HandleSavePDFOptions, Recipient, DroppedComponent, Doc } from "@/types/types";
 import { downloadPdf, loadPdf, savePdfBlob } from '@/lib/pdf';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { Button } from "../Button";
 
@@ -53,6 +53,21 @@ interface ActionToolBarProps {
   onPreviewDocument?: () => void;
   isTemplateEditor?: boolean;
 }  
+
+const resolveDocFileValue = (doc: Doc): File | string | null => {
+  if (doc.file instanceof File) return doc.file;
+  if (typeof doc.file === 'string' && doc.file.trim().length > 0) return doc.file;
+  if (typeof doc.fileUrl === 'string' && doc.fileUrl.trim().length > 0) return doc.fileUrl;
+  if (typeof doc.url === 'string' && doc.url.trim().length > 0) return doc.url;
+  return null;
+};
+
+const getLoadableFile = (value: Doc | File | string | null): File | string | null => {
+  if (!value) return null;
+  if (typeof value === 'string' || value instanceof File) return value;
+  return resolveDocFileValue(value);
+};
+
 const ActionToolBar: React.FC<ActionToolBarProps> = ({ 
   documentName,
   setDocumentName,
@@ -82,8 +97,9 @@ const downloadDoc=async () => {
         setShowModal?.(true);
         return;
       }
-      if (!selectedFile) return;
-      const pdfDoc = await loadPdf(selectedFile as File | string );
+      const loadableFile = getLoadableFile(selectedFile);
+      if (!loadableFile) return;
+      const pdfDoc = await loadPdf(loadableFile);
       const blob = await savePdfBlob(pdfDoc);
       downloadPdf(blob, documentName);
   }
@@ -145,21 +161,26 @@ const menuItems = [
         let arrayBuffer: ArrayBuffer;
         let fileSize: number | undefined;
         let lastModified: string | undefined;
+        const loadableFile = getLoadableFile(selectedFile);
+        if (!loadableFile) {
+          setDocumentMetadata(null);
+          return;
+        }
   
-        if (typeof selectedFile === "string") {
-          console.log("Fetching metadata from:", selectedFile);
-          const res = await fetch(selectedFile, { credentials: 'include' });
+        if (typeof loadableFile === "string") {
+          console.log("Fetching metadata from:", loadableFile);
+          const res = await fetch(loadableFile, { credentials: 'include' });
           if (!res.ok) {
-            console.warn(`Failed to fetch file metadata from ${selectedFile}: ${res.status} ${res.statusText}`);
+            console.warn(`Failed to fetch file metadata from ${loadableFile}: ${res.status} ${res.statusText}`);
             setDocumentMetadata(null);
             return; // Don't treat this as a hard error – just skip metadata
           }
           
           arrayBuffer = await res.arrayBuffer();
         } else {
-          arrayBuffer = await selectedFile.arrayBuffer();
-          fileSize = selectedFile.size;
-          lastModified = new Date(selectedFile.lastModified).toLocaleString();
+          arrayBuffer = await loadableFile.arrayBuffer();
+          fileSize = loadableFile.size;
+          lastModified = new Date(loadableFile.lastModified).toLocaleString();
         }
         if (arrayBuffer.byteLength === 0) {
              throw new Error("File content is empty.");

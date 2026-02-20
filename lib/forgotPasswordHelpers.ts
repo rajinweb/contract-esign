@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import Users from '@/models/Users';
 
 export async function getUserByEmail(email: string) {
-  return await Users.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+  return await Users.findOne({ email: normalizedEmail }).select('_id email isActive isDeleted');
 }
 
 export async function generatePasswordResetToken(userId: string) {
@@ -15,15 +16,21 @@ export async function generatePasswordResetToken(userId: string) {
   // Set expiry (1 hour)
   const expires = new Date(Date.now() + 3600000);
 
-  // Save to user
-  const user = await Users.findById(userId);
-  if (!user) throw new Error('User not found');
+  const updated = await Users.updateOne(
+    { _id: userId },
+    {
+      $set: {
+        passwordResetToken: {
+          token: hashedToken,
+          expires,
+        },
+      },
+    }
+  ).exec();
 
-  user.passwordResetToken = {
-    token: hashedToken,
-    expires,
-  };
-  await user.save();
+  if (updated.matchedCount !== 1) {
+    throw new Error('User not found');
+  }
 
   // Return raw token (this is what goes in the email)
   return rawToken;

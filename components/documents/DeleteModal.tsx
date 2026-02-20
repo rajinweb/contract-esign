@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { X, Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { Doc } from '@/types/types';
 import toast from 'react-hot-toast';
 import Modal from '../Modal';

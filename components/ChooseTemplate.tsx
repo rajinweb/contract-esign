@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import PdfThumbnail from '@/components/PdfThumbnails';
 import { ArrowBigRightDash } from "lucide-react";
@@ -32,7 +32,6 @@ const ChooseTemplate = () => {
         const response = await fetch('/api/templates/list?isSystem=true&limit=5');
         if (response.ok) {
           const data = await response.json();
-          console.log('ChooseTemplate: fetched templates', data.templates);
           setTemplates(data.templates || []);
         }
       } catch (err) {

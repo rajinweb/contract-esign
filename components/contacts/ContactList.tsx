@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { Contact } from '@/types/types';
 import { Edit, Trash2, User, Building2, Mail, Phone, MapPin, Check } from 'lucide-react';
 

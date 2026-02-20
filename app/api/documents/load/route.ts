@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IDocumentRecipient } from '@/models/Document';
 import SignatureModel from '@/models/Signature';
 import { getLatestPreparedVersion } from '@/lib/signing-utils';
 import { sanitizeRecipients } from '@/lib/recipient-sanitizer';
 import { normalizeFields } from '@/lib/field-normalization';
+import type { DocumentField } from '@/types/types';
 import mongoose from 'mongoose';
 
+type SignedFieldRecord = {
+  fieldId?: string;
+  version?: number;
+  signedAt?: Date | string;
+  fieldValue?: string;
+};
 
 // GET - Load a document with its fields and recipients
 export async function GET(req: NextRequest) {
@@ -35,21 +42,15 @@ export async function GET(req: NextRequest) {
 
     if (signingToken) {
       // Check if any recipient has this signing token
-      const hasToken = document.recipients.some((r: any) => r.signingToken === signingToken);
+      const hasToken = document.recipients.some((r: IDocumentRecipient) => r.signingToken === signingToken);
       if (hasToken) {
         authorized = true;
       }
     }
 
     if (!authorized && userId) {
-      console.log(`[LOAD] DocUser ID: ${document.userId}, Type: ${typeof document.userId}`);
-      console.log(`[LOAD] ReqUser ID: ${userId}, Type: ${typeof userId}`);
-
-      // If the document is a template, any authenticated user can load it.
-      // Otherwise, check for ownership.
-      // `userId` already comes from JWT or validated guestId in getAuthSession().
-      if (document.isTemplate ||
-        document.userId.toString() === userId) {
+      const ownerId = String(document.userId ?? '');
+      if (ownerId === userId) {
         authorized = true;
       }
     }
@@ -66,14 +67,16 @@ export async function GET(req: NextRequest) {
     let fields = normalizeFields(Array.isArray(preparedVersion?.fields) ? preparedVersion?.fields : []);
 
     const hasSignedRecipients = Array.isArray(document.recipients)
-      ? document.recipients.some((r: any) => ['signed', 'approved'].includes(r.status))
+      ? document.recipients.some((r: IDocumentRecipient) => ['signed', 'approved'].includes(r.status))
       : false;
     const hasSigningEvents = Array.isArray(document.signingEvents) && document.signingEvents.length > 0;
 
     if (hasSignedRecipients || hasSigningEvents) {
       const allowedRecipientIds = signingToken
-        ? document.recipients.filter((r: any) => r.signingToken === signingToken).map((r: any) => r.id)
-        : document.recipients.map((r: any) => r.id);
+        ? document.recipients
+            .filter((r: IDocumentRecipient) => r.signingToken === signingToken)
+            .map((r: IDocumentRecipient) => r.id)
+        : document.recipients.map((r: IDocumentRecipient) => r.id);
 
       if (allowedRecipientIds.length > 0) {
         const signedFieldRecords = await SignatureModel.find({
@@ -83,14 +86,15 @@ export async function GET(req: NextRequest) {
 
         const fieldValueMap = new Map<string, { value: string; version: number; signedAt: number }>();
         for (const record of signedFieldRecords) {
-          const fieldId = String((record as any).fieldId ?? '');
+          const typedRecord = record as SignedFieldRecord;
+          const fieldId = String(typedRecord.fieldId ?? '');
           if (!fieldId) continue;
-          const version = typeof (record as any).version === 'number' ? (record as any).version : -1;
-          const signedAt = (record as any).signedAt ? new Date((record as any).signedAt).getTime() : 0;
+          const version = typeof typedRecord.version === 'number' ? typedRecord.version : -1;
+          const signedAt = typedRecord.signedAt ? new Date(typedRecord.signedAt).getTime() : 0;
           const existing = fieldValueMap.get(fieldId);
           if (!existing || version > existing.version || (version === existing.version && signedAt > existing.signedAt)) {
             fieldValueMap.set(fieldId, {
-              value: String((record as any).fieldValue ?? ''),
+              value: String(typedRecord.fieldValue ?? ''),
               version,
               signedAt,
             });
@@ -98,7 +102,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (fieldValueMap.size > 0) {
-          fields = fields.map((field: any) => {
+          fields = fields.map((field: DocumentField) => {
             const signedValue = fieldValueMap.get(String(field?.id ?? ''));
             if (!signedValue) return field;
             return { ...field, value: signedValue.value };

@@ -48,7 +48,7 @@ const ForgotPasswordPage = () => {
             Reset your password
           </h3>
           <p className="text-xs text-[#64748B] text-center mb-6">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we&apos;ll send you a link to reset your password
           </p>
 
           {submitted ? (
@@ -60,7 +60,7 @@ const ForgotPasswordPage = () => {
               </div>
               <p className="text-sm text-gray-700 mb-2">Check your email for reset instructions</p>
               <p className="text-xs text-[#64748B] mb-6">
-                We've sent a password reset link to <strong>{email}</strong>
+                We&apos;ve sent a password reset link to <strong>{email}</strong>
               </p>
               <Link
                 href="/login"

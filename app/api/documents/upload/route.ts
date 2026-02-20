@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IDocumentRecipient, IVersionDoc } from '@/models/Document';
 import AuditLogModel from '@/models/AuditLog';
 import { sha256Buffer } from '@/lib/hash';
 import { getRegion, putObjectStream, copyObject } from '@/lib/s3';
@@ -12,17 +12,26 @@ import { normalizeFieldOwner } from '@/lib/field-normalization';
 
 export const runtime = 'nodejs';
 
+type PreparedFieldInput = {
+  id?: string;
+  recipientId?: string | null;
+  value?: unknown;
+  fieldOwner?: string;
+  pageRect?: unknown;
+  [key: string]: unknown;
+};
+
 function getPdfMime(): string {
   return 'application/pdf';
 }
 
-function sanitizePreparedFields(fields: any[]): any[] {
+function sanitizePreparedFields(fields: PreparedFieldInput[]): PreparedFieldInput[] {
   if (!Array.isArray(fields)) return [];
   return fields.map((field) => {
     if (!field || typeof field !== 'object') return field;
     const { pageRect, ...rest } = field;
     if (!pageRect || typeof pageRect !== 'object') return rest;
-    const rect = pageRect as Record<string, any>;
+    const rect = pageRect as Record<string, unknown>;
     const cleaned = {
       x: typeof rect.x === 'number' ? rect.x : undefined,
       y: typeof rect.y === 'number' ? rect.y : undefined,
@@ -53,7 +62,7 @@ async function handleSigningUpdate(
   }
 
   // Validate signingToken belongs to a recipient in this document
-  const recipient = existingDoc.recipients.find((r: any) => r.signingToken === signingToken);
+  const recipient = existingDoc.recipients.find((r: IDocumentRecipient) => r.signingToken === signingToken);
   if (!recipient) {
     return NextResponse.json({ message: 'Invalid signing token' }, { status: 401 });
   }
@@ -91,7 +100,7 @@ async function handleSigningUpdate(
     }
   }
 
-  const hasForeignValues = (fields || []).some((field: any) => {
+  const hasForeignValues = (fields || []).some((field: PreparedFieldInput) => {
     const owner = normalizeFieldOwner(field);
     if (owner === 'me') return false;
     const belongsToRecipient = field?.recipientId === recipientId;
@@ -102,13 +111,13 @@ async function handleSigningUpdate(
   if (hasForeignValues) {
     return NextResponse.json({ message: 'Fields include values for other recipients.' }, { status: 400 });
   }
-  const recipientFields = (fields || []).filter((field: any) => {
+  const recipientFields = (fields || []).filter((field: PreparedFieldInput) => {
     const owner = normalizeFieldOwner(field);
     if (owner === 'me') return false;
     return field?.recipientId === recipientId;
   });
   const eventFields = await Promise.all(
-    recipientFields.map(async (field: any) => ({
+    recipientFields.map(async (field: PreparedFieldInput) => ({
       fieldId: String(field.id),
       fieldHash: await sha256Buffer(Buffer.from(`${String(field.id)}:${field.value ?? ''}`)),
     }))
@@ -138,10 +147,10 @@ async function handleSigningUpdate(
 
     // Check if this is the final signer
     const recipients = existingDoc.recipients || [];
-    const recipientsAfterSign = recipients.map((r: any) =>
+    const recipientsAfterSign = recipients.map((r: IDocumentRecipient) =>
       r.id === recipientId ? { ...r, status: 'signed', signedVersion: newVersionNumber } : r
     );
-    const allRecipientsSigned = recipientsAfterSign.every((r: any) => r.status === 'signed');
+    const allRecipientsSigned = recipientsAfterSign.every((r: IDocumentRecipient) => r.status === 'signed');
     const parLabel = allRecipientsSigned ? 'signed_final' : `signed_by_order_${recipient.order}`;
     const label = parLabel;
 
@@ -202,7 +211,7 @@ async function handleSigningUpdate(
     });
     await upsertSignedFieldRecords(signedFieldRecords);
 
-    const docUpdate: any = {
+    const docUpdate: { $push: Record<string, unknown>; $set: Record<string, unknown> } = {
       $push: {
         versions: newVersion,
         signingEvents: {
@@ -267,7 +276,7 @@ async function handleSigningUpdate(
   }
 
   if (mode === 'sequential') {
-    const seqRecipient = existingDoc.recipients.find((r: any) => r.id === recipientId);
+    const seqRecipient = existingDoc.recipients.find((r: IDocumentRecipient) => r.id === recipientId);
     if (!seqRecipient) {
       return NextResponse.json({ message: 'Recipient not found for sequential signing.' }, { status: 404 });
     }
@@ -278,16 +287,16 @@ async function handleSigningUpdate(
 
     await putObjectStream({ bucket, key, body: pdfBuffer, contentType: mimeType, contentLength: size });
 
-    const recipientsAfterSign = existingDoc.recipients.map((r: any) => (
+    const recipientsAfterSign = existingDoc.recipients.map((r: IDocumentRecipient) => (
       r.id === recipientId ? { ...r, status: 'signed', signedVersion: newVersionNumber } : r
     ));
     const nextOrder = getNextSequentialOrder(recipientsAfterSign);
-    const allRecipientsSigned = recipientsAfterSign.every((r: any) => r.status === 'signed');
+    const allRecipientsSigned = recipientsAfterSign.every((r: IDocumentRecipient) => r.status === 'signed');
     const label = allRecipientsSigned ? 'signed_final' : `signed_by_order_${seqRecipient.order}`;
     const nextRecipientsToNotify =
       nextOrder !== null
         ? existingDoc.recipients.filter(
-            (r: any) => r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
+            (r: IDocumentRecipient) => r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
           )
         : [];
 
@@ -350,7 +359,7 @@ async function handleSigningUpdate(
 
     const sentEvents =
       nextOrder !== null
-        ? nextRecipientsToNotify.map((r: any) => ({
+        ? nextRecipientsToNotify.map((r: IDocumentRecipient) => ({
             recipientId: r.id,
             action: 'sent',
             sentAt: signedAt,
@@ -364,7 +373,7 @@ async function handleSigningUpdate(
           }))
         : [];
 
-    const docUpdate: any = {
+    const docUpdate: { $push: Record<string, unknown>; $set: Record<string, unknown> } = {
       $push: {
         versions: newVersion,
         signingEvents: {
@@ -416,7 +425,7 @@ async function handleSigningUpdate(
       });
     }
 
-    const arrayFilters: any[] = [{ "signer.id": recipientId }];
+    const arrayFilters: Array<Record<string, unknown>> = [{ "signer.id": recipientId }];
     if (nextOrder !== null) {
       arrayFilters.push({ "next.order": nextOrder, "next.role": { $ne: 'viewer' }, "next.status": 'pending' });
     }
@@ -441,7 +450,6 @@ async function handleSigningUpdate(
     if (nextOrder !== null && nextRecipientsToNotify.length > 0) {
       const updatedDoc = await DocumentModel.findById(documentId);
       for (const nextRecipientData of nextRecipientsToNotify) {
-        // TODO: Pass subject/message from UI or use a template
         await sendSigningRequestEmail(
           nextRecipientData,
           updatedDoc,
@@ -465,11 +473,8 @@ async function handleMetadataUpdate(documentId: string, userId: string, formData
     if (hasAnySignedRecipient(existingDoc)) {
       return NextResponse.json({ message: 'This document has partial signatures and is immutable. Create a new signing request to modify.' }, { status: 409 });
     }
-    if (hasAnySignedRecipient(existingDoc)) {
-      return NextResponse.json({ message: 'This document has partial signatures and is immutable. Create a new signing request to modify.' }, { status: 409 });
-    }
 
-    const currentVersionIndex = existingDoc.versions.findIndex((v: any) => v.version === existingDoc.currentVersion);
+    const currentVersionIndex = existingDoc.versions.findIndex((v: IVersionDoc) => v.version === existingDoc.currentVersion);
     if (currentVersionIndex === -1) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
     const currentVersionData = existingDoc.versions[currentVersionIndex];
 
@@ -666,7 +671,7 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
       return NextResponse.json({ message: 'Completed documents are immutable. Create a new document to modify.' }, { status: 409 });
     }
 
-    const currentVersionIndex = existingDoc.versions.findIndex((v: any) => v.version === existingDoc.currentVersion);
+    const currentVersionIndex = existingDoc.versions.findIndex((v: IVersionDoc) => v.version === existingDoc.currentVersion);
     if (currentVersionIndex === -1) return NextResponse.json({ message: 'Current version not found' }, { status: 404 });
     const currentVersionData = existingDoc.versions[currentVersionIndex];
 
@@ -685,7 +690,7 @@ async function handlePdfUpdate(documentId: string, userId: string, formData: For
     const size = pdfBuffer.length;
     const mimeType = getPdfMime();
 
-    const canOverwrite = (currentVersionData as any)?.label === 'prepared';
+    const canOverwrite = (currentVersionData as { label?: string })?.label === 'prepared';
 
     // If same session and current version is a 'prepared' draft, overwrite it; else create a new PREPARED version
     if (
@@ -996,7 +1001,7 @@ export async function POST(req: NextRequest) {
   try {
     const sessionUserId = await getAuthSession(req);
     const signingToken = req.headers.get('X-Signing-Token');
-    let authorizedUserId: string | null = sessionUserId;
+    const authorizedUserId: string | null = sessionUserId;
 
     if (signingToken) {
       return NextResponse.json(

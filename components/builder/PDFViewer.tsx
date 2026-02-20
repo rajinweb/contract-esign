@@ -52,7 +52,7 @@ const flexBoxcenter='absolute inset-0 flex items-center w-56 justify-center  tex
   }, [isSigningMode, signingToken]);
 
   const pdfOptions = useMemo(() => ({
-    cMapUrl: `//cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
+    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
     cMapPacked: true,
     httpHeaders: customHeaders,
   }), [customHeaders]);

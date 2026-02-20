@@ -1,12 +1,17 @@
 'use client'
-import { useState, useEffect, forwardRef } from "react";
+import { useEffect, useMemo, forwardRef } from "react";
 import { InputProps } from '@/types/types';
 import Input from '@/components/forms/Input';
 
 
 const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, ref) => {
   const {textInput, defaultDate, readOnly, className} = props;
-  const [text, setText] = useState<string>(defaultDate ? defaultDate : '');
+  const text = useMemo(() => {
+    if (!defaultDate) return '';
+    const parsedDate = new Date(defaultDate);
+    if (Number.isNaN(parsedDate.getTime())) return '';
+    return parsedDate.toISOString().substring(0, 10);
+  }, [defaultDate]);
   
   useEffect(() => {
     if (ref && 'current' in ref && ref.current) {
@@ -15,15 +20,8 @@ const DateField = forwardRef<HTMLInputElement, Omit<InputProps, "ref">>((props, 
     }
   }, [ref]);
 
-  useEffect(() => {
-    if (defaultDate && !isNaN(new Date(defaultDate).getTime())) {
-      setText(new Date(defaultDate).toISOString().substring(0, 10));
-    }
-  }, [defaultDate]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setText(value);
     textInput(value)
   };
 

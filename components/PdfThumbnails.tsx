@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { initializePdfWorker } from "@/utils/pdfjsSetup";
 
 interface PdfThumbnailProps {
   fileUrl: string;
@@ -8,7 +9,6 @@ interface PdfThumbnailProps {
   height?: number;
   className?:string;
 }
-import { pdfjs } from "react-pdf";
 
 const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 120, height = 160, className }) => {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
@@ -21,6 +21,8 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 120, heigh
       }
 
       try {
+        const { pdfjs } = await import("react-pdf");
+        initializePdfWorker(pdfjs);
         const absoluteUrl = new URL(fileUrl, window.location.origin).href;
         const pdf = await pdfjs.getDocument({
           url: absoluteUrl,
@@ -32,11 +34,14 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ fileUrl, width = 120, heigh
         const viewport = page.getViewport({ scale: 2.0 });
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          return;
+        }
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
-        await page.render({ canvasContext: ctx!, viewport }).promise;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
         // Use high compression quality (90-100)
         setThumbUrl(canvas.toDataURL("image/png", 0.95));

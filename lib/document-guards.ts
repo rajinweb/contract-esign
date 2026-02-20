@@ -1,9 +1,46 @@
-export function hasAnySignedRecipient(doc: any): boolean {
-  const recipients = Array.isArray(doc?.recipients) ? doc.recipients : [];
-  return recipients.some((r: any) => {
-    if (!r) return false;
-    if (r.status === 'signed' || r.status === 'approved') return true;
-    return r.signedVersion !== undefined && r.signedVersion !== null;
+interface RecipientLike {
+  id?: unknown;
+  role?: unknown;
+  status?: unknown;
+  signedVersion?: unknown;
+}
+
+interface SigningEventLike {
+  action?: unknown;
+  recipientId?: unknown;
+}
+
+interface VersionLike {
+  label?: unknown;
+}
+
+interface CompletionDocLike {
+  status?: unknown;
+  completedAt?: unknown;
+  finalizedAt?: unknown;
+  versions?: unknown;
+  recipients?: unknown;
+  signingEvents?: unknown;
+}
+
+function asRecipients(value: unknown): RecipientLike[] {
+  return Array.isArray(value) ? (value as RecipientLike[]) : [];
+}
+
+function asSigningEvents(value: unknown): SigningEventLike[] {
+  return Array.isArray(value) ? (value as SigningEventLike[]) : [];
+}
+
+function asVersions(value: unknown): VersionLike[] {
+  return Array.isArray(value) ? (value as VersionLike[]) : [];
+}
+
+export function hasAnySignedRecipient(doc: CompletionDocLike): boolean {
+  const recipients = asRecipients(doc?.recipients);
+  return recipients.some((recipient) => {
+    if (!recipient) return false;
+    if (recipient.status === 'signed' || recipient.status === 'approved') return true;
+    return recipient.signedVersion !== undefined && recipient.signedVersion !== null;
   });
 }
 
@@ -11,41 +48,48 @@ interface CompletionEvidenceOptions {
   requireApproverCompletion?: boolean;
 }
 
-export function hasCompletionEvidence(doc: any, options: CompletionEvidenceOptions = {}): boolean {
+export function hasCompletionEvidence(
+  doc: CompletionDocLike,
+  options: CompletionEvidenceOptions = {}
+): boolean {
   const requireApproverCompletion = options.requireApproverCompletion === true;
 
   if (doc?.status === 'completed') return true;
   if (doc?.completedAt || doc?.finalizedAt) return true;
 
-  const versions = Array.isArray(doc?.versions) ? doc.versions : [];
-  if (versions.some((v: any) => v?.label === 'signed_final')) return true;
+  const versions = asVersions(doc?.versions);
+  if (versions.some((version) => version?.label === 'signed_final')) return true;
 
-  const recipients = Array.isArray(doc?.recipients) ? doc.recipients : [];
-  const signers = recipients.filter((r: any) => r?.role === 'signer');
+  const recipients = asRecipients(doc?.recipients);
+  const signers = recipients.filter((recipient) => recipient?.role === 'signer');
 
   if (requireApproverCompletion) {
-    const approvers = recipients.filter((r: any) => r?.role === 'approver');
+    const approvers = recipients.filter((recipient) => recipient?.role === 'approver');
     const approversComplete =
-      approvers.length === 0 || approvers.every((r: any) => r?.status === 'approved');
+      approvers.length === 0 || approvers.every((recipient) => recipient?.status === 'approved');
     if (!approversComplete) return false;
   }
 
   if (
     signers.length > 0 &&
-    signers.every((r: any) => r?.status === 'signed' && typeof r?.signedVersion === 'number')
+    signers.every(
+      (recipient) =>
+        recipient?.status === 'signed' && typeof recipient?.signedVersion === 'number'
+    )
   ) {
     return true;
   }
 
-  const signingEvents = Array.isArray(doc?.signingEvents) ? doc.signingEvents : [];
+  const signingEvents = asSigningEvents(doc?.signingEvents);
   if (signers.length > 0 && signingEvents.length > 0) {
     const signedSet = new Set(
       signingEvents
-        .filter((e: any) => e?.action === 'signed' && e?.recipientId)
-        .map((e: any) => String(e.recipientId))
+        .filter((event) => event?.action === 'signed' && event?.recipientId)
+        .map((event) => String(event.recipientId))
     );
-    const signerIds = signers.map((s: any) => String(s.id)).filter(Boolean);
-    if (signerIds.length > 0 && signerIds.every((id: string) => signedSet.has(id))) {
+
+    const signerIds = signers.map((signer) => String(signer.id)).filter(Boolean);
+    if (signerIds.length > 0 && signerIds.every((id) => signedSet.has(id))) {
       return true;
     }
   }

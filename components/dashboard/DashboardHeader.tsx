@@ -1,4 +1,3 @@
-import React from 'react';
 import UserDropdown from '../UserDropdown';
 import { Bell, CircleQuestionMark } from 'lucide-react';
 import Link from 'next/link';

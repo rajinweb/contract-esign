@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Input from '@/components/forms/Input';
 import { Button } from '@/components/Button';
 import { User } from '@/types/types';
@@ -14,10 +14,6 @@ export default function EmailField({ user, isSaving, handleSave }: EmailFieldPro
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(user.email || '');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDraft(user.email || '');
-  }, [user.email]);
 
   const hasChanges = () => draft !== (user.email || '');
 
@@ -44,6 +40,12 @@ export default function EmailField({ user, isSaving, handleSave }: EmailFieldPro
 
     await handleSave({ email: draft });
     setIsEditing(false);
+  };
+
+  const onStartEdit = () => {
+    setDraft(user.email || '');
+    setError(null);
+    setIsEditing(true);
   };
 
   return (
@@ -77,7 +79,7 @@ export default function EmailField({ user, isSaving, handleSave }: EmailFieldPro
 
       {/* Toggle button */}
       <Button
-        onClick={() => (isEditing ? onCancel() : setIsEditing(true))}
+        onClick={() => (isEditing ? onCancel() : onStartEdit())}
         inverted
         className="h-8 !p-2 border-0 text-xs"
         label={isEditing ? 'Cancel' : 'Change'}

@@ -1,5 +1,5 @@
 'use client';
-import React, { Fragment, RefObject, useCallback } from 'react';
+import React, { Fragment, RefObject } from 'react';
 import { Document, Page } from 'react-pdf';
 import { Plus, Ellipsis, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Button } from '../Button';

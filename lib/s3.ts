@@ -13,6 +13,13 @@ const s3 = new S3Client({
   } : undefined,
 });
 
+function getErrorInfo(error: unknown): { name: string; message: string } {
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message };
+  }
+  return { name: 'UnknownError', message: String(error) };
+}
+
 export async function putObjectStream(params: {
   bucket: string;
   key: string;
@@ -30,8 +37,9 @@ export async function putObjectStream(params: {
   try {
     const res = await s3.send(cmd);
     return { etag: res.ETag };
-  } catch (error: any) {
-    if (error.name === 'NoSuchBucket') {
+  } catch (error: unknown) {
+    const err = getErrorInfo(error);
+    if (err.name === 'NoSuchBucket') {
       throw new Error(`S3 Bucket '${params.bucket}' does not exist in region '${getRegion()}'. Please create it.`);
     }
     throw error;
@@ -56,9 +64,10 @@ export async function getObjectStream(params: { bucket: string; key: string; reg
     if (!res.Body) throw new Error('S3 object body is empty');
     // In AWS SDK v3, Body is a Readable stream in Node.js
     return res.Body as Readable;
-  } catch (error: any) {
-    if (error.name !== 'NoSuchKey') {
-      console.error(`S3 GetObject Error: ${error.name} - ${error.message} (Bucket: ${params.bucket}, Key: ${params.key}, Region: ${region})`);
+  } catch (error: unknown) {
+    const err = getErrorInfo(error);
+    if (err.name !== 'NoSuchKey') {
+      console.error(`S3 GetObject Error: ${err.name} - ${err.message} (Bucket: ${params.bucket}, Key: ${params.key}, Region: ${region})`);
     }
     throw error;
   }
@@ -79,10 +88,11 @@ export async function deleteObject(params: { bucket: string; key: string; region
   const cmd = new DeleteObjectCommand({ Bucket: params.bucket, Key: params.key });
   try {
     await client.send(cmd);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = getErrorInfo(error);
     // It's generally safe to ignore NoSuchKey on delete, as the file is already gone.
-    if (error.name !== 'NoSuchKey') {
-      console.error(`S3 DeleteObject Error: ${error.name} - ${error.message} (Bucket: ${params.bucket}, Key: ${params.key}, Region: ${region})`);
+    if (err.name !== 'NoSuchKey') {
+      console.error(`S3 DeleteObject Error: ${err.name} - ${err.message} (Bucket: ${params.bucket}, Key: ${params.key}, Region: ${region})`);
       throw error;
     }
   }
@@ -113,8 +123,9 @@ export async function copyObject(params: {
   });
   try {
     await client.send(cmd);
-  } catch (error: any) {
-    console.error(`S3 CopyObject Error: ${error.name} - ${error.message} (Source: ${params.sourceBucket}/${params.sourceKey}, Dest: ${params.destinationBucket}/${params.destinationKey})`);
+  } catch (error: unknown) {
+    const err = getErrorInfo(error);
+    console.error(`S3 CopyObject Error: ${err.name} - ${err.message} (Source: ${params.sourceBucket}/${params.sourceKey}, Dest: ${params.destinationBucket}/${params.destinationKey})`);
     throw error;
   }
 }

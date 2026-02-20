@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import DocumentEditor from "@/components/builder/DocumentEditor";
+import type { DocumentField, Recipient } from "@/types/types";
 
 interface Props {
   params: Promise<{ documentId: string }>;
@@ -11,8 +12,8 @@ interface Props {
 interface InitialDocumentData {
   fileUrl: string;
   documentName: string | null;
-  fields: any[];
-  recipients: any[];
+  fields: DocumentField[];
+  recipients: Recipient[];
 }
 
 interface FetchDocumentResult {

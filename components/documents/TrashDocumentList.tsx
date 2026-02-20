@@ -140,7 +140,7 @@ export default function TrashDocumentList({ searchQuery }: DocumentListProps) {
           const statusObj = statuses.find(item => item?.value == doc.status)
           const StatusIcon = statusIcons[doc.status];
           const statusColor = statusObj?.color;
-          const docFileUrl = doc.fileUrl || doc.url;
+          const docFileUrl = doc.fileUrl ?? doc.url ?? '';
           return (
             <div
               key={doc.id}

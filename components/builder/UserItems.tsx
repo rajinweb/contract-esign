@@ -4,12 +4,13 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/Button";
 import SignatureCanvas from "react-signature-canvas";
-import { Type, ArrowLeft, PlusCircle, LineSquiggle, Signature, EllipsisVertical } from "lucide-react";
+import { Type, ArrowLeft, PlusCircle, LineSquiggle, Signature } from "lucide-react";
 import useContextStore from "@/hooks/useContextStore";
 import Input from "../forms/Input";
 import { v4 as uuidv4 } from "uuid";
-import { api } from "@/lib/api-client";
-import { DroppingField, itemTypes, SignatureInitial } from "@/types/types";
+import { api } from "@/lib/api";
+import { DroppingField, itemTypes, SignatureInitial, User } from "@/types/types";
+import Image from "next/image";
 
 /* ================= Types ================= */
 
@@ -39,7 +40,6 @@ interface CreateScreenProps {
   isStamp: boolean;
   createMode: CreateMode;
   typedValue: string;
-  drawnValue: string | null;
   makeDefault: boolean;
   canvasRef: React.RefObject<SignatureCanvas>;
   fileInputRef: React.RefObject<HTMLInputElement>;
@@ -51,6 +51,25 @@ interface CreateScreenProps {
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBack: () => void;
 }
+
+interface ProfilePatchResponse {
+  user?: User;
+}
+
+const normalizeStoredItems = (items: SignatureInitial[]): SignatureInitial[] => {
+  let defaultFound = false;
+  return items.map((item, index) => {
+    const isDefault = Boolean(item.isDefault) && !defaultFound;
+    if (isDefault) {
+      defaultFound = true;
+    }
+    const fallbackId =
+      typeof item.id === "string" && item.id.trim().length > 0
+        ? item.id
+        : `legacy-${item.type}-${index}-${item.value.slice(0, 12)}`;
+    return { ...item, id: fallbackId, isDefault };
+  });
+};
 
 /* ================= Main Component ================= */
 
@@ -65,7 +84,6 @@ const UserItems: React.FC<UserItemsProps> = ({
   const canvasRef = useRef<SignatureCanvas>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [userDefaults, setUserDefaults] = useState<SignatureInitial[]>([]);
   const [screen, setScreen] = useState<Screen>("select");
   const [createMode, setCreateMode] = useState<CreateMode>("typed");
   const [typedValue, setTypedValue] = useState("");
@@ -82,65 +100,51 @@ const UserItems: React.FC<UserItemsProps> = ({
   const isSignature = effectiveType === "Signature";
   const isStamp = effectiveType === "Stamp";
   const isInitial = effectiveType === "Initials";
+  const userName = user?.name ?? "";
 
   /* ================= Derived ================= */
 
   const defaultInitial = useMemo(() => {
-    if (!user?.name) return "";
-    return user.name
+    if (!userName) return "";
+    return userName
       .trim()
       .split(/\s+/)
       .slice(0, 2)
       .map((n) => n[0]?.toUpperCase())
       .join("");
-  }, [user?.name]);
+  }, [userName]);
 
-  /* ================= Effects ================= */
+  const userDefaults = useMemo<SignatureInitial[]>(() => {
+    if (!user) return [];
+    const sourceItems = isInitial
+      ? user.initials || []
+      : isStamp
+        ? user.stamps || []
+        : user.signatures || [];
+    const normalized = normalizeStoredItems(sourceItems);
+    if (normalized.length === 0 && isInitial) {
+      return [
+        {
+          id: "initials-fallback",
+          value: defaultInitial,
+          type: "typed",
+          isDefault: true,
+        },
+      ];
+    }
+    return normalized;
+  }, [defaultInitial, isInitial, isStamp, user]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    const items =
-      isInitial ? user.initials || [] :
-      isStamp ? user.stamps || [] :
-      user.signatures || [];
-
-    let defaultFound = false;
-
-    const normalized = items.map((i) => {
-      const isDefault = i.isDefault && !defaultFound;
-      if (isDefault) defaultFound = true;
-      return { ...i, id: i.id || uuidv4(), isDefault };
-    });
-
-    setUserDefaults(normalized);
-
-    /* ✅ KEY FIX: match against component.data if available */
+  const effectiveSelectedId = (() => {
+    if (selectedId && userDefaults.some((item) => item.id === selectedId)) {
+      return selectedId;
+    }
     if (component?.data) {
-      const matched = normalized.find(
-        (i) => i.value === component.data
-      );
-
-      if (matched) {
-        setSelectedId(matched.id);
-        return;
-      }
+      const matched = userDefaults.find((item) => item.value === component.data);
+      if (matched) return matched.id;
     }
-
-    /* fallback */
-    if (normalized.length) {
-      setSelectedId(normalized[0].id);
-    } else if (isInitial) {
-      const fallback: SignatureInitial = {
-        id: uuidv4(),
-        value: defaultInitial,
-        type: "typed",
-        isDefault: true,
-      };
-      setUserDefaults([fallback]);
-      setSelectedId(fallback.id);
-    }
-  }, [user, component?.data, defaultInitial, isInitial, isStamp]);
+    return userDefaults[0]?.id ?? null;
+  })();
 
 
   /* ================= Helpers ================= */
@@ -157,7 +161,7 @@ const UserItems: React.FC<UserItemsProps> = ({
         ? { signatures: items }
         : { stamps: items };
 
-    const res = await api.patch("/user/profile", payload);
+    const res = await api.patch<ProfilePatchResponse>("/user/profile", payload);
     if (res.user) setUser(res.user);
   };
 
@@ -180,7 +184,6 @@ const UserItems: React.FC<UserItemsProps> = ({
       };
 
       const updated = [...userDefaults, newItem];
-      setUserDefaults(updated);
       setSelectedId(newItem.id);
       updateUserItems(updated, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
       setScreen("select");
@@ -189,7 +192,7 @@ const UserItems: React.FC<UserItemsProps> = ({
   };
 
   const handleConfirmSelect = () => {
-    const selected = userDefaults.find((i) => i.id === selectedId);
+    const selected = userDefaults.find((i) => i.id === effectiveSelectedId);
     if (selected) {
       onAdd(selected);
       onClose();
@@ -211,7 +214,7 @@ const UserItems: React.FC<UserItemsProps> = ({
       newItem,
     ];
 
-    setUserDefaults(updated);
+    setSelectedId(newItem.id);
     updateUserItems(updated, isInitial ? "initials" : isStamp ? "stamps" : "signatures");
     setScreen("select");
     setTypedValue("");
@@ -242,7 +245,7 @@ const UserItems: React.FC<UserItemsProps> = ({
       {screen === "select" ? (
         <SelectScreen
           items={userDefaults}
-          selectedId={selectedId}
+          selectedId={effectiveSelectedId}
           isSignature={isSignature}
           isStamp={isStamp}
           onSelect={setSelectedId}
@@ -266,7 +269,6 @@ const UserItems: React.FC<UserItemsProps> = ({
           isStamp={isStamp}
           createMode={createMode}
           typedValue={typedValue}
-          drawnValue={drawnValue}
           makeDefault={makeDefault}
           canvasRef={canvasRef}
           fileInputRef={fileInputRef}
@@ -408,10 +410,13 @@ const Cards = ({
             {item.value || "-"}
           </span>
         ) : (
-          <img
+          <Image
             src={item.value}
             alt={isSignature ? "Signature" : isStamp ? "Stamp" : "Initials"}
+            width={200}
+            height={96}
             className="max-h-24 max-w-full"
+            unoptimized
           />
         )}
       </Button>
@@ -469,7 +474,6 @@ const CreateScreen: React.FC<CreateScreenProps> = ({
   isStamp,
   createMode,
   typedValue,
-  drawnValue,
   makeDefault,
   canvasRef,
   fileInputRef,

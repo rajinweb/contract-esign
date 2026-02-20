@@ -1,6 +1,8 @@
-export const serializePageRect = (pageRect: any, canvasRect?: DOMRect | null, zoom?: number) => {
+type PageRectLike = Partial<Record<'x' | 'y' | 'width' | 'height' | 'top' | 'right' | 'bottom' | 'left', number>>;
+
+export const serializePageRect = (pageRect: unknown, canvasRect?: DOMRect | null, zoom?: number) => {
   if (!pageRect || typeof pageRect !== 'object') return undefined;
-  const rect = pageRect as Record<string, any>;
+  const rect = pageRect as PageRectLike;
   const offsetX = canvasRect ? canvasRect.left : 0;
   const offsetY = canvasRect ? canvasRect.top : 0;
   const scale = typeof zoom === 'number' && zoom > 0 ? zoom : 1;

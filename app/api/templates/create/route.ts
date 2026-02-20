@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
 import connectDB from '@/utils/db';
-import TemplateModel, { ITemplate } from '@/models/Template';
+import TemplateModel from '@/models/Template';
 import DocumentModel from '@/models/Document';
+import type { IVersionDoc } from '@/models/Document';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
@@ -37,8 +38,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Template name and document ID are required' }, { status: 400 });
         }
 
-        // Load the original document; we treat it as 'any' here to avoid lean() union typing issues
-        const originalDoc: any = await DocumentModel.findById(documentId).lean();
+        const originalDoc = await DocumentModel.findById(documentId).lean<{
+            userId: { toString(): string };
+            versions?: IVersionDoc[];
+            currentVersion?: number;
+            fields?: unknown[];
+        } | null>();
         if (!originalDoc) {
             return NextResponse.json({ message: 'Original document not found' }, { status: 404 });
         }
@@ -58,15 +63,15 @@ export async function POST(req: NextRequest) {
 
         const preparedVersion = getLatestPreparedVersion(originalDoc.versions || []);
         const currentVersion =
-            originalDoc.versions?.find((v: any) => v?.version === originalDoc.currentVersion) || null;
-        const fallbackOriginal = originalDoc.versions?.find((v: any) => v?.label === 'original') || null;
+            originalDoc.versions?.find((v: IVersionDoc) => v?.version === originalDoc.currentVersion) || null;
+        const fallbackOriginal = originalDoc.versions?.find((v: IVersionDoc) => v?.label === 'original') || null;
         const sourceVersion = preparedVersion || currentVersion || fallbackOriginal || originalDoc.versions?.[0];
 
         if (!sourceVersion) {
             return NextResponse.json({ message: 'Original document version not found' }, { status: 400 });
         }
 
-        const sourceFilePath = sourceVersion?.filePath;
+        const sourceFilePath = (sourceVersion as IVersionDoc & { filePath?: string })?.filePath;
         if (sourceFilePath && fs.existsSync(sourceFilePath)) {
             fs.copyFileSync(sourceFilePath, newFileAbsolutePath);
         } else if (sourceVersion?.storage?.provider === 's3' && sourceVersion.storage.key) {

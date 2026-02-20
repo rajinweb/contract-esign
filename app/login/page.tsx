@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff} from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/Button';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 type FormValues = {
   email: string;
@@ -17,9 +18,11 @@ type FormValues = {
 };
 
 const LoginPage: React.FC = () => {
-  const { setIsLoggedIn, setUser, setShowModal } = useContextStore();
+  const { setShowModal } = useContextStore();
+  const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const emailFromUrl = searchParams.get("email") || ""; 
   const { register, handleSubmit, formState } = useForm<FormValues>({ defaultValues: { email: emailFromUrl ? emailFromUrl : '', password: '' } });
   const [showPassword, setShowPassword] = useState(false);
@@ -28,33 +31,41 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: FormValues) => {
     setFormError(null);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      let result = await login({
+        email: data.email,
+        password: data.password,
+        deviceInfo: 'web',
       });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        const errorMessage = json?.message || 'Login failed';
-        setFormError(errorMessage);
-        toast.error(errorMessage);
-        return;
+
+      if (result.mfaRequired) {
+        const promptedCode = window.prompt('Enter your 6-digit authenticator code');
+        if (!promptedCode) {
+          const message = result.message || 'MFA code is required';
+          setFormError(message);
+          toast.error(message);
+          return;
+        }
+
+        result = await login({
+          email: data.email,
+          password: data.password,
+          totpCode: promptedCode.trim(),
+          deviceInfo: 'web',
+        });
+
+        if (result.mfaRequired) {
+          const message = result.message || 'Invalid MFA code';
+          setFormError(message);
+          toast.error(message);
+          return;
+        }
       }
 
-      if (json?.user) {
-        localStorage.setItem('User', JSON.stringify(json.user));
-        setUser(json.user);
-      }
-      if (json?.token) {
-        localStorage.setItem('AccessToken', json.token);
-      }
-      setIsLoggedIn(true);
       router.replace('/dashboard');
       setShowModal(false)
     } catch (err) {
       console.error(err);
-      const errorMessage = 'Network error. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Network error. Please try again.';
       setFormError(errorMessage);
       toast.error(errorMessage);
     }
@@ -86,9 +97,20 @@ const LoginPage: React.FC = () => {
             </button>
           {/* Include the Google Sign-In button */}
           <div className="flex-1 justify-center">
-            <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
-              <GoogleSignInButton />
-            </GoogleOAuthProvider>
+            {googleClientId ? (
+              <GoogleOAuthProvider clientId={googleClientId}>
+                <GoogleSignInButton />
+              </GoogleOAuthProvider>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="h-10 w-full rounded-md border border-[#E2E8F0] bg-gray-100 text-xs text-gray-500 cursor-not-allowed"
+                title="Google sign-in is not configured"
+              >
+                Google unavailable
+              </button>
+            )}
             {/* Add other social login buttons here */}
           </div>
             <button 
@@ -131,24 +153,27 @@ const LoginPage: React.FC = () => {
             </div>
 
             {/* Password Input */}
-            <div className="mb-3 relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter password"
-                {...register('password', { required: 'Password required' })}
-                className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
+            <div className="mb-3">
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter password"
+                  {...register('password', { required: 'Password required' })}
+                  className="w-full h-[38px] px-3 pr-10 rounded-md border border-[#E2E8F0] text-sm font-poppins placeholder:text-[#999] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {formState.errors.password && (
                 <p className="text-xs text-red-500 mt-1">{formState.errors.password.message}</p>
               )}

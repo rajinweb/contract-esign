@@ -5,10 +5,10 @@ import { hasCompletionEvidence } from "@/lib/document-guards";
 export const getUpdatedDocumentStatus = (
   document: IDocument): IDocument["status"] => {
   const recipients = document.recipients || [];
-  const signers = recipients.filter((r: any) => r?.role === "signer");
-  const approvers = recipients.filter((r: any) => r?.role === "approver");
+  const signers = recipients.filter((r) => r?.role === "signer");
+  const approvers = recipients.filter((r) => r?.role === "approver");
   const approversComplete =
-    approvers.length === 0 || approvers.every((r: any) => r?.status === "approved");
+    approvers.length === 0 || approvers.every((r) => r?.status === "approved");
 
   // Condition: Document voided/cancelled manually
   if (document.status === "voided") {
@@ -50,7 +50,7 @@ export const getUpdatedDocumentStatus = (
 
   const signersComplete =
     signers.length > 0 &&
-    signers.every((r: any) => r?.status === "signed" && typeof r?.signedVersion === "number");
+    signers.every((r) => r?.status === "signed" && typeof r?.signedVersion === "number");
 
   // Condition: All recipients are signed
   if (signersComplete && approversComplete) {

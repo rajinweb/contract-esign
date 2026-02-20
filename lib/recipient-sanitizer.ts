@@ -1,13 +1,16 @@
-export function sanitizeRecipient(recipient: any) {
+type RecipientShape = Record<string, unknown> & { toObject?: () => Record<string, unknown> };
+
+export function sanitizeRecipient(recipient: unknown) {
   if (!recipient) return recipient;
-  const plain = typeof recipient?.toObject === 'function' ? recipient.toObject() : { ...recipient };
+  const source = recipient as RecipientShape;
+  const plain = typeof source?.toObject === 'function' ? source.toObject() : { ...source };
   if ('signingToken' in plain) {
-    delete (plain as any).signingToken;
+    delete plain.signingToken;
   }
   return plain;
 }
 
-export function sanitizeRecipients(recipients: any[]) {
+export function sanitizeRecipients(recipients: unknown[]) {
   if (!Array.isArray(recipients)) return [];
   return recipients.map(sanitizeRecipient);
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import Image from 'next/image';
 // Import Swiper styles

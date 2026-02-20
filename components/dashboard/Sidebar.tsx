@@ -79,7 +79,7 @@ export const SecondarySidebar = ({
   secondaryActive: (s: SecondarySidebarType) => void;
   templates: Template[];
   fetchTemplates: (category?: string, search?: string) => Promise<void>;
-  className?: String;
+  className?: string;
 }) => (
   <div className={`w-64 p-5 h-full overflow-auto ${className}`}>
       {active === 'documents' &&

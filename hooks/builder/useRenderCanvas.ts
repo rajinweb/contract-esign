@@ -1,4 +1,3 @@
-import { itemTypes } from "@/types/types";
 import { useEffect } from "react";
 
 export function useRenderCanvas(
@@ -18,14 +17,12 @@ export function useRenderCanvas(
         if (!value) return;
 
         let parsedValue = value;
-        let type: itemTypes | null = null;
 
         // 🔑 Parse stored value
         try {
             const parsed = JSON.parse(value);
             if (parsed?.value) {
                 parsedValue = parsed.value;
-                type = parsed.type;
             }
         } catch {
             // backward compatible (plain string)

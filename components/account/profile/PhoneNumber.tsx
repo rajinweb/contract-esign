@@ -1,6 +1,6 @@
 import { Button } from '@/components/Button';
 import { User } from '@/types/types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 
 const sanitizePhone = (phone?: string | number): string | undefined => {
@@ -25,15 +25,11 @@ export default function PhoneNumber({ label, user, isSaving, handleSave }: {
   );
   const [error, setError] = useState<string | null>(null);
 
-  // sync draft after user updates
-  useEffect(() => {
-    setDraft(sanitizePhone(user.phone));
-  }, [user.phone]);
-
   const hasChanges = draft !== sanitizePhone(user.phone);
 
   const startEditing = () => {
     setError(null);
+    setDraft(sanitizePhone(user.phone));
     setIsEditing(true);
   };
 
@@ -69,7 +65,7 @@ export default function PhoneNumber({ label, user, isSaving, handleSave }: {
       <label className="text-sm text-slate-500">{label}</label>
       {!isEditing && (
           <p className="font-medium">
-            {draft ? draft : 'Not added'}
+            {sanitizePhone(user.phone) ? sanitizePhone(user.phone) : 'Not added'}
           </p>
       
       )}

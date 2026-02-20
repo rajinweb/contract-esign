@@ -1,10 +1,16 @@
 'use client';
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import PDFViewerPreview from './builder/PDFViewerPreview';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { PDFViewerPreviewProps } from './builder/PDFViewerPreview';
 
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+const PDFViewerPreview = dynamic<PDFViewerPreviewProps>(
+  () => import('./builder/PDFViewerPreview'),
+  { ssr: false }
+);
+
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 export interface TemplatePreviewProps {
   templateUrl: string;
@@ -12,7 +18,7 @@ export interface TemplatePreviewProps {
   onClose?: () => void;
 }
 
-function TemplatePreview({ templateUrl, templateName, onClose }: TemplatePreviewProps) {
+function TemplatePreview({ templateUrl }: TemplatePreviewProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.8);

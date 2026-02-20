@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useCallback } from 'react';
-import { X, Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { Contact } from '@/types/types';
 import Modal from '../Modal';
 

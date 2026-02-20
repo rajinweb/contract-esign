@@ -1,106 +1,247 @@
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { serialize as serializeCookie } from 'cookie';
 import { NextRequest, NextResponse } from 'next/server';
 
-interface TokenClaims {
-  id?: string;
-  email?: string;
-}
+export const AUTH_COOKIE_NAME = 'token'; // legacy cookie
+export const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
+export const CSRF_COOKIE_NAME = 'csrf_token';
 
-interface AuthTokenPayload {
-  id: string;
-  email?: string;
-}
-
-interface UserIdOptions {
-  allowGuest?: boolean;
-}
-
-const AUTH_COOKIE_NAME = 'token';
 const AUTH_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 3600;
-const AUTH_TOKEN_TTL = '7d';
+const LEGACY_COOKIE_PATHS = ['/api', '/api/auth'] as const;
 
-function getJwtSecret(): string | null {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.trim().length === 0) return null;
-  return secret;
-}
-
-function getTokenFromReq(req: NextRequest): string | null {
-  const auth = req.headers.get('authorization') || '';
-  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (bearer) return bearer;
-  return req.cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
-}
-
-export function getJwtClaimsFromReq(req: NextRequest): TokenClaims | null {
-  const token = getTokenFromReq(req);
-  const secret = getJwtSecret();
-
-  if (!token || !secret) return null;
-
-  try {
-    const decoded = jwt.verify(token, secret) as JwtPayload & { id?: string; email?: string };
-    return {
-      id: typeof decoded.id === 'string' ? decoded.id : undefined,
-      email: typeof decoded.email === 'string' ? decoded.email : undefined,
-    };
-  } catch {
-    return null;
+function appendLegacyCookieClearHeaders(
+  response: NextResponse,
+  name: string,
+  options: {
+    httpOnly: boolean;
+    sameSite: 'lax' | 'strict';
+  }
+): void {
+  const secure = process.env.NODE_ENV === 'production';
+  for (const path of LEGACY_COOKIE_PATHS) {
+    response.headers.append(
+      'Set-Cookie',
+      serializeCookie(name, '', {
+        httpOnly: options.httpOnly,
+        secure,
+        sameSite: options.sameSite,
+        path,
+        maxAge: 0,
+        expires: new Date(0),
+      })
+    );
   }
 }
 
-export function createAuthToken(payload: AuthTokenPayload): string | null {
-  const secret = getJwtSecret();
-  if (!secret) return null;
-  return jwt.sign(
-    {
-      id: payload.id,
-      email: payload.email,
-    },
-    secret,
-    { expiresIn: AUTH_TOKEN_TTL }
-  );
-}
+export function clearAuthTokenCookie(response: NextResponse): void {
+  appendLegacyCookieClearHeaders(response, AUTH_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+  });
 
-export function setAuthTokenCookie(response: NextResponse, token: string): void {
-  response.cookies.set(AUTH_COOKIE_NAME, token, {
+  response.cookies.set(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
+}
+
+export function issueCsrfToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+export function setCsrfCookie(response: NextResponse, csrfToken: string): void {
+  appendLegacyCookieClearHeaders(response, CSRF_COOKIE_NAME, {
+    httpOnly: false,
+    sameSite: 'strict',
+  });
+
+  response.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE_SECONDS,
   });
 }
 
-// ---------------- JWT Helper ----------------
-export async function getUserIdFromReq(
-  req: NextRequest,
-  options: UserIdOptions = {}
-): Promise<string | null> {
-  const claims = getJwtClaimsFromReq(req);
-  if (claims?.id) {
-    return claims.id;
+export function clearCsrfCookie(response: NextResponse): void {
+  appendLegacyCookieClearHeaders(response, CSRF_COOKIE_NAME, {
+    httpOnly: false,
+    sameSite: 'strict',
+  });
+
+  response.cookies.set(CSRF_COOKIE_NAME, '', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 0,
+  });
+}
+
+export function setRefreshTokenCookie(response: NextResponse, refreshToken: string, expiresAt: Date): void {
+  const secondsUntilExpiry = Math.max(Math.floor((expiresAt.getTime() - Date.now()) / 1000), 0);
+
+  appendLegacyCookieClearHeaders(response, REFRESH_TOKEN_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'strict',
+  });
+
+  response.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: secondsUntilExpiry,
+    expires: expiresAt,
+  });
+}
+
+export function clearRefreshTokenCookie(response: NextResponse): void {
+  appendLegacyCookieClearHeaders(response, REFRESH_TOKEN_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'strict',
+  });
+
+  response.cookies.set(REFRESH_TOKEN_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 0,
+  });
+}
+
+function safeCompare(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+export function validateCsrfToken(req: NextRequest): boolean {
+  const headerToken = req.headers.get('x-csrf-token') || '';
+  if (!headerToken) {
+    return false;
   }
 
-  if (!options.allowGuest) {
-    return null;
+  const cookieTokens = req.cookies
+    .getAll(CSRF_COOKIE_NAME)
+    .map((cookie) => cookie.value)
+    .filter(Boolean);
+
+  if (cookieTokens.length === 0) {
+    return false;
   }
 
-  // Only check for guestId if no valid JWT token was found
-  // This allows guest access but prevents JWT bypass via URL manipulation
-  // IMPORTANT: Validate guestId format to prevent user ID spoofing
-  // Guest IDs must start with "guest_" prefix - reject any other format
+  return cookieTokens.some((cookieToken) => safeCompare(cookieToken, headerToken));
+}
+
+export function hashRefreshToken(token: string): string {
+  const pepper = process.env.REFRESH_TOKEN_PEPPER || '';
+  return createHash('sha256').update(`${token}:${pepper}`).digest('hex');
+}
+
+export function extractBearerToken(req: NextRequest): string | null {
+  const auth = req.headers.get('authorization') || '';
+  if (!auth.startsWith('Bearer ')) return null;
+  const token = auth.slice('Bearer '.length).trim();
+  return token.length > 0 ? token : null;
+}
+
+export function getAccessTokenFromRequest(req: NextRequest): string | null {
+  return extractBearerToken(req);
+}
+
+export function getGuestIdFromReq(req: NextRequest): string | null {
   const url = new URL(req.url);
   const guestId = url.searchParams.get('guestId');
-  if (guestId) {
-    // Only accept guest IDs that start with "guest_" prefix
-    // This prevents attackers from passing legitimate user IDs as guestId
-    if (guestId.startsWith('guest_')) {
-      return guestId;
-    }
-    // Invalid format - reject it to prevent user ID spoofing
-    return null;
+  if (!guestId) return null;
+  return guestId.startsWith('guest_') ? guestId : null;
+}
+
+export function getClientIp(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
   }
 
-  return null;
+  return req.headers.get('x-real-ip') || 'unknown';
+}
+
+export function getUserAgent(req: NextRequest): string {
+  return req.headers.get('user-agent') || 'unknown';
+}
+
+export function isSecureRequest(req: NextRequest): boolean {
+  if (process.env.NODE_ENV !== 'production') {
+    return true;
+  }
+
+  const forwardedProto = req.headers.get('x-forwarded-proto');
+  if (forwardedProto) {
+    return forwardedProto.includes('https');
+  }
+
+  return req.nextUrl.protocol === 'https:';
+}
+
+function resolveAllowedOrigins(): string[] {
+  const fromEnv = process.env.CORS_ALLOWED_ORIGINS;
+  if (fromEnv) {
+    return fromEnv
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
+  const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  return publicBaseUrl ? [publicBaseUrl] : [];
+}
+
+export function applyCorsHeaders(req: NextRequest, response: NextResponse): void {
+  const allowedOrigins = resolveAllowedOrigins();
+  const origin = req.headers.get('origin');
+
+  if (origin && allowedOrigins.includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    response.headers.set('Vary', 'Origin');
+  }
+}
+
+export function applySecurityHeaders(response: NextResponse): void {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  response.headers.set('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+}
+
+export function withSecurityHeaders(req: NextRequest, response: NextResponse): NextResponse {
+  applyCorsHeaders(req, response);
+  applySecurityHeaders(response);
+  return response;
+}
+
+export function unauthorizedResponse(
+  body: Record<string, unknown> = { message: 'Unauthorized' }
+): NextResponse {
+  const response = NextResponse.json(body, { status: 401 });
+  clearAuthTokenCookie(response);
+  clearRefreshTokenCookie(response);
+  clearCsrfCookie(response);
+  applySecurityHeaders(response);
+  return response;
 }

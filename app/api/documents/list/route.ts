@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/api-helpers';
+import { unauthorizedResponse } from '@/lib/auth';
 import DocumentModel from '@/models/Document';
 import { IDocumentVersion } from '@/types/types';
 import { getUpdatedDocumentStatus, updateDocumentStatus } from '@/lib/statusLogic';
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     const userId = await getAuthSession(req);
     if (!userId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const { searchParams } = new URL(req.url);

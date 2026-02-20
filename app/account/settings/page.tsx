@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import Image from 'next/image';
 import ResetPassword from '@/components/ResetPassword';
 import Input from '@/components/forms/Input';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { getCookieValue } from '@/utils/cookies';
 
 type InviteInputs = {
   inviteSubject: string;
@@ -21,7 +23,8 @@ type SettingsInputs = {
 };
 
 export default function SettingsPage() {
-  const { user, setIsLoggedIn } = useContextStore();
+  const { user } = useContextStore();
+  const { logout, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   // server-loaded settings
@@ -35,6 +38,7 @@ export default function SettingsPage() {
     register: registerInvite,
     handleSubmit: handleSubmitInvite,
     reset: resetInvite,
+    watch: watchInviteFields,
     formState: { isSubmitting: isInviteSubmitting },
   } = useForm<InviteInputs>({
     defaultValues: {
@@ -59,11 +63,20 @@ export default function SettingsPage() {
 
   // Load server settings + populate forms
   useEffect(() => {
-   
+    if (!user?.id) {
+      if (!authLoading) {
+        setLoadingSettings(false);
+      }
+      return;
+    }
 
     (async () => {
       try {
-        const res = await fetch('/api/user/settings');
+        const res = await fetch('/api/user/settings', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
         if (res.ok) {
           const data = await res.json();
           resetSettings({
@@ -76,29 +89,16 @@ export default function SettingsPage() {
             inviteMessage: data.inviteMessage || 'Sender name invited you to sign Document Name',
           });
         } else {
-          // fallback to localStorage
-          const s = typeof window !== 'undefined' && localStorage.getItem('userSettings');
-          if (s) {
-            const parsed = JSON.parse(s);
-            resetSettings({
-              twoFactor: !!parsed.twoFactor,
-              displayEsignId: typeof parsed.displayEsignId === 'boolean' ? parsed.displayEsignId : true,
-              dateFormat: parsed.dateFormat || 'MM/DD/YYYY (US)',
-            });
-            resetInvite({
-              inviteSubject: parsed.inviteSubject || 'Document Name: Signature Request from Sender name',
-              inviteMessage: parsed.inviteMessage || 'Sender name invited you to sign Document Name',
-            });
-          }
+          toast.error('Unable to load settings');
         }
       } catch (err) {
         console.error(err);
+        toast.error('Unable to load settings');
       } finally {
         setLoadingSettings(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [authLoading, resetInvite, resetSettings, user?.id]);
 
  
 
@@ -113,21 +113,24 @@ export default function SettingsPage() {
       dateFormat: watchSettings('dateFormat'),
     };
     try {
+      const csrfToken = getCookieValue('csrf_token');
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        localStorage.setItem('userSettings', JSON.stringify(payload));
-        toast('Settings saved');
+        toast.success('Settings saved');
       } else {
-        localStorage.setItem('userSettings', JSON.stringify(payload));
-        toast('Saved locally');
+        const result = await res.json().catch(() => ({}));
+        toast.error(result?.message || 'Unable to save settings');
       }
     } catch (err) {
-      localStorage.setItem('userSettings', JSON.stringify(payload));
-      toast('Saved locally');
+      toast.error('Unable to save settings');
       console.error(err);
     } finally {
       setSaving(false);
@@ -137,34 +140,33 @@ export default function SettingsPage() {
   // SETTINGS general (checkbox/dateformat)
   const onSubmitSettings: SubmitHandler<SettingsInputs> = async (data) => {
     setSaving(true);
+    const payload = {
+      twoFactor: data.twoFactor,
+      displayEsignId: data.displayEsignId,
+      dateFormat: data.dateFormat,
+      inviteSubject: watchInviteFields('inviteSubject'),
+      inviteMessage: watchInviteFields('inviteMessage'),
+    };
+
     try {
-      const payload = {
-        twoFactor: data.twoFactor,
-        displayEsignId: data.displayEsignId,
-        dateFormat: data.dateFormat,
-        inviteSubject: watchInvite('inviteSubject'),
-        inviteMessage: watchInvite('inviteMessage'),
-      };
+      const csrfToken = getCookieValue('csrf_token');
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        localStorage.setItem('userSettings', JSON.stringify(payload));
-        toast('Settings saved');
+        toast.success('Settings saved');
       } else {
-        localStorage.setItem('userSettings', JSON.stringify(payload));
+        const result = await res.json().catch(() => ({}));
+        toast.error(result?.message || 'Unable to save settings');
       }
     } catch (err) {
-      const payload = {
-        twoFactor: data.twoFactor,
-        displayEsignId: data.displayEsignId,
-        dateFormat: data.dateFormat,
-        inviteSubject: watchInvite('inviteSubject'),
-        inviteMessage: watchInvite('inviteMessage'),
-      };
-      localStorage.setItem('userSettings', JSON.stringify(payload));
+      toast.error('Unable to save settings');
       console.error(err);
     } finally {
       setSaving(false);
@@ -176,11 +178,15 @@ export default function SettingsPage() {
     if (!confirm('Delete your account? This cannot be undone.')) return;
     setDeleting(true);
     try {
-      const res = await fetch('/api/user/delete', { method: 'DELETE', credentials: 'include' });
+      const csrfToken = getCookieValue('csrf_token');
+      const res = await fetch('/api/user/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+      });
       if (res.ok) {
-        localStorage.removeItem('User');
-        setIsLoggedIn(false);
-        router.replace('/');
+        await logout();
+        router.replace('/login');
       } else {
         toast('Unable to delete account');
       }
@@ -190,15 +196,6 @@ export default function SettingsPage() {
     } finally {
       setDeleting(false);
     }
-  };
-
-  // helpers to watch invite fields (used in settings submit)
-  const watchInvite = (name: keyof InviteInputs) => {
-    // direct reading from invite form by DOM is fine here because react-hook-form manages it
-    // but for simplicity we use get from register values by calling resetInvite earlier
-    // as a lightweight approach simply read from the form inputs:
-    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
-    return el?.value ?? (name === 'inviteSubject' ? '' : '');
   };
 
   if (loadingSettings) return <div className="p-6">Loading...</div>;
@@ -230,7 +227,7 @@ export default function SettingsPage() {
                 height={40}
             />
           </div>
-          <button className="text-blue-600" onClick={() => router.push('/profile')}>
+          <button className="text-blue-600" onClick={() => router.push('/dashboard?view=profile')}>
             Change
           </button>
         </div>

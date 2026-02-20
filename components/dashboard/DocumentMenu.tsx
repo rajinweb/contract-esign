@@ -4,7 +4,7 @@ import { Template, useTemplates } from "@/hooks/useTemplates";
 import { SecondarySidebarType } from "@/types/types";
 import { ChevronDown, FileStack, Layers, Plus, Trash2 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DocumentsMenu = ({
   activeSecondarybar,
@@ -19,9 +19,7 @@ const DocumentsMenu = ({
 }) => {
   const { documents, trashedTemplatesCount } = useContextStore();
   const { fetchTrashedTemplatesCount } = useTemplates();
-  const [myTemplatesCount, setMyTemplatesCount] = useState(0);
-  const [systemTemplatesCount, setSystemTemplatesCount] = useState(0);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templatesManuallyOpen, setTemplatesManuallyOpen] = useState(false);
   const fetchedRef = useRef(false);
   const router = useRouter();
 
@@ -33,24 +31,25 @@ const DocumentsMenu = ({
     fetchTrashedTemplatesCount();
   }, [fetchTemplates, fetchTrashedTemplatesCount]);
 
-  useEffect(() => {
-    if (templates) {
-      const myTemplates = templates.filter((t) => !t.isSystemTemplate).length;
-      setMyTemplatesCount(myTemplates - trashedTemplatesCount );
-      const systemTemplates = templates.filter((t) => t.isSystemTemplate).length;
-      setSystemTemplatesCount(systemTemplates);
-    }
-  }, [templates, trashedTemplatesCount]);
-
   const searchParams = useSearchParams();
   const view = searchParams?.get('view');
+  const isTemplateView = view === 'my' || view === 'system' || view === 'all';
+
+  const systemTemplatesCount = useMemo(
+    () => templates.filter((t) => t.isSystemTemplate).length,
+    [templates]
+  );
+  const myTemplatesCount = useMemo(() => {
+    const myTemplates = templates.filter((t) => !t.isSystemTemplate).length;
+    return Math.max(0, myTemplates - trashedTemplatesCount);
+  }, [templates, trashedTemplatesCount]);
+  const templatesOpen = isTemplateView || templatesManuallyOpen;
 
   useEffect(() => {
-    if (view === 'my' || view === 'system' || view === 'all') {
+    if (isTemplateView) {
       secondaryActive('my-templates');
-      setTemplatesOpen(true);
     }
-  }, [view, secondaryActive]);
+  }, [isTemplateView, secondaryActive]);
 
   return (
     <>
@@ -79,7 +78,7 @@ const DocumentsMenu = ({
 
         <div>
           <button
-            onClick={() => setTemplatesOpen(!templatesOpen)}
+            onClick={() => setTemplatesManuallyOpen((previous) => !previous)}
             className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-slate-100 border-l-4 ${activeSecondarybar === 'my-templates'
                 ? 'bg-slate-100 text-slate-800 border-blue-600'
                 : 'hover:bg-slate-50 border-transparent'

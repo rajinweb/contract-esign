@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 export type SidebarType = 'documents' | 'contacts' | 'account';
 export type SecondarySidebarType = 'dash-documents' | 'my-templates' | 'trash' | 'profile';
 export interface Doc {
-  [x: string]: any;
+  [x: string]: unknown;
   id: string;
   name: string;
   createdAt: Date;
@@ -30,6 +30,7 @@ export interface Doc {
   signers?: string[];
   file?: File | string;
   fileUrl?: string;
+  url?: string;
   documentId?: string;
   isTemplate?: boolean;
 }
@@ -429,7 +430,7 @@ export interface IDocument {
   versions: {
     version: number;
     pdfData?: Buffer;
-    fields?: any[];
+    fields?: unknown[];
     status?: string;
     changeLog?: string;
     filePath?: string;

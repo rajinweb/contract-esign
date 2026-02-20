@@ -3,12 +3,11 @@ import { DroppedComponent } from '@/types/types';
 
 interface HistoryState {
   droppedComponents: DroppedComponent[];
-  timestamp: number;
 }
 
 export const useUndoRedo = (initialState: DroppedComponent[]) => {
   const [history, setHistory] = useState<HistoryState[]>([
-    { droppedComponents: initialState, timestamp: Date.now() }
+    { droppedComponents: initialState }
   ]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -17,7 +16,7 @@ export const useUndoRedo = (initialState: DroppedComponent[]) => {
       // Remove any future history if we're not at the end
       const newHistory = prev.slice(0, currentIndex + 1);
       // Add new state
-      newHistory.push({ droppedComponents: [...newState], timestamp: Date.now() });
+      newHistory.push({ droppedComponents: [...newState] });
       
       // Limit history to 50 states to prevent memory issues
       if (newHistory.length > 50) {
@@ -50,7 +49,7 @@ export const useUndoRedo = (initialState: DroppedComponent[]) => {
   const canRedo = currentIndex < history.length - 1;
 
   const resetHistory = useCallback((newState: DroppedComponent[]) => {
-    setHistory([{ droppedComponents: [...newState], timestamp: Date.now() }]);
+    setHistory([{ droppedComponents: [...newState] }]);
     setCurrentIndex(0);
   }, []);
 

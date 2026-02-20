@@ -1,5 +1,11 @@
 import { DocumentField, DroppedComponent, FieldOwner } from '@/types/types';
 
+type FieldLike = DocumentField & {
+  fieldId?: unknown;
+  fieldOwner?: unknown;
+  value?: unknown;
+};
+
 const normalizeFieldId = (value: unknown, fallback?: string): string => {
   const str = value !== null && value !== undefined ? String(value) : '';
   if (str.trim().length > 0) return str;
@@ -36,7 +42,8 @@ export const dedupeFieldsById = (fields: DocumentField[]): DocumentField[] => {
   const indexById = new Map<string, number>();
 
   fields.forEach((field) => {
-    const id = normalizeFieldId((field as any)?.fieldId ?? field?.id);
+    const candidate = field as FieldLike;
+    const id = normalizeFieldId(candidate?.fieldId ?? field?.id);
     if (!id) return;
     const existingIndex = indexById.get(id);
     if (existingIndex === undefined) {
@@ -45,8 +52,8 @@ export const dedupeFieldsById = (fields: DocumentField[]): DocumentField[] => {
       return;
     }
     const existing = order[existingIndex];
-    const existingValue = String((existing as any)?.value ?? '');
-    const nextValue = String((field as any)?.value ?? '');
+    const existingValue = String((existing as FieldLike)?.value ?? '');
+    const nextValue = String(candidate?.value ?? '');
     if (nextValue && !existingValue) {
       order[existingIndex] = field;
     } else {
@@ -61,10 +68,11 @@ export const mapFieldToDroppedComponent = (
   field: DocumentField,
   usedIds: Set<number>
 ): DroppedComponent => {
-  const fieldIdRaw = normalizeFieldId((field as any)?.fieldId ?? field?.id);
-  const numericId = allocateNumericId((field as any)?.id ?? fieldIdRaw, usedIds);
+  const candidate = field as FieldLike;
+  const fieldIdRaw = normalizeFieldId(candidate?.fieldId ?? field?.id);
+  const numericId = allocateNumericId(candidate?.id ?? fieldIdRaw, usedIds);
   const fieldId = fieldIdRaw || String(numericId);
-  const ownerRaw = String((field as any)?.fieldOwner ?? '').toLowerCase();
+  const ownerRaw = String(candidate?.fieldOwner ?? '').toLowerCase();
   const fieldOwner: FieldOwner =
     ownerRaw === 'me'
       ? 'me'

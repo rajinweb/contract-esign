@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Doc, DocumentField, DroppedComponent, IDocument, Recipient } from '@/types/types';
 import { dedupeFieldsById, mapFieldToDroppedComponent } from '@/utils/builder/documentFields';
 import { buildDraftKey } from '@/utils/builder/documentDraft';
+import { clearInMemoryAccessToken, getInMemoryAccessToken } from '@/lib/accessTokenStore';
 import { buildTemplateRecipients } from '@/lib/template-recipients';
 
 interface UseDocumentLoaderArgs {
@@ -84,7 +85,7 @@ export const useDocumentLoader = ({
         }
 
         const headers: Record<string, string> = {};
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        const token = getInMemoryAccessToken();
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }
@@ -105,6 +106,7 @@ export const useDocumentLoader = ({
               return;
             }
             if (response.status === 401) {
+              clearInMemoryAccessToken();
               window.location.replace('/login');
               return;
             }
@@ -197,6 +199,13 @@ export const useDocumentLoader = ({
           if (response.status === 404) {
             if (typeof window !== 'undefined') {
               window.location.replace('/404');
+            }
+            return;
+          }
+          if (response.status === 401) {
+            if (typeof window !== 'undefined') {
+              clearInMemoryAccessToken();
+              window.location.replace('/login');
             }
             return;
           }

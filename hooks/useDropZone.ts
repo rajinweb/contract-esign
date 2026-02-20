@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import useContextStore from '@/hooks/useContextStore';
 
 export default function useDropZone() {
-  const { setSelectedFile, setDocuments, documents } = useContextStore();
+  const { setSelectedFile, setDocuments } = useContextStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 

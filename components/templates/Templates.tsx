@@ -20,7 +20,6 @@ export function Templates({
   error,
   fetchTemplates,
   duplicateTemplate,
-  deleteTemplate,
   trashTemplate,
   createDocumentFromTemplate,
   onTemplateDeleted,
@@ -33,7 +32,6 @@ export function Templates({
   error: string | null,
   fetchTemplates: (category?: string, search?: string) => Promise<void>,
   duplicateTemplate: (templateId: string) => Promise<Template | null>,
-  deleteTemplate: (templateId: string) => Promise<boolean>,
   trashTemplate: (templateId: string) => Promise<Template | null>,
   createDocumentFromTemplate: (templateId: string, documentName?: string) => Promise<CreateDocumentFromTemplateResult | null>,
   onTemplateDeleted?: () => void,
@@ -102,7 +100,7 @@ export function Templates({
         setLocalTemplates(originalTemplates);
         toast.error('Failed to duplicate template');
       }
-    } catch (err) {
+    } catch {
       // Rollback on error
       setLocalTemplates(originalTemplates);
       toast.error('Failed to duplicate template');
@@ -147,7 +145,7 @@ export function Templates({
   };
 
   const handleDelete = async (template:Template) => {
-    let templateId = template._id;
+    const templateId = template._id;
 
     setOperatingTemplateId(templateId);
     const originalTemplates = localTemplates;
@@ -168,7 +166,7 @@ export function Templates({
         setLocalTemplates(originalTemplates);
         toast.error('Failed to move template to trash');
       }
-    } catch (err) {
+    } catch {
       // Rollback on error
       setLocalTemplates(originalTemplates);
       toast.error('Failed to move template to trash');

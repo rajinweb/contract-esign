@@ -23,7 +23,17 @@ export async function POST(req: NextRequest) {
 
         console.log(`[USE TEMPLATE] Received request for templateId: ${templateId}`);
 
-        const template: ITemplate | null = await TemplateModel.findById(templateId).lean() as ITemplate | null;
+        const templateQuery = userId
+            ? {
+                _id: templateId,
+                $or: [{ isSystemTemplate: true }, { userId }],
+            }
+            : {
+                _id: templateId,
+                isSystemTemplate: true,
+            };
+
+        const template: ITemplate | null = await TemplateModel.findOne(templateQuery).lean() as ITemplate | null;
         if (!template) {
             console.warn(`[USE TEMPLATE] Template with ID ${templateId} not found in database.`);
             return NextResponse.json({ message: 'Template not found' }, { status: 404 });
@@ -134,8 +144,8 @@ export async function POST(req: NextRequest) {
             isTemplate: false,
             versions: [],
             recipients: (Array.isArray(template.defaultSigners) ? template.defaultSigners : [])
-                .filter((r: any) => r?.email && r?.name && r?.role)
-                .map((r: any) => ({
+                .filter((r) => r?.email && r?.name && r?.role)
+                .map((r) => ({
                     ...r,
                     id: r.id || `recipient_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
                     signingToken: crypto.randomBytes(32).toString('hex'),
@@ -182,9 +192,10 @@ export async function POST(req: NextRequest) {
         });
 
         const sanitizedFields = Array.isArray(template.fields)
-            ? template.fields.map((field: any) => {
+            ? template.fields.map((field) => {
                 if (!field || typeof field !== 'object') return field;
                 const { pageRect, ...rest } = field;
+                void pageRect;
                 return rest;
             })
             : [];

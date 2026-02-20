@@ -34,7 +34,7 @@ const PDFViewerPreview: React.FC<PDFViewerPreviewProps> = ({
 }) => {
   const pdfOptions = useMemo(
     () => ({
-      cMapUrl: `//cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
+      cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
       cMapPacked: true,
       httpHeaders: customHeaders,
     }),

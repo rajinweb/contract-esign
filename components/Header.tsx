@@ -1,5 +1,5 @@
 'use client'
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link'
 import useContextStore from '@/hooks/useContextStore';
@@ -11,18 +11,29 @@ import Brand from './Brand';
 export function Header() {
   const { isLoggedIn, selectedFile, setShowModal } = useContextStore();
   const router= useRouter();
-  const [scrolled, setScrolled] = useState(false);
-  
-  const handleScroll = () => {
-      const scrollPercentage = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-      if (scrollPercentage > 10) {
-        setScrolled(true);
-      } else {
+  const initialScrolled = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const denominator = document.body.scrollHeight - window.innerHeight;
+    if (denominator <= 0) {
+      return false;
+    }
+    return (window.scrollY / denominator) * 100 > 10;
+  }, []);
+  const [scrolled, setScrolled] = useState(initialScrolled);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const denominator = document.body.scrollHeight - window.innerHeight;
+      if (denominator <= 0) {
         setScrolled(false);
+        return;
       }
+      const scrollPercentage = (window.scrollY / denominator) * 100;
+      setScrolled(scrollPercentage > 10);
     };
-  useLayoutEffect(() => {
-    handleScroll();
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);

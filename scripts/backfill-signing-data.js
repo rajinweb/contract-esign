@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
@@ -112,8 +111,8 @@ async function main() {
           if (Object.prototype.hasOwnProperty.call(field, 'pageRect')) {
             stripped = true;
           }
-          // eslint-disable-next-line no-unused-vars
           const { pageRect, ...rest } = field;
+          void pageRect;
           return rest;
         });
         if (stripped) {

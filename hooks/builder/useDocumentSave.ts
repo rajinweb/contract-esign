@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { areDroppedComponentsEqual, areRecipientsEqual } from '@/utils/comparison';
 import { blobToURL, downloadPdf, mergeFieldsIntoPdf, sanitizeFileName, savePdfBlob } from '@/lib/pdf';
 import { getFieldTypeFromComponentLabel, uploadToServer } from '@/lib/api';
+import { getInMemoryAccessToken } from '@/lib/accessTokenStore';
 import { serializePageRect } from '@/utils/builder/pageRect';
 import { Doc, DocumentFieldType, DroppedComponent, HandleSavePDFOptions, Recipient } from '@/types/types';
 
@@ -130,7 +131,7 @@ export const useDocumentSave = ({
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         };
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        const token = getInMemoryAccessToken();
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }
@@ -307,7 +308,7 @@ export const useDocumentSave = ({
         }
 
         const headers: Record<string, string> = {};
-        const token = typeof window !== 'undefined' ? localStorage.getItem('AccessToken') : null;
+        const token = getInMemoryAccessToken();
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }

@@ -1,17 +1,14 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     rules: {
       // Temporary baseline easing for legacy codepaths.
       "@typescript-eslint/no-explicit-any": "warn",
@@ -19,8 +16,19 @@ const eslintConfig = [
       "@typescript-eslint/no-require-imports": "warn",
       "@typescript-eslint/no-wrapper-object-types": "warn",
       "@next/next/no-html-link-for-pages": "warn",
-      "react/no-unescaped-entities": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/incompatible-library": "warn",
       "prefer-const": "warn",
+    },
+  },
+  {
+    files: ["scripts/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ];

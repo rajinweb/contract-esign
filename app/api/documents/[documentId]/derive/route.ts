@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import connectDB from '@/utils/db';
 import { getAuthSession } from '@/lib/api-helpers';
-import DocumentModel from '@/models/Document';
+import DocumentModel, { IDocumentRecipient, IVersionDoc } from '@/models/Document';
 import AuditLogModel from '@/models/AuditLog';
 import { getLatestPreparedVersion } from '@/lib/signing-utils';
 import { copyObject, getRegion } from '@/lib/s3';
 
 export const runtime = 'nodejs';
 
-function buildDerivedRecipients(recipients: any[]) {
+function buildDerivedRecipients(recipients: unknown[]) {
   return recipients.map((recipient) => {
-    const base = recipient?.toObject ? recipient.toObject() : { ...recipient };
+    const source = recipient as IDocumentRecipient & { toObject?: () => IDocumentRecipient };
+    const base = typeof source?.toObject === 'function' ? source.toObject() : { ...source };
     return {
       ...base,
       signingToken: crypto.randomBytes(32).toString('hex'),
@@ -56,9 +57,9 @@ export async function POST(
     }
 
     const latestPrepared = getLatestPreparedVersion(sourceDocument.versions || []);
-    const fallbackOriginal = sourceDocument.versions.find((v: any) => v.label === 'original');
+    const fallbackOriginal = sourceDocument.versions.find((v: IVersionDoc) => v.label === 'original');
     const currentVersion = sourceDocument.versions.find(
-      (v: any) => v.version === sourceDocument.currentVersion
+      (v: IVersionDoc) => v.version === sourceDocument.currentVersion
     );
     const sourceVersion = latestPrepared || fallbackOriginal || currentVersion;
 

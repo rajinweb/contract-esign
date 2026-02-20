@@ -14,8 +14,8 @@ export interface Template {
     filePath: string;
     fileSize?: number;
     pageCount?: number;
-    fields?: any[];
-    defaultSigners?: any[];
+    fields?: unknown[];
+    defaultSigners?: unknown[];
     tags?: string[];
     createdAt: Date;
     duplicateCount?: number;
@@ -126,7 +126,7 @@ export function useTemplates() {
                 let errorPayload;
                 try {
                     errorPayload = await response.json();
-                } catch (e) {
+                } catch {
                     throw new Error('Failed to create template and could not parse error response.');
                 }
                 throw new Error(errorPayload.message || 'Failed to create template');
@@ -160,7 +160,7 @@ export function useTemplates() {
                 let errorPayload;
                 try {
                     errorPayload = await response.json();
-                } catch (e) {
+                } catch {
                     throw new Error('Failed to duplicate template and could not parse error response.');
                 }
                 throw new Error(errorPayload.message || 'Failed to duplicate template');
@@ -278,7 +278,7 @@ export function useTemplates() {
                 let errorPayload;
                 try {
                     errorPayload = await response.json();
-                } catch (e) {
+                } catch {
                     throw new Error('Failed to restore template and could not parse error response.');
                 }
                 throw new Error(errorPayload.message || 'Failed to restore template');
@@ -320,7 +320,7 @@ export function useTemplates() {
                 let errorPayload;
                 try {
                     errorPayload = await response.json();
-                } catch (e) {
+                } catch {
                     // If JSON parsing fails, the response might not be JSON.
                     // We'll throw a generic error, but in a real app, you might want to handle this differently.
                     throw new Error('Failed to create document and could not parse error response.');
@@ -367,7 +367,7 @@ export function useTemplates() {
                 let errorPayload;
                 try {
                     errorPayload = await response.json();
-                } catch (e) {
+                } catch {
                     throw new Error('Failed to upload template and could not parse error response.');
                 }
                 throw new Error(errorPayload.message || 'Failed to upload template');

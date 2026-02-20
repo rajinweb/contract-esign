@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface DropdownPortalProps {
@@ -9,20 +9,18 @@ interface DropdownPortalProps {
 }
 
 const DropdownPortal: React.FC<DropdownPortalProps> = ({ children, targetId, dropdown, onClose }) => {
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Update position whenever dropdown or target changes
-  useEffect(() => {
+  const position = useMemo(() => {
+    if (typeof window === 'undefined' || !dropdown) return null;
     const targetElement = document.getElementById(targetId);
-    if (targetElement) {
-      const rect = targetElement.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width
-      });
-    }
+    if (!targetElement) return null;
+    const rect = targetElement.getBoundingClientRect();
+    return {
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+    };
   }, [targetId, dropdown]);
 
   // Handle click outside
@@ -46,7 +44,7 @@ const DropdownPortal: React.FC<DropdownPortalProps> = ({ children, targetId, dro
     };
   }, [dropdown, targetId, onClose]);
 
-  if (typeof window === 'undefined' || !dropdown) return null;
+  if (typeof window === 'undefined' || !dropdown || !position) return null;
 
   return createPortal(
     <div

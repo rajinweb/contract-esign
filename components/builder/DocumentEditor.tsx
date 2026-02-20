@@ -2,10 +2,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
-// Third-party
-import { pdfjs } from "react-pdf";
-import { initializePdfWorker } from '@/utils/pdfjsSetup';
-
 // Project utils & types
 import { DroppingField, DroppedComponent, Recipient, DocumentField, IDocument, Doc } from '@/types/types';
 
@@ -59,9 +55,6 @@ export interface EditorProps {
   isPreviewOnly?: boolean;
 }
 
-// Initialize PDF worker (centralized setup)
-initializePdfWorker(pdfjs);
-
 const DocumentEditor: React.FC<EditorProps> = ({
   resourceId,
   documentId: documentIdProp,
@@ -83,6 +76,21 @@ const DocumentEditor: React.FC<EditorProps> = ({
 }) => {
   // Support both legacy documentId prop and new resourceId prop
   const propDocumentId = resourceId ?? documentIdProp ?? null;
+  const templateInitialComponents = useMemo(() => {
+    if (!isTemplateEditor || !propDocumentId) {
+      return [] as DroppedComponent[];
+    }
+    const usedIds = new Set<number>();
+    return Array.isArray(initialFields) && initialFields.length > 0
+      ? dedupeFieldsById(initialFields).map((field) =>
+          mapFieldToDroppedComponent(field, usedIds)
+        )
+      : [];
+  }, [initialFields, isTemplateEditor, propDocumentId]);
+  const templateInitialElementId = useMemo(
+    () => Math.max(0, ...templateInitialComponents.map((component) => component.id)) + 1,
+    [templateInitialComponents]
+  );
   // ========= Context =========
   const {
     selectedFile: contextSelectedFile,
@@ -134,7 +142,7 @@ const DocumentEditor: React.FC<EditorProps> = ({
   // ========= Drag & Drop =========
   const [draggingComponent, setDraggingComponent] = useState<DroppingField | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [elementId, setElementId] = useState(0);
+  const [elementId, setElementId] = useState<number>(() => templateInitialElementId);
 
   // ========= UI State =========
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +181,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
     setShowAddRecipients(true);
   }, []);
   // ========= Refs =========
-  const draggingEle = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const textFieldRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
   const templateEditorInitializedRef = useRef(false);
@@ -253,7 +260,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
     setRecipients,
     draggingComponent,
     setDraggingComponent,
-    draggingEle,
     setPosition,
     elementId,
     setElementId,
@@ -327,24 +333,13 @@ const DocumentEditor: React.FC<EditorProps> = ({
     if (!isTemplateEditor) return;
     if (templateEditorInitializedRef.current) return;
     if (!propDocumentId) return;
-
-    const usedIds = new Set<number>();
-    const mappedInitialFields =
-      Array.isArray(initialFields) && initialFields.length > 0
-        ? dedupeFieldsById(initialFields).map((field) =>
-            mapFieldToDroppedComponent(field, usedIds)
-          )
-        : [];
-
-    setDroppedComponents(mappedInitialFields);
-    resetHistoryWithState(mappedInitialFields);
-    const maxId = Math.max(0, ...mappedInitialFields.map((component) => component.id));
-    setElementId(maxId + 1);
+    setDroppedComponents(templateInitialComponents);
+    resetHistoryWithState(templateInitialComponents);
 
     const baselineName = (initialDocumentName ?? documentName).trim();
     if (baselineName) {
       markSavedState({
-        components: mappedInitialFields,
+        components: templateInitialComponents,
         name: baselineName,
         recipients: templateInitialRecipients,
       });
@@ -353,12 +348,11 @@ const DocumentEditor: React.FC<EditorProps> = ({
   }, [
     isTemplateEditor,
     propDocumentId,
-    initialFields,
+    templateInitialComponents,
     initialDocumentName,
     documentName,
     setDroppedComponents,
     resetHistoryWithState,
-    setElementId,
     templateInitialRecipients,
     markSavedState,
   ]);
@@ -486,7 +480,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
           documentName={documentName}
           selectedFile={selectedFile}
           droppedComponents={droppedComponents}
-          recipients={recipients}
           pages={pages}
           documentRef={documentRef}
           pageRefs={pageRefs}
@@ -515,7 +508,6 @@ const DocumentEditor: React.FC<EditorProps> = ({
         setDraggingComponent={setDraggingComponent}
         mouseDownOnField={mouseDownOnField}
         handleAddRecipients={handleAddRecipients}
-        draggingEle={draggingEle}
         position={position}
         imageRef={imageRef}
         onImgUpload={onImgUpload}

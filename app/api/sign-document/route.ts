@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/utils/db';
 import DocumentModel from '@/models/Document';
+import type { IDocumentRecipient } from '@/models/Document';
+import type { DocumentField, FieldOwner } from '@/types/types';
 import { updateDocumentStatus } from '@/lib/statusLogic';
 import { mergeFieldsIntoPdfServer } from '@/lib/pdf';
 import { getObjectStream, putObjectStream, getRegion } from '@/lib/s3';
@@ -12,6 +14,20 @@ import { buildSignedFieldRecords, deleteSignedFieldRecords, upsertSignedFieldRec
 import SignatureModel from '@/models/Signature';
 import { normalizeFieldOwner, normalizeFields } from '@/lib/field-normalization';
 
+type LooseField = Partial<DocumentField> & {
+    id?: string;
+    fieldId?: string;
+    recipientId?: string | null;
+    value?: unknown;
+    fieldOwner?: FieldOwner | string;
+};
+
+type SignatureRecord = {
+    fieldId?: string;
+    version?: number;
+    signedAt?: Date | string;
+    fieldValue?: string;
+};
 
 export async function POST(req: NextRequest) {
     try {
@@ -38,7 +54,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, message }, { status: 409 });
         }
 
-        const recipient = document.recipients.find((r: { signingToken: any; }) => r.signingToken === token);
+        const recipient = document.recipients.find((r: { signingToken: string; }) => r.signingToken === token);
         if (!recipient)
             return NextResponse.json({ success: false, message: 'Recipient not found' }, { status: 404 });
 
@@ -68,20 +84,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, message: 'Signing base version is stale. Please refresh.' }, { status: 409 });
         }
         const newVersionNumber = (document.currentVersion ?? baseVersionNumber) + 1;
-        const recipientsAfterSign = document.recipients.map((r: any) =>
+        const recipientsAfterSign = document.recipients.map((r: IDocumentRecipient) =>
           r.id === recipient.id ? { ...r, status: 'signed' } : r
         );
-        const allRecipientsSigned = recipientsAfterSign.every((r: any) => r.status === 'signed');
+        const allRecipientsSigned = recipientsAfterSign.every((r: IDocumentRecipient) => r.status === 'signed');
         const newVersionLabel = allRecipientsSigned ? 'signed_final' : `signed_by_order_${recipient.order}`;
         const signedAt = new Date();
         const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
         const userAgent = req.headers.get('user-agent') ?? undefined;
         const signedRecipientIds = new Set(
             document.recipients
-                .filter((r: any) => r?.status === 'signed' || r?.status === 'approved')
-                .map((r: any) => r.id)
+                .filter((r: IDocumentRecipient) => r?.status === 'signed' || r?.status === 'approved')
+                .map((r: IDocumentRecipient) => r.id)
         );
-        const hasForbiddenForeignValues = (fields || []).some((field: any) => {
+        const hasForbiddenForeignValues = (fields || []).some((field: LooseField) => {
             const owner = normalizeFieldOwner(field);
             if (owner === 'me') return false;
             const value = field?.value;
@@ -95,19 +111,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, message: 'Fields include values for other recipients.' }, { status: 400 });
         }
         const preparedFields = normalizeFields(Array.isArray(preparedVersion?.fields) ? preparedVersion.fields : []);
-        const incomingValueMap = new Map<string, any>();
-        (fields || []).forEach((field: any) => {
+        const incomingValueMap = new Map<string, unknown>();
+        (fields || []).forEach((field: LooseField) => {
             const fieldId = String(field?.id ?? field?.fieldId ?? '');
             if (!fieldId) return;
             incomingValueMap.set(fieldId, field?.value);
         });
         const recipientFields = preparedFields
-            .filter((field: any) => {
+            .filter((field) => {
                 const owner = normalizeFieldOwner(field);
                 if (owner === 'me') return false;
                 return field?.recipientId === recipient.id;
             })
-            .map((field: any) => {
+            .map((field) => {
                 const fieldId = String(field?.id ?? field?.fieldId ?? '');
                 const incomingValue = fieldId ? incomingValueMap.get(fieldId) : undefined;
                 return {
@@ -116,14 +132,14 @@ export async function POST(req: NextRequest) {
                 };
             });
         const ownerPrefilledFields = preparedFields
-            .filter((field: any) => normalizeFieldOwner(field) === 'me')
-            .filter((field: any) => {
+            .filter((field) => normalizeFieldOwner(field) === 'me')
+            .filter((field) => {
                 const value = field?.value;
                 return value !== undefined && value !== null && String(value).trim() !== '';
             });
         const fieldsToRenderOnPdf = [...ownerPrefilledFields, ...recipientFields];
         const eventFields = await Promise.all(
-            recipientFields.map(async (field: any) => ({
+            recipientFields.map(async (field) => ({
                 fieldId: String(field.id),
                 fieldHash: await sha256Buffer(Buffer.from(`${String(field.id)}:${field.value ?? ''}`)),
             }))
@@ -258,17 +274,22 @@ export async function POST(req: NextRequest) {
 
             // 🔟 Sequential signing: advance to next order only if using sequential mode
             if (document.signingMode === 'sequential') {
-                const nextOrder = getNextSequentialOrder(document.recipients);
-                if (nextOrder !== null) {
-                    const nextRecipients = document.recipients.filter(
-                        (r: any) => r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
+                    const nextOrder = getNextSequentialOrder(document.recipients);
+                    if (nextOrder !== null) {
+                        const nextRecipients = document.recipients.filter(
+                        (r: IDocumentRecipient) => r.role !== 'viewer' && r.order === nextOrder && r.status === 'pending'
                     );
-                    nextRecipients.forEach((r: any) => {
+                    nextRecipients.forEach((r: IDocumentRecipient) => {
                         r.status = 'sent';
                     });
                     for (const nextRec of nextRecipients) {
                         try {
-                            await sendSigningRequestEmail(nextRec, document as any, undefined, nextRec.signingToken);
+                            await sendSigningRequestEmail(
+                                nextRec,
+                                document as unknown as Parameters<typeof sendSigningRequestEmail>[1],
+                                undefined,
+                                nextRec.signingToken
+                            );
                         } catch (err) {
                             console.error('Email failed:', err);
                         }
@@ -363,8 +384,8 @@ export async function GET(req: NextRequest) {
         // No per-field privacy enforcement (feature removed)
 
         const signedRecipientIds = document.recipients
-            .filter((r: any) => r?.status === 'signed' || r?.status === 'approved')
-            .map((r: any) => r.id)
+            .filter((r: IDocumentRecipient) => r?.status === 'signed' || r?.status === 'approved')
+            .map((r: IDocumentRecipient) => r.id)
             .filter(Boolean);
         const allowedRecipientIds =
             signedRecipientIds.length > 0 ? signedRecipientIds : (recipient?.id ? [recipient.id] : []);
@@ -378,14 +399,15 @@ export async function GET(req: NextRequest) {
             if (signedFieldRecords.length > 0) {
                 const fieldValueMap = new Map<string, { value: string; version: number; signedAt: number }>();
                 for (const record of signedFieldRecords) {
-                    const fieldId = String((record as any).fieldId ?? '');
+                    const typedRecord = record as SignatureRecord;
+                    const fieldId = String(typedRecord.fieldId ?? '');
                     if (!fieldId) continue;
-                    const version = typeof (record as any).version === 'number' ? (record as any).version : -1;
-                    const signedAt = (record as any).signedAt ? new Date((record as any).signedAt).getTime() : 0;
+                    const version = typeof typedRecord.version === 'number' ? typedRecord.version : -1;
+                    const signedAt = typedRecord.signedAt ? new Date(typedRecord.signedAt).getTime() : 0;
                     const existing = fieldValueMap.get(fieldId);
                     if (!existing || version > existing.version || (version === existing.version && signedAt > existing.signedAt)) {
                         fieldValueMap.set(fieldId, {
-                            value: String((record as any).fieldValue ?? ''),
+                            value: String(typedRecord.fieldValue ?? ''),
                             version,
                             signedAt,
                         });
@@ -393,7 +415,7 @@ export async function GET(req: NextRequest) {
                 }
 
                 if (fieldValueMap.size > 0) {
-                    fields = fields.map((field: any) => {
+                    fields = fields.map((field: LooseField) => {
                         const fieldId = String(field?.id ?? '');
                         if (!fieldId) return field;
                         const signedValue = fieldValueMap.get(fieldId);

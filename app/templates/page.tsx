@@ -5,9 +5,10 @@ import { Templates  } from "@/components/templates/Templates";
 import useContextStore from "@/hooks/useContextStore";
 import { useTemplates } from "@/hooks/useTemplates";
 import { usePathname } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 
 export default function TemplatesPage() {
+    const pathname = usePathname();
     const {searchQuery, setSearchQuery, selectedCategory, setSelectedCategory} = useContextStore();
     const {
         templates,
@@ -15,7 +16,6 @@ export default function TemplatesPage() {
         error,
         fetchTemplates,
         duplicateTemplate,
-        deleteTemplate,
         createDocumentFromTemplate,
         trashTemplate,
     } = useTemplates();
@@ -23,7 +23,7 @@ export default function TemplatesPage() {
     return (
         <Suspense fallback={<div>Loading templates...</div>}>
             <>
-              {usePathname() =='/templates' && 
+              {pathname === '/templates' && 
               <div className="m-auto container max-w-7xl p-8 mt-14">
               <h1 className="text-xl font-bold">Templates</h1>
               <p className="text-gray-600 my-2">Manage, and organize your document templates</p>
@@ -44,7 +44,6 @@ export default function TemplatesPage() {
                 duplicateTemplate={duplicateTemplate}
                 searchQuery={searchQuery}
                 selectedCategory={selectedCategory}
-                deleteTemplate={deleteTemplate}
                 trashTemplate={trashTemplate}
                 createDocumentFromTemplate={createDocumentFromTemplate}
             />

@@ -1,10 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AddContactModal from '@/components/contacts/AddContactModal';
 import ContactList from '@/components/contacts/ContactList';
 import BulkImportModal from '@/components/contacts/BulkImportModal';
 import DeleteModal from '@/components/contacts/DeleteModal';
-import toast from 'react-hot-toast';
 import useContextStore from '@/hooks/useContextStore';
 import { useContactsStore } from '@/hooks/useContactsStore';
 import { Contact } from '@/types/types';
@@ -16,12 +15,10 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
     loading,
     addContact,
     updateContact,
-    deleteContact,
     deleteContacts,
     revalidateContacts,
   } = useContactsStore();
 
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -39,18 +36,16 @@ const Contacts = ({ searchQuery }: { searchQuery: string }) => {
     };
   }, [revalidateContacts]);
 
-  // Filter contacts based on search query
-  useEffect(() => {
+  const filteredContacts = useMemo(() => {
     if (!searchQuery?.trim()) {
-      setFilteredContacts(contacts);
-    } else {
-      const filtered = contacts.filter((contact) =>
-        `${contact.firstName} ${contact.lastName} ${contact.email} ${contact.companyName || ''}`
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      );
-      setFilteredContacts(filtered);
+      return contacts;
     }
+    const normalizedQuery = searchQuery.toLowerCase();
+    return contacts.filter((contact) =>
+      `${contact.firstName} ${contact.lastName} ${contact.email} ${contact.companyName || ''}`
+        .toLowerCase()
+        .includes(normalizedQuery)
+    );
   }, [contacts, searchQuery]);
 
   const handleContactAdded = (contact: Contact) => {

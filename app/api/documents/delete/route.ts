@@ -9,6 +9,18 @@ import { deleteObject } from '@/lib/s3';
 import { normalizeIp } from '@/lib/signing-utils';
 import { hasCompletionEvidence } from '@/lib/document-guards';
 
+type AuditLogEntry = {
+  documentId: unknown;
+  actor: string;
+  action: string;
+  metadata: Record<string, unknown>;
+};
+
+type DocumentSoftDeleteUpdate = {
+  $set: Record<string, unknown>;
+  $push?: Record<string, unknown>;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthSession(req);
@@ -34,7 +46,7 @@ export async function POST(req: NextRequest) {
     const { ip, ipUnavailableReason } = normalizeIp(req.headers.get('x-forwarded-for'));
     const userAgent = req.headers.get('user-agent') ?? undefined;
 
-    const auditLogs: any[] = [];
+    const auditLogs: AuditLogEntry[] = [];
 
     // Soft delete: keep status unchanged, record statusBeforeDelete based on completion evidence.
     // If in_progress, void before trashing to stop the signing flow.
@@ -44,7 +56,7 @@ export async function POST(req: NextRequest) {
         (hasCompletionEvidence(doc) ? 'completed' : getUpdatedDocumentStatus(doc.toObject()));
       const shouldVoid = doc.status === 'in_progress';
 
-      const update: any = {
+      const update: DocumentSoftDeleteUpdate = {
         $set: {
           deletedAt,
           updatedAt: deletedAt,
@@ -80,7 +92,10 @@ export async function POST(req: NextRequest) {
       };
     });
     if (bulkOps.length > 0) {
-      await DocumentModel.bulkWrite(bulkOps, { ordered: false });
+      await DocumentModel.bulkWrite(
+        bulkOps as Parameters<typeof DocumentModel.bulkWrite>[0],
+        { ordered: false }
+      );
     }
     if (auditLogs.length > 0) {
       await AuditLogModel.insertMany(auditLogs, { ordered: false });
