@@ -236,12 +236,26 @@ export default function ProfilePage() {
           <Address
             user={user}
             isSaving={isSaving}
-            handleSave={async (updatedAddress) => {
-              if (!user) return Promise.resolve();
-              // Update local state
-              setUser(prev => prev ? { ...prev, address: { ...prev.address, ...updatedAddress } } : null)
-              // Save to backend (pass as Partial<User>)
-              return handleSave({ address: { ...user.address, ...updatedAddress } });
+            handleSave={async (updatedUser) => {
+              if (!user) return;
+
+              // Optimistically update the user state for a better UX
+              if (updatedUser.address) {
+                setUser((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        address: {
+                          ...prev.address,
+                          ...updatedUser.address,
+                        },
+                      }
+                    : null
+                );
+              }
+
+              // Pass the user update to the main handler
+              return handleSave(updatedUser);
             }}
           />
           <div className="xl:col-span-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
