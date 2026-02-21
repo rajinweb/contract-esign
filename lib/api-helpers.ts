@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { NextRequest } from 'next/server';
 
 import connectDB from '@/utils/db';
-import { getAccessTokenFromRequest, getGuestIdFromReq, hashRefreshToken } from '@/lib/auth';
+import { getAccessTokenFromRequest, getGuestIdFromReq, hashRefreshToken, REFRESH_TOKEN_COOKIE_NAME } from '@/lib/auth';
 import { verifyAccessToken, verifyRefreshToken } from '@/lib/jwt';
 import { isUserAllowed } from '@/lib/user-status';
 import SessionModel from '@/models/Session';
@@ -83,11 +83,22 @@ export async function getAuthSession(
 ): Promise<string | null> {
   await connectDB();
   try {
+    // 1) Try bearer access token from Authorization header
     const accessUserId = await resolveUserIdFromAccessToken(req);
     if (accessUserId) {
       return accessUserId;
     }
 
+    // 2) Fallback: try refresh token from cookie to keep user logged in across reloads
+    const refreshToken = req.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
+    if (refreshToken) {
+      const refreshUserId = await getAuthenticatedUserIdFromRefreshToken(refreshToken);
+      if (refreshUserId) {
+        return refreshUserId;
+      }
+    }
+
+    // 3) Optionally allow guest access when enabled
     return options.allowGuest ? getGuestIdFromReq(req) : null;
   } catch {
     return null;

@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { DraggableData } from 'react-rnd';
 import { blobToURL } from '@/lib/pdf';
 import { DroppedComponent, DroppingField, FieldOwner, Recipient, SignatureInitial, User } from '@/types/types';
+import { validateEmail } from '@/utils/utils';
 
 interface UseFieldInteractionsArgs {
   isSigningMode: boolean;
@@ -223,10 +224,13 @@ export const useFieldInteractions = ({
           previousRecipientId = c.assignedRecipientId;
           const recipient = recipients.find(r => r.id === recipientId);
           let data = c.data;
+          let next: DroppedComponent | null = null;
           if (c.component === 'Email' && recipient) {
             data = recipient.email;
+            const emailValid = validateEmail(data);
+            next = { ...c, assignedRecipientId: recipientId, data, ...(emailValid ? { hasError: false } : {}) } as DroppedComponent;
           }
-          return { ...c, assignedRecipientId: recipientId, data };
+          return next ?? { ...c, assignedRecipientId: recipientId, data };
         }
         return c;
       });
