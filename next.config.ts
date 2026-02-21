@@ -1,3 +1,4 @@
+import "dotenv/config";
 import type { NextConfig } from "next";
 
 // Silence baseline-browser-mapping stale data warnings during build.

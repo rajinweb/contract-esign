@@ -81,8 +81,8 @@ export async function getAuthSession(
   req: NextRequest,
   options: AuthSessionOptions = {}
 ): Promise<string | null> {
-  await connectDB();
   try {
+    await connectDB();
     // 1) Try bearer access token from Authorization header
     const accessUserId = await resolveUserIdFromAccessToken(req);
     if (accessUserId) {
@@ -112,9 +112,8 @@ export async function getAuthenticatedUserIdFromRefreshToken(
     return null;
   }
 
-  await connectDB();
-
   try {
+    await connectDB();
     const payload = verifyRefreshToken(refreshToken);
     const refreshTokenHash = hashRefreshToken(refreshToken);
 

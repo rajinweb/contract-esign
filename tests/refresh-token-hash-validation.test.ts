@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAuthenticatedUserIdFromRefreshToken } from '@/lib/api-helpers';
+import { getAuthenticatedUserIdFromRefreshToken } from '../lib/api-helpers';
 
 const {
   verifyRefreshTokenMock,
